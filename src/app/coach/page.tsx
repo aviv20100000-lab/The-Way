@@ -324,7 +324,7 @@ export default function CoachPage() {
 
             {selectedClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={() => setSelectedClient(null)}>
-                <div className="w-full max-w-lg rounded-t-xl bg-white p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
+                <div className="w-full max-w-lg rounded-t-lg bg-white p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
                   <h3 className="text-lg font-semibold text-black-matte">🎯 יעדים של {selectedClient.name}</h3>
 
                   <label className="block">
@@ -367,7 +367,7 @@ export default function CoachPage() {
 
             {dataClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setDataClient(null)}>
-                <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-xl bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+                <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-lg bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-between sticky top-0 bg-white pb-1">
                     <h3 className="font-semibold text-lg text-black-matte">📊 {dataClient.name}</h3>
                     <button onClick={() => setDataClient(null)} className="text-neutral-400 text-2xl leading-none">×</button>

@@ -64,6 +64,7 @@ export default function ClientPage() {
   const [todayCalories, setTodayCalories] = useState(0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
+  const [foodView, setFoodView] = useState<"day" | "week" | "month">("day");
 
   // Weight
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
@@ -526,43 +527,125 @@ export default function ClientPage() {
               )}
             </div>
 
-            {/* My meals history */}
-            {myMeals.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-500">הארוחות שלי</p>
-                {myMeals.map((m) => {
-                  const d = new Date(m.logged_at);
-                  const isExp = expandedMeal === m.id;
-                  return (
-                    <div key={m.id} className="rounded-2xl bg-white shadow-sm overflow-hidden">
-                      <button className="w-full text-right p-4" onClick={() => setExpandedMeal(isExp ? null : m.id)}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-800">
-                              {d.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" })}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                          <span className="font-bold text-orange-500">{m.total_calories} קל'</span>
-                        </div>
-                        {isExp && m.items.length > 0 && (
-                          <div className="mt-3 border-t pt-3 space-y-1">
-                            {m.items.map((it, i) => (
-                              <div key={i} className="flex justify-between text-sm">
-                                <span className="text-gray-700">{it.name} ({it.estimated_weight_g}g)</span>
-                                <span className="text-gray-500">{it.calories} קל'</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </button>
+            {/* Food history — day / week / month */}
+            {myMeals.length > 0 && (() => {
+              const pad = (n: number) => String(n).padStart(2, "0");
+              // Israel-local calendar day key (YYYY-MM-DD) for each meal
+              const toDate = (s: string) => new Date(s.replace(" ", "T") + "Z");
+              const dayKeyOf = (s: string) => toDate(s).toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+
+              // Group meals by day
+              const byDay: Record<string, { total: number; meals: MyMeal[] }> = {};
+              for (const m of myMeals) {
+                const k = dayKeyOf(m.logged_at);
+                (byDay[k] ??= { total: 0, meals: [] });
+                byDay[k].total += m.total_calories || 0;
+                byDay[k].meals.push(m);
+              }
+              const dayKeys = Object.keys(byDay).sort((a, b) => b.localeCompare(a));
+
+              // Week key = Sunday of that week (local calendar math on the day key)
+              const weekStartOf = (ymd: string) => {
+                const d = new Date(ymd + "T00:00:00");
+                d.setDate(d.getDate() - d.getDay());
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+              };
+              const byWeek: Record<string, { total: number; days: Set<string> }> = {};
+              for (const k of dayKeys) {
+                const wk = weekStartOf(k);
+                (byWeek[wk] ??= { total: 0, days: new Set() });
+                byWeek[wk].total += byDay[k].total;
+                byWeek[wk].days.add(k);
+              }
+              const weekKeys = Object.keys(byWeek).sort((a, b) => b.localeCompare(a));
+
+              // Month key YYYY-MM
+              const byMonth: Record<string, { total: number; days: Set<string> }> = {};
+              for (const k of dayKeys) {
+                const mk = k.slice(0, 7);
+                (byMonth[mk] ??= { total: 0, days: new Set() });
+                byMonth[mk].total += byDay[k].total;
+                byMonth[mk].days.add(k);
+              }
+              const monthKeys = Object.keys(byMonth).sort((a, b) => b.localeCompare(a));
+
+              const dayLabel = (ymd: string) =>
+                new Date(ymd + "T00:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "numeric" });
+              const weekLabel = (start: string) => {
+                const s = new Date(start + "T00:00:00");
+                const e = new Date(s); e.setDate(s.getDate() + 6);
+                const f = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}`;
+                return `${f(s)} – ${f(e)}`;
+              };
+              const monthLabel = (ym: string) =>
+                new Date(ym + "-01T00:00:00").toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-500">המעקב שלי</p>
+                    <div className="flex rounded-xl bg-gray-100 p-1 text-xs">
+                      {([["day", "יומי"], ["week", "שבועי"], ["month", "חודשי"]] as const).map(([v, label]) => (
+                        <button key={v} onClick={() => setFoodView(v)}
+                          className={`rounded-lg px-3 py-1.5 font-medium transition ${foodView === v ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400"}`}>
+                          {label}
+                        </button>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+
+                  {foodView === "day" && dayKeys.map((k) => {
+                    const isExp = expandedMeal === k;
+                    return (
+                      <div key={k} className="rounded-2xl bg-white shadow-sm overflow-hidden">
+                        <button className="w-full text-right p-4" onClick={() => setExpandedMeal(isExp ? null : k)}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-800">{dayLabel(k)}</p>
+                              <p className="text-xs text-gray-400">{byDay[k].meals.length} ארוחות</p>
+                            </div>
+                            <span className="font-bold text-orange-500">{byDay[k].total} קל'</span>
+                          </div>
+                          {isExp && (
+                            <div className="mt-3 border-t pt-3 space-y-2">
+                              {byDay[k].meals.map((m) => (
+                                <div key={m.id}>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">{toDate(m.logged_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" })}</span>
+                                    <span className="font-medium text-orange-500">{m.total_calories} קל'</span>
+                                  </div>
+                                  <p className="text-xs text-gray-400">{m.items.map((it) => it.name).join(" · ")}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {foodView === "week" && weekKeys.map((k) => (
+                    <div key={k} className="rounded-2xl bg-white shadow-sm p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-800">שבוע {weekLabel(k)}</p>
+                        <p className="text-xs text-gray-400">ממוצע {Math.round(byWeek[k].total / byWeek[k].days.size)} קל'/יום · {byWeek[k].days.size} ימים</p>
+                      </div>
+                      <span className="font-bold text-orange-500">{byWeek[k].total} קל'</span>
+                    </div>
+                  ))}
+
+                  {foodView === "month" && monthKeys.map((k) => (
+                    <div key={k} className="rounded-2xl bg-white shadow-sm p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-800">{monthLabel(k)}</p>
+                        <p className="text-xs text-gray-400">ממוצע {Math.round(byMonth[k].total / byMonth[k].days.size)} קל'/יום · {byMonth[k].days.size} ימים</p>
+                      </div>
+                      <span className="font-bold text-orange-500">{byMonth[k].total} קל'</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 

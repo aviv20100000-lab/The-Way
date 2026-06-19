@@ -13,8 +13,8 @@ export async function GET() {
   const [mealsRes, goalRes] = await Promise.all([
     db.execute({
       sql: `SELECT id, total_calories, ai_response, logged_at FROM ai_meal_logs
-            WHERE user_id = ? AND logged_at >= datetime('now', '-7 days')
-            ORDER BY logged_at DESC LIMIT 30`,
+            WHERE user_id = ? AND logged_at >= datetime('now', '-35 days')
+            ORDER BY logged_at DESC LIMIT 300`,
       args: [user.id],
     }),
     db.execute({

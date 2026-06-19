@@ -30,6 +30,14 @@ interface Goals {
   daily_water_ml: number;
 }
 
+interface ClientSummary {
+  weights: { weight_kg: number; logged_at: string }[];
+  steps_today: number;
+  water_today: number;
+  meals: { id: string; total_calories: number; logged_at: string; items: { name: string; calories: number; estimated_weight_g: number }[] }[];
+  goals: { target_weight_kg: number | null; daily_calories: number | null; daily_water_ml: number };
+}
+
 export default function CoachPage() {
   const router = useRouter();
   const [tab, setTab] = useState<CoachTab>("clients");
@@ -43,6 +51,8 @@ export default function CoachPage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientGoals, setClientGoals] = useState<Goals>({ target_weight_kg: null, daily_calories: null, daily_water_ml: 2000 });
   const [savingGoals, setSavingGoals] = useState(false);
+  const [dataClient, setDataClient] = useState<Client | null>(null);
+  const [clientData, setClientData] = useState<ClientSummary | null>(null);
 
   // Quotes
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -154,6 +164,13 @@ export default function CoachPage() {
       daily_calories: data.daily_calories,
       daily_water_ml: data.daily_water_ml ?? 2000,
     });
+  }
+
+  async function openClientData(client: Client) {
+    setDataClient(client);
+    setClientData(null);
+    const res = await fetch(`/api/client-summary?userId=${client.id}`);
+    if (res.ok) setClientData(await res.json());
   }
 
   async function saveGoals() {
@@ -283,15 +300,21 @@ export default function CoachPage() {
             )}
 
             {clients.map((c) => (
-              <div key={c.id} className="rounded-2xl bg-white p-4 shadow-sm flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-800">{c.name}</p>
-                  <p className="text-sm text-gray-400" dir="ltr">{c.email}</p>
+              <div key={c.id} className="rounded-2xl bg-white p-4 shadow-sm flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-800 truncate">{c.name}</p>
+                  <p className="text-sm text-gray-400 truncate" dir="ltr">{c.email}</p>
                 </div>
-                <button onClick={() => openClientGoals(c)}
-                  className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600 hover:bg-gray-200">
-                  🎯 יעדים
-                </button>
+                <div className="flex shrink-0 gap-2">
+                  <button onClick={() => openClientData(c)}
+                    className="rounded-xl bg-indigo-100 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-200">
+                    📊 נתונים
+                  </button>
+                  <button onClick={() => openClientGoals(c)}
+                    className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600 hover:bg-gray-200">
+                    🎯 יעדים
+                  </button>
+                </div>
               </div>
             ))}
 
@@ -334,6 +357,98 @@ export default function CoachPage() {
                       {savingGoals ? "שומר..." : "שמור יעדים"}
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {dataClient && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setDataClient(null)}>
+                <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl bg-gray-50 p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between sticky top-0 bg-gray-50 pb-1">
+                    <h3 className="font-bold text-lg">📊 {dataClient.name}</h3>
+                    <button onClick={() => setDataClient(null)} className="text-gray-400 text-2xl leading-none">×</button>
+                  </div>
+
+                  {!clientData ? (
+                    <p className="text-center text-gray-400 py-8">טוען נתונים...</p>
+                  ) : (
+                    <>
+                      {/* Weight */}
+                      <div className="rounded-2xl bg-white p-4 shadow-sm">
+                        <p className="text-sm font-medium text-gray-500 mb-2">⚖️ משקל</p>
+                        {clientData.weights.length === 0 ? (
+                          <p className="text-sm text-gray-400">עוד לא נשקל</p>
+                        ) : (
+                          <>
+                            <div className="flex items-end gap-2 mb-3">
+                              <span className="text-3xl font-bold text-gray-800">{clientData.weights[0].weight_kg}</span>
+                              <span className="text-gray-400 mb-1">ק"ג</span>
+                              {clientData.weights.length > 1 && (() => {
+                                const diff = clientData.weights[0].weight_kg - clientData.weights[1].weight_kg;
+                                return (
+                                  <span className={`mb-1 text-sm font-medium ${diff < 0 ? "text-green-500" : diff > 0 ? "text-red-400" : "text-gray-400"}`}>
+                                    {diff < 0 ? "▼" : diff > 0 ? "▲" : ""}{Math.abs(diff).toFixed(1)}
+                                  </span>
+                                );
+                              })()}
+                              {clientData.goals.target_weight_kg && (
+                                <span className="mr-auto text-sm text-green-600 mb-1">יעד: {clientData.goals.target_weight_kg}</span>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              {clientData.weights.map((w, i) => (
+                                <div key={i} className="flex justify-between text-sm border-b border-gray-50 py-1">
+                                  <span className="text-gray-400">{new Date(w.logged_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" })}</span>
+                                  <span className="font-medium text-gray-700">{w.weight_kg} ק"ג</span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Steps + Water today */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl bg-white p-4 shadow-sm text-center">
+                          <p className="text-xs text-gray-400 mb-1">👟 צעדים היום</p>
+                          <p className="text-2xl font-bold text-indigo-600">{clientData.steps_today.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white p-4 shadow-sm text-center">
+                          <p className="text-xs text-gray-400 mb-1">💧 מים היום</p>
+                          <p className="text-2xl font-bold text-blue-500">{(clientData.water_today / 1000).toFixed(1)}<span className="text-sm">L</span></p>
+                          <p className="text-xs text-gray-300">יעד {(clientData.goals.daily_water_ml / 1000).toFixed(1)}L</p>
+                        </div>
+                      </div>
+
+                      {/* Meals */}
+                      <div className="rounded-2xl bg-white p-4 shadow-sm">
+                        <p className="text-sm font-medium text-gray-500 mb-2">🍽️ ארוחות (7 ימים)</p>
+                        {clientData.meals.length === 0 ? (
+                          <p className="text-sm text-gray-400">אין ארוחות שמורות</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {clientData.meals.map((m) => (
+                              <div key={m.id} className="rounded-xl bg-gray-50 px-3 py-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(m.logged_at).toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" })}
+                                    {" • "}
+                                    {new Date(m.logged_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                                  </span>
+                                  <span className="font-bold text-orange-500">{m.total_calories} קל'</span>
+                                </div>
+                                {m.items.length > 0 && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {m.items.map((it) => `${it.name} (${it.estimated_weight_g}g)`).join(" · ")}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}

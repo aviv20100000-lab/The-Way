@@ -52,6 +52,7 @@ export default function ClientPage() {
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [foodError, setFoodError] = useState("");
   const [itemGrams, setItemGrams] = useState<number[]>([]);
+  const [mealSaved, setMealSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // Weight
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
@@ -142,6 +143,7 @@ export default function ClientPage() {
 
   useEffect(() => {
     setItemGrams(aiResult ? aiResult.items.map((it) => it.estimated_weight_g) : []);
+    setMealSaved("idle");
   }, [aiResult]);
 
   async function logout() {
@@ -189,6 +191,20 @@ export default function ClientPage() {
       setFoodError(e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
     }
     setAnalyzing(false);
+  }
+
+  async function logMeal(items: { name: string; calories: number; estimated_weight_g: number }[], total: number) {
+    setMealSaved("saving");
+    try {
+      const res = await fetch("/api/log-meal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items, total_calories: total }),
+      });
+      setMealSaved(res.ok ? "saved" : "error");
+    } catch {
+      setMealSaved("error");
+    }
   }
 
   async function addWater(ml: number) {
@@ -435,8 +451,31 @@ export default function ClientPage() {
                   <p className="text-sm text-gray-500 text-center italic">"{aiResult.notes}"</p>
                 )}
 
+                {mealSaved === "saved" ? (
+                  <div className="rounded-xl bg-green-50 border border-green-100 py-3 text-center font-semibold text-green-700">
+                    ✅ נשמר ונשלח למאמן!
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => logMeal(
+                      aiResult.items.map((it, i) => ({
+                        name: it.name,
+                        calories: scaled[i].calories,
+                        estimated_weight_g: grams[i],
+                      })),
+                      total,
+                    )}
+                    disabled={mealSaved === "saving"}
+                    className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+                    {mealSaved === "saving" ? "שומר..." : "✅ שמור ושלח למאמן"}
+                  </button>
+                )}
+                {mealSaved === "error" && (
+                  <p className="text-center text-sm text-red-500">שגיאה בשמירה, נסה שוב</p>
+                )}
+
                 <button onClick={() => { setAiResult(null); setFoodError(""); }}
-                  className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700">
+                  className="w-full rounded-xl bg-indigo-100 py-3 font-semibold text-indigo-700 hover:bg-indigo-200">
                   צלם עוד
                 </button>
               </div>

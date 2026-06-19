@@ -65,6 +65,10 @@ export default function CoachPage() {
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState("");
 
+  // Notifications for the coach himself
+  const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
+  const [isPwa, setIsPwa] = useState(false);
+
   const loadClients = useCallback(async () => {
     const res = await fetch("/api/clients");
     if (res.status === 401 || res.status === 403) { router.push("/login"); return; }
@@ -91,7 +95,30 @@ export default function CoachPage() {
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.name) setCoachName(d.name); });
     loadClients();
+    setIsPwa(window.matchMedia("(display-mode: standalone)").matches);
+    if ("Notification" in window) {
+      const perm = Notification.permission as string;
+      setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
+    }
   }, [loadClients]);
+
+  async function enableNotifications() {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+    const permission = await Notification.requestPermission();
+    setNotifStatus(permission as "granted" | "denied");
+    if (permission !== "granted") return;
+
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    });
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sub),
+    });
+  }
 
   useEffect(() => {
     if (tab === "quotes") loadQuotes();
@@ -195,6 +222,32 @@ export default function CoachPage() {
 
         {tab === "clients" && (
           <div className="space-y-4">
+            {/* Notifications for the coach */}
+            {notifStatus === "granted" ? (
+              <div className="flex items-center gap-3 rounded-2xl bg-green-50 p-4 border border-green-100">
+                <span className="text-2xl">✅</span>
+                <p className="font-semibold text-green-700">התראות דלוקות — מעולה!</p>
+              </div>
+            ) : !isPwa ? (
+              <div className="rounded-2xl bg-amber-50 p-4 border border-amber-200 text-right">
+                <p className="font-semibold text-amber-800 mb-2">📲 רוצה לקבל התראות?</p>
+                <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
+                  <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
+                  <li>בחר <strong>&quot;הוסף למסך הבית&quot;</strong></li>
+                  <li>פתח מהמסך הבית ולחץ על כפתור ההתראות</li>
+                </ol>
+              </div>
+            ) : (
+              <button onClick={enableNotifications}
+                className="flex w-full items-center gap-3 rounded-2xl bg-indigo-600 p-4 text-right shadow-sm">
+                <span className="text-2xl">🔔</span>
+                <div>
+                  <p className="font-semibold text-white text-lg">הפעל התראות</p>
+                  <p className="text-xs text-indigo-200">כדי לקבל עדכונים מהאפליקציה</p>
+                </div>
+              </button>
+            )}
+
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">המתאמנים שלך</h2>
               <button onClick={() => setShowAddClient(true)}

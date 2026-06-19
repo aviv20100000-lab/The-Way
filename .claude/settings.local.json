@@ -10,15 +10,9 @@
       "Bash(curl -s http://localhost:3000/api/auth/me -w \"\\\\n%{http_code}\")",
       "Bash(npm uninstall *)",
       "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)",
-      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"coach@theway.com\",\"password\":\"123456\"}' -c /tmp/cookies.txt)",
-      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"dani@theway.com\",\"password\":\"123456\"}' -c /tmp/cookies2.txt)",
-      "Bash(curl -s http://localhost:3000/api/water -b /tmp/cookies2.txt)",
-      "Bash(curl -s http://localhost:3000/api/quotes -b /tmp/cookies2.txt)",
-      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"coach@theway.com\",\"password\":\"123456\"}')",
       "mcp__visualize__read_me",
       "mcp__visualize__show_widget",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\owner\\\\OneDrive\\\\שולחן העבודה\\\\The Way\\\\.vercel\" -Force | ForEach-Object { Write-Host $_.Name }; Get-Content \"C:\\\\Users\\\\owner\\\\OneDrive\\\\שולחן העבודה\\\\The Way\\\\.vercel\\\\project.json\" -ErrorAction SilentlyContinue)",
-      "Bash(curl -s -c - -X POST https://the-way-app-two.vercel.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"coach@theway.com\",\"password\":\"123456\"}' -D -)",
       "Bash(awk '{print $2}')",
       "WebSearch",
       "Bash(node test-escape.mjs)",
@@ -93,7 +87,9 @@
       "Bash(curl -s https://the-way-app-two.vercel.app/_next/static/css/)",
       "Bash(vercel deploy *)",
       "Bash(grep -v \"node_modules\\\\|sql\\\\`\")",
-      "Bash(npm audit *)"
+      "Bash(npm audit *)",
+      "Bash(grep -v \"NEXT_PUBLIC\\\\|process.env\\\\|//\")",
+      "Bash(grep -r '\"[a-zA-Z0-9]\\\\{20,\\\\}\"' src/ --include=\"*.ts\" --include=\"*.tsx\")"
     ]
   }
 }

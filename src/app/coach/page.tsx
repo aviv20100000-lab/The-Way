@@ -523,52 +523,69 @@ export default function CoachPage() {
 
         {tab === "quotes" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-black-matte">ציטוטים מוטיבציוניים</h2>
+            <h2 className="text-lg font-semibold text-black-matte">ציטוטים מוטיבציוניים</h2>
 
-            {/* Send push notification */}
-            <div className="rounded-2xl bg-neutral-100 p-5 border border-neutral-200 space-y-3">
-              <p className="font-semibold text-black-matte">📣 שלח הודעה לכולם</p>
-              <input value={pushTitle} onChange={(e) => setPushTitle(e.target.value)}
-                placeholder="כותרת ההודעה"
-                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte" />
-              <input value={pushBody} onChange={(e) => setPushBody(e.target.value)}
-                placeholder="תוכן ההודעה"
-                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte" />
-              <button onClick={sendPush} disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
-                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
-                {sendingPush ? "שולח..." : "📱 שלח עכשיו"}
+            <div className="rounded-2xl bg-white p-4 shadow-xs space-y-3">
+              <p className="font-semibold text-base text-black-matte">📣 שלח הודעה</p>
+              <input
+                type="text"
+                value={pushTitle}
+                onChange={(e) => setPushTitle(e.target.value)}
+                placeholder="כותרת"
+                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
+              />
+              <input
+                type="text"
+                value={pushBody}
+                onChange={(e) => setPushBody(e.target.value)}
+                placeholder="תוכן"
+                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
+              />
+              <button
+                onClick={sendPush}
+                disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
+                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
+              >
+                {sendingPush ? "שולח..." : "שלח"}
               </button>
               {pushResult && <p className="text-center text-sm text-primary-600 font-medium">{pushResult}</p>}
             </div>
 
-
-            <div className="rounded-2xl bg-white p-5 shadow-card space-y-3">
+            <div className="rounded-2xl bg-white p-4 shadow-xs space-y-3">
               <textarea
                 value={newQuote.text}
                 onChange={(e) => setNewQuote({ ...newQuote, text: e.target.value })}
-                placeholder="כתוב משפט מוטיבציוני..."
+                placeholder="ציטוט..."
                 rows={3}
                 className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte resize-none"
               />
               <input
+                type="text"
                 value={newQuote.author}
                 onChange={(e) => setNewQuote({ ...newQuote, author: e.target.value })}
-                placeholder="מאת (אופציונלי)"
+                placeholder="מחבר"
                 className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
               />
-              <button onClick={addQuote} disabled={addingQuote || !newQuote.text.trim()}
-                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
-                {addingQuote ? "מוסיף..." : "➕ הוסף ציטוט"}
+              <button
+                onClick={addQuote}
+                disabled={addingQuote || !newQuote.text.trim()}
+                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
+              >
+                {addingQuote ? "מוסיף..." : "הוסף"}
               </button>
             </div>
 
-            {quotes.length === 0 && <p className="text-center text-neutral-500 py-4 font-normal">עוד לא הוספת ציטוטים</p>}
+            {quotes.length === 0 && <p className="text-center text-neutral-500 py-4">אין ציטוטים עדיין</p>}
             {quotes.map((q) => (
-              <div key={q.id} className="rounded-2xl bg-white p-4 shadow-card">
-                <p className="text-black-matte leading-relaxed">"{q.text}"</p>
-                {q.author && <p className="text-sm text-neutral-500 mt-1 font-normal">— {q.author}</p>}
-                <button onClick={() => deleteQuote(q.id)}
-                  className="mt-2 text-xs text-red-600 hover:text-red-700 font-normal">🗑️ מחק</button>
+              <div key={q.id} className="rounded-2xl bg-white p-4 shadow-xs">
+                <p className="text-black-matte">"{q.text}"</p>
+                {q.author && <p className="text-sm text-neutral-500 mt-2">— {q.author}</p>}
+                <button
+                  onClick={() => deleteQuote(q.id)}
+                  className="mt-3 text-xs text-red-600 font-normal"
+                >
+                  מחק
+                </button>
               </div>
             ))}
           </div>

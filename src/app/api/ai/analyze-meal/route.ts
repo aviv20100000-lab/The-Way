@@ -4,13 +4,12 @@ import { analyzeFoodPhoto } from "@/lib/anthropic";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { v4 as uuid } from "uuid";
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
-  await initDb();
   const formData = await req.formData();
   const photo = formData.get("photo") as File | null;
 
@@ -32,6 +31,13 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000";
     const analysis = await analyzeFoodPhoto(`${baseUrl}${photoUrl}`);
 
+    const mealId = uuid();
+    db.prepare(`
+      INSERT INTO ai_meal_logs (id, user_id, photo_url, ai_response)
+      VALUES (?, ?, ?, ?)
+    `).run(mealId, user.id, photoUrl, JSON.stringify(analysis));
+
+    // Format response for client
     const items = Array.isArray(analysis) ? analysis : analysis.items || [];
     const totalCalories = items.reduce((sum: number, item: { calories?: number }) => sum + (item.calories || 0), 0);
 
@@ -46,6 +52,7 @@ export async function POST(req: NextRequest) {
       })),
       total_calories: Math.round(totalCalories),
       photo_url: photoUrl,
+      mealId,
     });
   } catch (error) {
     console.error("AI analysis error:", error);

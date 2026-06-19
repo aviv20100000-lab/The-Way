@@ -1,72 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { analyzeStepsScreenshot } from "@/lib/claude";
-import db from "@/lib/db";
-import { ensureSeed } from "@/lib/seed";
-import { v4 as uuid } from "uuid";
+import { extractStepsFromScreenshot } from "@/lib/anthropic";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { v4 as uuid } from "uuid";
+import db, { initDb } from "@/lib/db";
+
+export async function POST(req: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+
+  await initDb();
+  const formData = await req.formData();
+  const screenshot = formData.get("screenshot") as File | null;
+
+  if (!screenshot) {
+    return NextResponse.json({ error: "צריך להעלות סקרינשוט" }, { status: 400 });
+  }
+
+  // Save screenshot
+  const uploadsDir = join(process.cwd(), "public", "uploads");
+  await mkdir(uploadsDir, { recursive: true });
+  const filename = `${uuid()}.jpg`;
+  const buffer = Buffer.from(await screenshot.arrayBuffer());
+  await writeFile(join(uploadsDir, filename), buffer);
+  const screenshotUrl = `/uploads/${filename}`;
+
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000";
+    const steps = await extractStepsFromScreenshot(`${baseUrl}${screenshotUrl}`);
+
+    if (steps === 0) {
+      return NextResponse.json(
+        { error: "לא הצלחתי לקרוא את מספר הצעדים מהסקרינשוט" },
+        { status: 400 }
+      );
+    }
+
+    const logId = uuid();
+    await db.execute({
+      sql: `INSERT INTO steps_logs (id, user_id, steps, screenshot_url, logged_at)
+            VALUES (?, ?, ?, ?, datetime('now'))`,
+      args: [logId, user.id, steps, screenshotUrl],
+    });
+
+    return NextResponse.json({ steps, screenshotUrl });
+  } catch (error) {
+    console.error("Steps analysis error:", error);
+    return NextResponse.json({ error: "שגיאה בקריאת הצעדים" }, { status: 500 });
+  }
+}
 
 export async function GET(req: NextRequest) {
-  await ensureSeed();
-  const session = await getSessionUser();
-  if (!session) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
-  const type = new URL(req.url).searchParams.get("type") || "today";
-  const today = new Date().toISOString().split("T")[0];
-
+  await initDb();
+  const type = req.nextUrl.searchParams.get("type");
+  
   if (type === "leaderboard") {
+    const userRes = await db.execute({
+      sql: "SELECT coach_id, role FROM users WHERE id = ?",
+      args: [user.id],
+    });
+    
+    const userData = userRes.rows[0] as { coach_id: string; role: string };
+    const coachId = userData?.role === "coach" ? user.id : userData?.coach_id;
+    
+    if (!coachId) {
+      return NextResponse.json([]);
+    }
+
+    const today = new Date().toISOString().split("T")[0];
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     const weekStartStr = weekStart.toISOString().split("T")[0];
 
-    let coachId = session.role === "coach" ? session.id : null;
-    if (!coachId) {
-      const r = await db.execute({ sql: "SELECT coach_id FROM users WHERE id = ?", args: [session.id] });
-      coachId = r.rows[0]?.coach_id as string | null;
-    }
-    if (!coachId) return NextResponse.json([]);
+    const lbRes = await db.execute({
+      sql: `
+        SELECT 
+          u.id,
+          u.name,
+          COALESCE(SUM(CASE WHEN DATE(s.logged_at) = ? THEN s.steps ELSE 0 END), 0) as today,
+          COALESCE(SUM(CASE WHEN DATE(s.logged_at) >= ? THEN s.steps ELSE 0 END), 0) as week
+        FROM users u
+        LEFT JOIN steps_logs s ON u.id = s.user_id
+        WHERE u.coach_id = ?
+        GROUP BY u.id
+        ORDER BY week DESC
+      `,
+      args: [today, weekStartStr, coachId],
+    });
 
-    const clients = (await db.execute({ sql: "SELECT id, name FROM users WHERE coach_id = ?", args: [coachId] })).rows;
-    const leaderboard = await Promise.all(clients.map(async (c) => {
-      const todayRow = (await db.execute({ sql: "SELECT COALESCE(MAX(steps),0) as steps FROM steps_logs WHERE user_id=? AND date(logged_at)=?", args: [c.id as string, today] })).rows[0];
-      const weekRow = (await db.execute({ sql: "SELECT COALESCE(SUM(steps),0) as steps FROM (SELECT user_id, date(logged_at) as d, MAX(steps) as steps FROM steps_logs WHERE user_id=? AND date(logged_at)>=? GROUP BY d)", args: [c.id as string, weekStartStr] })).rows[0];
-      return { id: c.id, name: c.name, today: todayRow.steps as number, week: weekRow.steps as number };
-    }));
-    leaderboard.sort((a, b) => (b.today as number) - (a.today as number));
-    return NextResponse.json(leaderboard);
+    return NextResponse.json(lbRes.rows);
   }
 
-  const row = (await db.execute({ sql: "SELECT COALESCE(MAX(steps),0) as steps FROM steps_logs WHERE user_id=? AND date(logged_at)=?", args: [session.id, today] })).rows[0];
-  return NextResponse.json({ steps: row.steps });
-}
+  // Get today's steps
+  const today = new Date().toISOString().split("T")[0];
+  const todayRes = await db.execute({
+    sql: `
+      SELECT COALESCE(SUM(steps), 0) as steps FROM steps_logs
+      WHERE user_id = ? AND DATE(logged_at) = ?
+    `,
+    args: [user.id, today],
+  });
 
-export async function POST(req: NextRequest) {
-  await ensureSeed();
-  const session = await getSessionUser();
-  if (!session) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
-
-  const contentType = req.headers.get("content-type") || "";
-  if (contentType.includes("multipart")) {
-    const formData = await req.formData();
-    const photo = formData.get("screenshot") as File | null;
-    if (!photo) return NextResponse.json({ error: "לא צורפה תמונה" }, { status: 400 });
-
-    const bytes = await photo.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const steps = await analyzeStepsScreenshot(buffer.toString("base64"), photo.type || "image/jpeg");
-
-    const uploadsDir = join(process.cwd(), "public", "uploads");
-    await mkdir(uploadsDir, { recursive: true });
-    const filename = `steps-${uuid()}.jpg`;
-    await writeFile(join(uploadsDir, filename), buffer);
-
-    await db.execute({ sql: "INSERT INTO steps_logs (id, user_id, steps, screenshot_url) VALUES (?,?,?,?)", args: [uuid(), session.id, steps, `/uploads/${filename}`] });
-    return NextResponse.json({ steps });
-  }
-
-  const { steps } = await req.json();
-  if (!steps || steps < 0) return NextResponse.json({ error: "מספר צעדים לא תקין" }, { status: 400 });
-  await db.execute({ sql: "INSERT INTO steps_logs (id, user_id, steps) VALUES (?,?,?)", args: [uuid(), session.id, steps] });
+  const steps = (todayRes.rows[0]?.steps as number) || 0;
   return NextResponse.json({ steps });
 }

@@ -6,7 +6,7 @@ import db, { initDb } from "./db";
 import type { User } from "./types";
 
 const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "the-way-nutrition-secret-change-in-production"
+  process.env.JWT_SECRET || (() => { throw new Error("JWT_SECRET is required in .env.local"); })()
 );
 const COOKIE_NAME = "the-way-session";
 

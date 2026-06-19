@@ -300,15 +300,23 @@ export default function ClientPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-gray-800">מה אכלת? 🍽️</h2>
 
-            <button
-              onClick={() => foodPhotoRef.current?.click()}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50 p-10 text-indigo-600 hover:bg-indigo-100"
-            >
-              <span className="text-5xl">📸</span>
-              <span className="font-semibold">צלם את האוכל</span>
-              <span className="text-sm opacity-70">תוך שניות נדע כמה קלוריות יש כאן</span>
-            </button>
-            <input ref={foodPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => { foodPhotoRef.current?.setAttribute("capture", "environment"); foodPhotoRef.current?.click(); }}
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100"
+              >
+                <span className="text-3xl">📷</span>
+                <span className="text-sm font-semibold">קאמרה</span>
+              </button>
+              <button
+                onClick={() => { foodPhotoRef.current?.removeAttribute("capture"); foodPhotoRef.current?.click(); }}
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100"
+              >
+                <span className="text-3xl">🖼️</span>
+                <span className="text-sm font-semibold">גלריה</span>
+              </button>
+            </div>
+            <input ref={foodPhotoRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
 
             {analyzing && (
@@ -482,12 +490,17 @@ export default function ClientPage() {
                     onChange={(e) => setNewWeight(e.target.value)}
                     placeholder='ק"ג'
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-center text-xl font-bold" />
-                  <button onClick={() => weightPhotoRef.current?.click()}
-                    className="rounded-xl border border-gray-200 px-4 py-3 text-2xl">
-                    {weightPhoto ? "✅" : "📸"}
+                  <button onClick={() => { weightPhotoRef.current?.setAttribute("capture", "environment"); weightPhotoRef.current?.click(); }}
+                    className="rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="צילום">
+                    📷
                   </button>
+                  <button onClick={() => { weightPhotoRef.current?.removeAttribute("capture"); weightPhotoRef.current?.click(); }}
+                    className="rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="גלריה">
+                    🖼️
+                  </button>
+                  {weightPhoto && <span className="text-2xl flex items-center">✅</span>}
                 </div>
-                <input ref={weightPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
+                <input ref={weightPhotoRef} type="file" accept="image/*" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
                 <button onClick={saveWeight} disabled={savingWeight || !newWeight}
                   className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
@@ -531,17 +544,25 @@ export default function ClientPage() {
             <h2 className="text-xl font-bold text-gray-800">תחרות צעדים 👟</h2>
 
             {/* Upload screenshot */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm text-center space-y-3">
-              <p className="text-sm text-gray-500">צלם סקרינשוט מאפליקציית הבריאות באייפון</p>
-              <button onClick={() => stepsPhotoRef.current?.click()}
-                disabled={uploadingSteps}
-                className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
-                {uploadingSteps ? "קורא את הצעדים שלך..." : "📱 העלה סקרינשוט"}
-              </button>
-              <input ref={stepsPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
+            <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
+              <p className="text-sm text-gray-500 text-center">צלם סקרינשוט מאפליקציית הבריאות באייפון</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => { stepsPhotoRef.current?.setAttribute("capture", "environment"); stepsPhotoRef.current?.click(); }}
+                  disabled={uploadingSteps}
+                  className="rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  📷 קאמרה
+                </button>
+                <button onClick={() => { stepsPhotoRef.current?.removeAttribute("capture"); stepsPhotoRef.current?.click(); }}
+                  disabled={uploadingSteps}
+                  className="rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  🖼️ גלריה
+                </button>
+              </div>
+              <input ref={stepsPhotoRef} type="file" accept="image/*" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
-              {stepsSuccess && <p className="text-green-600 font-semibold">{stepsSuccess}</p>}
-              <p className="text-xs text-gray-400">עשית היום: <strong>{todaySteps.toLocaleString()} צעדים</strong></p>
+              {uploadingSteps && <p className="text-sm text-gray-500 text-center">קורא את הצעדים שלך...</p>}
+              {stepsSuccess && <p className="text-green-600 font-semibold text-center">{stepsSuccess}</p>}
+              <p className="text-xs text-gray-400 text-center">עשית היום: <strong>{todaySteps.toLocaleString()} צעדים</strong></p>
             </div>
 
             {/* Leaderboard */}

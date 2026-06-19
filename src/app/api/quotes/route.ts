@@ -1,42 +1,83 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import db from "@/lib/db";
-import { ensureSeed } from "@/lib/seed";
 import { v4 as uuid } from "uuid";
+import db, { initDb } from "@/lib/db";
 
-export async function GET() {
-  await ensureSeed();
-  const session = await getSessionUser();
-  if (!session) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
-  if (session.role === "coach") {
-    const rows = (await db.execute("SELECT * FROM quotes ORDER BY created_at DESC")).rows;
-    return NextResponse.json(rows);
+  await initDb();
+  const action = req.nextUrl.searchParams.get("action");
+
+  if (action === "list") {
+    const res = await db.execute(
+      "SELECT * FROM quotes WHERE active = 1 ORDER BY created_at DESC"
+    );
+    return NextResponse.json(res.rows);
   }
 
-  const rows = (await db.execute("SELECT * FROM quotes WHERE active=1 ORDER BY RANDOM() LIMIT 1")).rows;
-  return NextResponse.json(rows[0] ?? { text: "הדרך מתחילה בצעד אחד." });
+  // Default: get random quote
+  const res = await db.execute(
+    "SELECT * FROM quotes WHERE active = 1 ORDER BY RANDOM() LIMIT 1"
+  );
+
+  const quote = res.rows[0] || { text: "כל שלב הוא הצלחה. תמשיך להלוך." };
+  return NextResponse.json(quote);
 }
 
 export async function POST(req: NextRequest) {
-  await ensureSeed();
-  const session = await getSessionUser();
-  if (!session || session.role !== "coach") return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+
+  await initDb();
+  
+  const userRes = await db.execute({
+    sql: "SELECT role FROM users WHERE id = ?",
+    args: [user.id],
+  });
+  
+  const userData = userRes.rows[0] as { role: string };
+  if (userData?.role !== "coach") {
+    return NextResponse.json({ error: "רק מאמנים יכולים להוסיף ציטוטים" }, { status: 403 });
+  }
 
   const { text, author } = await req.json();
-  if (!text?.trim()) return NextResponse.json({ error: "טקסט חסר" }, { status: 400 });
+  if (!text || text.trim().length === 0) {
+    return NextResponse.json({ error: "ציטוט לא יכול להיות ריק" }, { status: 400 });
+  }
 
   const id = uuid();
-  await db.execute({ sql: "INSERT INTO quotes (id, text, author) VALUES (?,?,?)", args: [id, text.trim(), author || null] });
-  return NextResponse.json({ id });
+  await db.execute({
+    sql: `INSERT INTO quotes (id, text, author, active)
+          VALUES (?, ?, ?, 1)`,
+    args: [id, text, author || null],
+  });
+
+  return NextResponse.json({ id, text, author });
 }
 
 export async function DELETE(req: NextRequest) {
-  await ensureSeed();
-  const session = await getSessionUser();
-  if (!session || session.role !== "coach") return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
-  const { id } = await req.json();
-  await db.execute({ sql: "DELETE FROM quotes WHERE id=?", args: [id] });
-  return NextResponse.json({ ok: true });
+  await initDb();
+  
+  const userRes = await db.execute({
+    sql: "SELECT role FROM users WHERE id = ?",
+    args: [user.id],
+  });
+  
+  const userData = userRes.rows[0] as { role: string };
+  if (userData?.role !== "coach") {
+    return NextResponse.json({ error: "רק מאמנים יכולים למחוק ציטוטים" }, { status: 403 });
+  }
+
+  const { quoteId } = await req.json();
+  await db.execute({
+    sql: "UPDATE quotes SET active = 0 WHERE id = ?",
+    args: [quoteId],
+  });
+
+  return NextResponse.json({ success: true });
 }

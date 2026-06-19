@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type CoachTab = "clients" | "quotes" | "leaderboard";
+type CoachTab = "clients" | "food" | "quotes" | "leaderboard";
 
 interface Client {
   id: string;
@@ -49,6 +49,12 @@ export default function CoachPage() {
   const [newQuote, setNewQuote] = useState({ text: "", author: "" });
   const [addingQuote, setAddingQuote] = useState(false);
 
+  // Food logs
+  interface FoodLog { id: string; client_name: string; photo_url: string; total_calories: number; logged_at: string; items: { name: string; calories: number; estimated_weight_g: number }[]; }
+  const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
+  const [foodLoading, setFoodLoading] = useState(false);
+  const [expandedLog, setExpandedLog] = useState<string | null>(null);
+
   // Leaderboard
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [lbView, setLbView] = useState<"today" | "week">("today");
@@ -70,6 +76,13 @@ export default function CoachPage() {
     setQuotes(await res.json());
   }, []);
 
+  const loadFoodLogs = useCallback(async () => {
+    setFoodLoading(true);
+    const res = await fetch("/api/food-logs");
+    setFoodLogs(await res.json());
+    setFoodLoading(false);
+  }, []);
+
   const loadLeaderboard = useCallback(async () => {
     const res = await fetch("/api/steps?type=leaderboard");
     setLeaderboard(await res.json());
@@ -82,8 +95,9 @@ export default function CoachPage() {
 
   useEffect(() => {
     if (tab === "quotes") loadQuotes();
+    if (tab === "food") loadFoodLogs();
     if (tab === "leaderboard") loadLeaderboard();
-  }, [tab, loadQuotes, loadLeaderboard]);
+  }, [tab, loadQuotes, loadFoodLogs, loadLeaderboard]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -273,6 +287,63 @@ export default function CoachPage() {
           </div>
         )}
 
+        {tab === "food" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">אוכל — 7 ימים אחרונים</h2>
+              <button onClick={loadFoodLogs} className="text-sm text-indigo-600">🔄 רענן</button>
+            </div>
+
+            {foodLoading && <p className="text-center text-gray-400 py-8">טוען...</p>}
+            {!foodLoading && foodLogs.length === 0 && (
+              <p className="text-center text-gray-400 py-8">אין ארוחות מצולמות עדיין</p>
+            )}
+
+            {foodLogs.map((log) => {
+              const date = new Date(log.logged_at);
+              const dateStr = date.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
+              const timeStr = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+              const isExpanded = expandedLog === log.id;
+
+              return (
+                <div key={log.id} className="rounded-2xl bg-white shadow-sm overflow-hidden">
+                  <button className="w-full text-right p-4" onClick={() => setExpandedLog(isExpanded ? null : log.id)}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-2xl overflow-hidden">
+                          {log.photo_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={log.photo_url} alt="ארוחה" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
+                          ) : "🍽️"}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800">{log.client_name}</p>
+                          <p className="text-xs text-gray-400">{dateStr} • {timeStr}</p>
+                        </div>
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-indigo-600">{log.total_calories}</p>
+                        <p className="text-xs text-gray-400">קלוריות</p>
+                      </div>
+                    </div>
+
+                    {isExpanded && log.items.length > 0 && (
+                      <div className="mt-3 border-t pt-3 space-y-1">
+                        {log.items.map((item, i) => (
+                          <div key={i} className="flex justify-between text-sm">
+                            <span className="text-gray-700">{item.name} ({item.estimated_weight_g}g)</span>
+                            <span className="text-gray-500">{item.calories} קל׳</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {tab === "quotes" && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-gray-800">ציטוטים מוטיבציוניים</h2>
@@ -372,6 +443,7 @@ export default function CoachPage() {
         <div className="mx-auto flex max-w-lg">
           {([
             { id: "clients", icon: "👥", label: "מתאמנים" },
+            { id: "food", icon: "🍽️", label: "אוכל" },
             { id: "quotes", icon: "💬", label: "ציטוטים" },
             { id: "leaderboard", icon: "🏆", label: "תחרות" },
           ] as { id: CoachTab; icon: string; label: string }[]).map((t) => (

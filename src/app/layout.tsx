@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaRegister from "./pwa-register";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "THE WAY",
@@ -30,8 +31,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body className="min-h-screen bg-gray-50 text-gray-900 antialiased">
-        <PwaRegister />
-        {children}
+        <ErrorBoundary>
+          <PwaRegister />
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

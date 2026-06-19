@@ -1,7 +1,7 @@
 // Input validation utilities
 
 export function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return email.length <= 255 && emailRegex.test(email);
 }
 
@@ -11,6 +11,18 @@ export function validatePassword(password: string): { valid: boolean; error?: st
   }
   if (password.length > 128) {
     return { valid: false, error: "סיסמה ארוכה מדי (מקסימום 128 תווים)" };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: "סיסמה חייבת לכלול אות גדולה (A-Z)" };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: "סיסמה חייבת לכלול אות קטנה (a-z)" };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: "סיסמה חייבת לכלול ספרה (0-9)" };
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return { valid: false, error: "סיסמה חייבת לכלול תו מיוחד (!@#$%^&* וכו')" };
   }
   return { valid: true };
 }

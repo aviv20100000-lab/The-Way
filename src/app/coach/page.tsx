@@ -82,7 +82,7 @@ export default function CoachPage() {
 
   const loadClients = useCallback(async () => {
     try {
-      const res = await fetch("/api/clients");
+      const res = await fetch("/api/users/clients");
       if (res.status === 401 || res.status === 403) { router.push("/login"); return; }
       const data = await res.json();
       setClients(data || []);
@@ -94,7 +94,7 @@ export default function CoachPage() {
 
   const loadQuotes = useCallback(async () => {
     try {
-      const res = await fetch("/api/quotes?action=list");
+      const res = await fetch("/api/motivation/quotes?action=list");
       const data = await res.json();
       setQuotes(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -106,7 +106,7 @@ export default function CoachPage() {
   const loadFoodLogs = useCallback(async () => {
     setFoodLoading(true);
     try {
-      const res = await fetch("/api/food-logs");
+      const res = await fetch("/api/foods/meals");
       const data = await res.json();
       setFoodLogs(data || []);
     } catch (e) {
@@ -118,7 +118,7 @@ export default function CoachPage() {
 
   const loadLeaderboard = useCallback(async () => {
     try {
-      const res = await fetch("/api/steps?type=leaderboard");
+      const res = await fetch("/api/health/steps?type=leaderboard");
       const data = await res.json();
       setLeaderboard(data || []);
     } catch (e) {
@@ -171,7 +171,7 @@ export default function CoachPage() {
 
   async function addClient() {
     setAddError("");
-    const res = await fetch("/api/clients", {
+    const res = await fetch("/api/users/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newClient),
@@ -185,7 +185,7 @@ export default function CoachPage() {
 
   async function openClientGoals(client: Client) {
     setSelectedClient(client);
-    const res = await fetch(`/api/goals?userId=${client.id}`);
+    const res = await fetch(`/api/users/goals?userId=${client.id}`);
     const data = await res.json();
     setClientGoals({
       target_weight_kg: data.target_weight_kg,
@@ -204,7 +204,7 @@ export default function CoachPage() {
   async function saveGoals() {
     if (!selectedClient) return;
     setSavingGoals(true);
-    await fetch("/api/goals", {
+    await fetch("/api/users/goals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: selectedClient.id, ...clientGoals }),
@@ -216,7 +216,7 @@ export default function CoachPage() {
   async function addQuote() {
     if (!newQuote.text.trim()) return;
     setAddingQuote(true);
-    await fetch("/api/quotes", {
+    await fetch("/api/motivation/quotes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newQuote),
@@ -244,7 +244,7 @@ export default function CoachPage() {
 
   async function deleteQuote(id: string) {
     try {
-      await fetch("/api/quotes", {
+      await fetch("/api/motivation/quotes", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quoteId: id }),

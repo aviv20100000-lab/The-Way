@@ -38,6 +38,9 @@ const FOODS = [
 let seeded = false;
 export async function ensureSeed() {
   if (seeded) return;
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
   await initDb();
   seeded = true;
 

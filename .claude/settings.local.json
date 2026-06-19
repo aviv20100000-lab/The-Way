@@ -103,7 +103,10 @@
       "Bash(node /tmp/full_audit.js)",
       "Bash(vercel logs *)",
       "Bash(perl -i -pe 's/<motion\\\\.\\(\\\\w+\\)/<$1/g; s/<\\\\/motion\\\\.\\(\\\\w+\\)/<\\\\/$1/g' src/app/login/page.tsx)",
-      "Bash(sed -i '/initial=/d; /animate=/d; /transition=/d; /whileHover=/d; /whileTap=/d' src/app/login/page.tsx)"
+      "Bash(sed -i '/initial=/d; /animate=/d; /transition=/d; /whileHover=/d; /whileTap=/d' src/app/login/page.tsx)",
+      "Bash(grep -E \"\\\\.\\(tsx?|json\\)$\")",
+      "Bash(npm test *)",
+      "Bash(cd \"/c/Users/owner/OneDrive/שולחן העבודה/The Way\" && find . -name \".gitignore\" -type f | head -5)"
     ]
   }
 }

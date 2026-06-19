@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
+import { getSessionUser } from "@/lib/auth";
 
 const QUOTES = [
   { text: "כל צעד קטן הוא ניצחון. חגוג כל אחד מהם.", author: "המאמן שלך" },
@@ -18,12 +19,9 @@ const QUOTES = [
 ];
 
 export async function GET(req: NextRequest) {
-  if (!process.env.ADMIN_TOKEN) {
-    return NextResponse.json({ error: "Admin token not configured" }, { status: 500 });
-  }
+  const user = await getSessionUser();
 
-  const token = req.nextUrl.searchParams.get("token");
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!user || user.role !== "coach") {
     return NextResponse.json({ error: "ללא הרשאה" }, { status: 401 });
   }
 

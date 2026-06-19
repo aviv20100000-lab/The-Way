@@ -28,10 +28,11 @@ export async function POST(req: NextRequest) {
     }
 
     const logId = uuid();
-    db.prepare(`
-      INSERT INTO steps_logs (id, user_id, steps, screenshot_url, logged_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(logId, user.id, steps, "");
+    await db.execute({
+      sql: `INSERT INTO steps_logs (id, user_id, steps, screenshot_url, logged_at)
+            VALUES (?, ?, ?, ?, datetime('now'))`,
+      args: [logId, user.id, steps, ""],
+    });
 
     return NextResponse.json({ steps });
   } catch (error) {

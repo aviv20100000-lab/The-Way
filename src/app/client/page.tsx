@@ -28,6 +28,13 @@ interface WeightLog {
   logged_at: string;
 }
 
+interface MyMeal {
+  id: string;
+  total_calories: number;
+  logged_at: string;
+  items: { name: string; calories: number; estimated_weight_g: number }[];
+}
+
 interface LeaderboardEntry {
   id: string;
   name: string;
@@ -53,6 +60,10 @@ export default function ClientPage() {
   const [foodError, setFoodError] = useState("");
   const [itemGrams, setItemGrams] = useState<number[]>([]);
   const [mealSaved, setMealSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [myMeals, setMyMeals] = useState<MyMeal[]>([]);
+  const [todayCalories, setTodayCalories] = useState(0);
+  const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
+  const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
 
   // Weight
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
@@ -91,6 +102,15 @@ export default function ClientPage() {
     const res = await fetch("/api/steps?type=leaderboard");
     const data = await res.json();
     setLeaderboard(data);
+  }, []);
+
+  const loadMyMeals = useCallback(async () => {
+    const res = await fetch("/api/log-meal");
+    if (!res.ok) return;
+    const d = await res.json();
+    setMyMeals(d.meals ?? []);
+    setTodayCalories(d.today_calories ?? 0);
+    setCalorieGoal(d.goal_calories ?? null);
   }, []);
 
   const [isPwa, setIsPwa] = useState(false);
@@ -139,7 +159,8 @@ export default function ClientPage() {
   useEffect(() => {
     if (tab === "weight") loadWeight();
     if (tab === "steps") loadLeaderboard();
-  }, [tab, loadWeight, loadLeaderboard]);
+    if (tab === "food") loadMyMeals();
+  }, [tab, loadWeight, loadLeaderboard, loadMyMeals]);
 
   useEffect(() => {
     setItemGrams(aiResult ? aiResult.items.map((it) => it.estimated_weight_g) : []);
@@ -201,7 +222,12 @@ export default function ClientPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items, total_calories: total }),
       });
-      setMealSaved(res.ok ? "saved" : "error");
+      if (res.ok) {
+        setMealSaved("saved");
+        loadMyMeals();
+      } else {
+        setMealSaved("error");
+      }
     } catch {
       setMealSaved("error");
     }
@@ -481,6 +507,62 @@ export default function ClientPage() {
               </div>
               );
             })()}
+
+            {/* Calories today */}
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-600">🔥 קלוריות היום</span>
+                <span className="font-bold text-orange-500">
+                  {todayCalories}{calorieGoal ? ` / ${calorieGoal}` : ""}
+                </span>
+              </div>
+              {calorieGoal ? (
+                <div className="h-2 w-full rounded-full bg-orange-50">
+                  <div className="h-2 rounded-full bg-orange-400 transition-all"
+                    style={{ width: `${Math.min(100, Math.round((todayCalories / calorieGoal) * 100))}%` }} />
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">צלם ושמור ארוחות כדי לעקוב אחרי הקלוריות שלך</p>
+              )}
+            </div>
+
+            {/* My meals history */}
+            {myMeals.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">הארוחות שלי</p>
+                {myMeals.map((m) => {
+                  const d = new Date(m.logged_at);
+                  const isExp = expandedMeal === m.id;
+                  return (
+                    <div key={m.id} className="rounded-2xl bg-white shadow-sm overflow-hidden">
+                      <button className="w-full text-right p-4" onClick={() => setExpandedMeal(isExp ? null : m.id)}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-800">
+                              {d.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" })}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                          <span className="font-bold text-orange-500">{m.total_calories} קל'</span>
+                        </div>
+                        {isExp && m.items.length > 0 && (
+                          <div className="mt-3 border-t pt-3 space-y-1">
+                            {m.items.map((it, i) => (
+                              <div key={i} className="flex justify-between text-sm">
+                                <span className="text-gray-700">{it.name} ({it.estimated_weight_g}g)</span>
+                                <span className="text-gray-500">{it.calories} קל'</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

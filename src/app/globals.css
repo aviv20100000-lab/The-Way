@@ -6,28 +6,12 @@
   --color-primary-50: #f0f4ff;
   --color-primary-100: #e5ecff;
   --color-primary-200: #d0daff;
-  --color-primary-300: #b0beff;
-  --color-primary-400: #8fa3ff;
-  --color-primary-500: #6b7bff;
   --color-primary-600: #4f46e5;
   --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #2e1065;
 
-  /* Accent: Vibrant Cyan — for energy, progress */
-  --color-accent-400: #06b6d4;
-  --color-accent-500: #0891b2;
-  --color-accent-600: #0e7490;
-
-  /* Success: Emerald — progress, achievement */
-  --color-success-400: #34d399;
-  --color-success-500: #10b981;
-  --color-success-600: #059669;
-
-  /* Danger: Rose — for warnings, contrast */
-  --color-danger-400: #f87171;
-  --color-danger-500: #ef4444;
-  --color-danger-600: #dc2626;
+  /* Matte Black — premium dark element */
+  --color-black-matte: #1a1a1a;
+  --color-black-dark: #2d2d2d;
 
   /* Neutral: Professional grays */
   --color-neutral-0: #ffffff;
@@ -39,8 +23,6 @@
   --color-neutral-500: #6b7280;
   --color-neutral-600: #4b5563;
   --color-neutral-700: #374151;
-  --color-neutral-800: #1f2937;
-  --color-neutral-900: #111827;
 
   /* Shadows — depth */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -49,10 +31,10 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 
-  /* Premium shadows (elevated, modern) */
-  --shadow-glow: 0 0px 20px rgba(79, 70, 229, 0.1);
-  --shadow-floating: 0 10px 30px -10px rgba(0, 0, 0, 0.2);
-  --shadow-card: 0 2px 18px -10px rgba(0, 0, 0, 0.18), 0 0px 1px rgba(0, 0, 0, 0.03);
+  /* Premium shadows (subtle, minimal) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
 
   /* Typography scale — modern proportional */
   --font-size-xs: 0.75rem;
@@ -75,7 +57,7 @@
 }
 
 html {
-  @apply bg-neutral-50 text-neutral-900;
+  @apply bg-white text-black-matte;
   scroll-behavior: smooth;
 }
 
@@ -119,50 +101,50 @@ select:focus-visible {
   }
 }
 
-/* Typography hierarchy — premium */
+/* Typography hierarchy — clean, elegant, minimal */
 @layer utilities {
   .text-display-lg {
-    @apply text-5xl font-black leading-tight tracking-tighter;
+    @apply text-4xl font-bold leading-tight text-black-matte;
   }
 
   .text-display-base {
-    @apply text-4xl font-black leading-tight;
+    @apply text-3xl font-bold leading-tight text-black-matte;
   }
 
   .text-display-sm {
-    @apply text-3xl font-extrabold leading-snug;
+    @apply text-2xl font-semibold leading-snug text-black-matte;
   }
 
   .text-heading-lg {
-    @apply text-2xl font-bold leading-snug;
+    @apply text-2xl font-semibold leading-snug text-black-matte;
   }
 
   .text-heading-base {
-    @apply text-xl font-bold leading-relaxed;
+    @apply text-lg font-semibold leading-relaxed text-black-matte;
   }
 
   .text-heading-sm {
-    @apply text-lg font-semibold leading-relaxed;
+    @apply text-base font-semibold leading-relaxed text-black-matte;
   }
 
   .text-body-lg {
-    @apply text-base font-medium leading-relaxed;
+    @apply text-base font-normal leading-relaxed text-neutral-700;
   }
 
   .text-body-base {
-    @apply text-sm font-normal leading-normal;
+    @apply text-sm font-normal leading-normal text-neutral-600;
   }
 
   .text-body-sm {
-    @apply text-xs font-normal leading-normal;
+    @apply text-xs font-normal leading-normal text-neutral-500;
   }
 
   .text-caption {
-    @apply text-xs font-medium leading-snug;
+    @apply text-xs font-normal leading-snug text-neutral-500;
   }
 
   .text-caption-muted {
-    @apply text-xs font-normal leading-snug text-neutral-500;
+    @apply text-xs font-normal leading-snug text-neutral-400;
   }
 }
 
@@ -181,16 +163,16 @@ select:focus-visible {
 
 /* Premium card containers */
 .premium-card {
-  @apply rounded-3xl bg-gradient-to-br from-white via-white to-neutral-50 shadow-lg ring-1 ring-white/50 overflow-hidden transition-all duration-300 hover:shadow-floating hover:scale-105;
+  @apply rounded-2xl bg-white shadow-card overflow-hidden transition-all duration-300 hover:shadow-lg;
 }
 
 /* RTL-safe button elevations */
 .btn-primary {
-  @apply inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-primary-600 to-primary-700 rounded-lg transition-all duration-300 hover:from-primary-700 hover:to-primary-800 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white bg-primary-600 rounded-xl transition-all duration-300 hover:bg-primary-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-primary:focus-visible {
-  @apply ring-3 ring-white ring-offset-2 ring-offset-primary-600;
+  @apply ring-2 ring-primary-600 ring-offset-2;
 }
 
 /* Micro-interactions */

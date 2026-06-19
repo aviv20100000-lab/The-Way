@@ -89,7 +89,12 @@
       "Bash(grep -v \"node_modules\\\\|sql\\\\`\")",
       "Bash(npm audit *)",
       "Bash(grep -v \"NEXT_PUBLIC\\\\|process.env\\\\|//\")",
-      "Bash(grep -r '\"[a-zA-Z0-9]\\\\{20,\\\\}\"' src/ --include=\"*.ts\" --include=\"*.tsx\")"
+      "Bash(grep -r '\"[a-zA-Z0-9]\\\\{20,\\\\}\"' src/ --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(curl -s -c /tmp/cookies.txt -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"dani@theway.com\",\"password\":\"123456\"}')",
+      "Bash(curl -s http://localhost:3000/client -b /tmp/cookies.txt)",
+      "Bash(curl -s http://localhost:3000/login)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|css\\)$\")",
+      "Bash(grep -o \"^\\\\\\\\.[a-z-]*\" src/app/globals.css)"
     ]
   }
 }

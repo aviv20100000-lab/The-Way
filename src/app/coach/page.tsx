@@ -390,7 +390,7 @@ export default function CoachPage() {
                               {clientData.weights.length > 1 && (() => {
                                 const diff = clientData.weights[0].weight_kg - clientData.weights[1].weight_kg;
                                 return (
-                                  <span className={`mb-1 text-sm font-medium ${diff < 0 ? "text-green-500" : diff > 0 ? "text-red-400" : "text-gray-400"}`}>
+                                  <span className={`mb-1 text-sm font-medium ${diff < 0 ? "text-green-600" : diff > 0 ? "text-red-600" : "text-neutral-500"}`}>
                                     {diff < 0 ? "▼" : diff > 0 ? "▲" : ""}{Math.abs(diff).toFixed(1)}
                                   </span>
                                 );
@@ -401,9 +401,9 @@ export default function CoachPage() {
                             </div>
                             <div className="space-y-1">
                               {clientData.weights.map((w, i) => (
-                                <div key={i} className="flex justify-between text-sm border-b border-gray-50 py-1">
-                                  <span className="text-gray-400">{new Date(w.logged_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" })}</span>
-                                  <span className="font-medium text-gray-700">{w.weight_kg} ק"ג</span>
+                                <div key={i} className="flex justify-between text-sm border-b border-neutral-100 py-1">
+                                  <span className="text-neutral-500">{new Date(w.logged_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" })}</span>
+                                  <span className="font-medium text-neutral-700">{w.weight_kg} ק"ג</span>
                                 </div>
                               ))}
                             </div>
@@ -414,19 +414,19 @@ export default function CoachPage() {
                       {/* Steps + Water today */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-white p-4 shadow-sm text-center">
-                          <p className="text-xs text-gray-400 mb-1">👟 צעדים היום</p>
-                          <p className="text-2xl font-bold text-indigo-600">{clientData.steps_today.toLocaleString()}</p>
+                          <p className="text-xs text-neutral-500 mb-1">👟 צעדים היום</p>
+                          <p className="text-2xl font-bold text-primary-600">{clientData.steps_today.toLocaleString()}</p>
                         </div>
                         <div className="rounded-2xl bg-white p-4 shadow-sm text-center">
-                          <p className="text-xs text-gray-400 mb-1">💧 מים היום</p>
+                          <p className="text-xs text-neutral-500 mb-1">💧 מים היום</p>
                           <p className="text-2xl font-bold text-blue-500">{(clientData.water_today / 1000).toFixed(1)}<span className="text-sm">L</span></p>
-                          <p className="text-xs text-gray-300">יעד {(clientData.goals.daily_water_ml / 1000).toFixed(1)}L</p>
+                          <p className="text-xs text-neutral-400">יעד {(clientData.goals.daily_water_ml / 1000).toFixed(1)}L</p>
                         </div>
                       </div>
 
                       {/* Meals — day / week / month */}
                       <div className="rounded-2xl bg-white p-4 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500 mb-3">🍽️ תזונה</p>
+                        <p className="text-sm font-medium text-neutral-500 mb-3">🍽️ תזונה</p>
                         <MealHistory meals={clientData.meals} title="" />
                       </div>
                     </>
@@ -440,13 +440,13 @@ export default function CoachPage() {
         {tab === "food" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">אוכל — 7 ימים אחרונים</h2>
-              <button onClick={loadFoodLogs} className="text-sm text-indigo-600">🔄 רענן</button>
+              <h2 className="text-xl font-bold text-black-matte">אוכל — 7 ימים אחרונים</h2>
+              <button onClick={loadFoodLogs} className="text-sm text-primary-600">🔄 רענן</button>
             </div>
 
-            {foodLoading && <p className="text-center text-gray-400 py-8">טוען...</p>}
+            {foodLoading && <p className="text-center text-neutral-500 py-8">טוען...</p>}
             {!foodLoading && foodLogs.length === 0 && (
-              <p className="text-center text-gray-400 py-8">אין ארוחות מצולמות עדיין</p>
+              <p className="text-center text-neutral-500 py-8">אין ארוחות מצולמות עדיין</p>
             )}
 
             {foodLogs.map((log) => {
@@ -460,20 +460,20 @@ export default function CoachPage() {
                   <button className="w-full text-right p-4" onClick={() => setExpandedLog(isExpanded ? null : log.id)}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-2xl overflow-hidden">
+                        <div className="w-12 h-12 rounded-lg bg-neutral-100 flex items-center justify-center text-2xl overflow-hidden">
                           {log.photo_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={log.photo_url} alt="ארוחה" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
                           ) : "🍽️"}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-800">{log.client_name}</p>
-                          <p className="text-xs text-gray-400">{dateStr} • {timeStr}</p>
+                          <p className="font-semibold text-black-matte">{log.client_name}</p>
+                          <p className="text-xs text-neutral-500">{dateStr} • {timeStr}</p>
                         </div>
                       </div>
                       <div className="text-left">
-                        <p className="font-bold text-indigo-600">{log.total_calories}</p>
-                        <p className="text-xs text-gray-400">קלוריות</p>
+                        <p className="font-bold text-primary-600">{log.total_calories}</p>
+                        <p className="text-xs text-neutral-500">קלוריות</p>
                       </div>
                     </div>
 
@@ -481,8 +481,8 @@ export default function CoachPage() {
                       <div className="mt-3 border-t pt-3 space-y-1">
                         {log.items.map((item, i) => (
                           <div key={i} className="flex justify-between text-sm">
-                            <span className="text-gray-700">{item.name} ({item.estimated_weight_g}g)</span>
-                            <span className="text-gray-500">{item.calories} קל׳</span>
+                            <span className="text-neutral-700">{item.name} ({item.estimated_weight_g}g)</span>
+                            <span className="text-neutral-500">{item.calories} קל׳</span>
                           </div>
                         ))}
                       </div>
@@ -496,52 +496,52 @@ export default function CoachPage() {
 
         {tab === "quotes" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">ציטוטים מוטיבציוניים</h2>
+            <h2 className="text-xl font-bold text-black-matte">ציטוטים מוטיבציוניים</h2>
 
             {/* Send push notification */}
-            <div className="rounded-2xl bg-indigo-50 p-5 border border-indigo-100 space-y-3">
-              <p className="font-semibold text-indigo-800">📣 שלח הודעה לכולם</p>
+            <div className="rounded-2xl bg-neutral-100 p-5 border border-neutral-200 space-y-3">
+              <p className="font-semibold text-black-matte">📣 שלח הודעה לכולם</p>
               <input value={pushTitle} onChange={(e) => setPushTitle(e.target.value)}
                 placeholder="כותרת ההודעה"
-                className="w-full rounded-xl border border-indigo-200 px-4 py-3 bg-white" />
+                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte" />
               <input value={pushBody} onChange={(e) => setPushBody(e.target.value)}
                 placeholder="תוכן ההודעה"
-                className="w-full rounded-xl border border-indigo-200 px-4 py-3 bg-white" />
+                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte" />
               <button onClick={sendPush} disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
-                className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white disabled:opacity-50">
+                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
                 {sendingPush ? "שולח..." : "📱 שלח עכשיו"}
               </button>
               {pushResult && <p className="text-center text-sm text-green-600 font-medium">{pushResult}</p>}
             </div>
 
 
-            <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
+            <div className="rounded-2xl bg-white p-5 shadow-card space-y-3">
               <textarea
                 value={newQuote.text}
                 onChange={(e) => setNewQuote({ ...newQuote, text: e.target.value })}
                 placeholder="כתוב משפט מוטיבציוני..."
                 rows={3}
-                className="w-full rounded-xl border border-gray-200 px-4 py-3 resize-none"
+                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte resize-none"
               />
               <input
                 value={newQuote.author}
                 onChange={(e) => setNewQuote({ ...newQuote, author: e.target.value })}
                 placeholder="מאת (אופציונלי)"
-                className="w-full rounded-xl border border-gray-200 px-4 py-3"
+                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
               />
               <button onClick={addQuote} disabled={addingQuote || !newQuote.text.trim()}
-                className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white disabled:opacity-50">
+                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
                 {addingQuote ? "מוסיף..." : "➕ הוסף ציטוט"}
               </button>
             </div>
 
-            {quotes.length === 0 && <p className="text-center text-gray-400 py-4">עוד לא הוספת ציטוטים</p>}
+            {quotes.length === 0 && <p className="text-center text-neutral-500 py-4 font-normal">עוד לא הוספת ציטוטים</p>}
             {quotes.map((q) => (
-              <div key={q.id} className="rounded-2xl bg-white p-4 shadow-sm">
-                <p className="text-gray-800 leading-relaxed">"{q.text}"</p>
-                {q.author && <p className="text-sm text-gray-400 mt-1">— {q.author}</p>}
+              <div key={q.id} className="rounded-2xl bg-white p-4 shadow-card">
+                <p className="text-black-matte leading-relaxed">"{q.text}"</p>
+                {q.author && <p className="text-sm text-neutral-500 mt-1 font-normal">— {q.author}</p>}
                 <button onClick={() => deleteQuote(q.id)}
-                  className="mt-2 text-xs text-red-400 hover:text-red-600">🗑️ מחק</button>
+                  className="mt-2 text-xs text-red-600 hover:text-red-700 font-normal">🗑️ מחק</button>
               </div>
             ))}
           </div>
@@ -549,31 +549,31 @@ export default function CoachPage() {
 
         {tab === "leaderboard" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">דירוג צעדים 🏆</h2>
+            <h2 className="text-xl font-bold text-black-matte">דירוג צעדים 🏆</h2>
 
             <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
               <div className="flex border-b">
                 <button onClick={() => setLbView("today")}
-                  className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-400"}`}>
+                  className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-primary-600 text-primary-600" : "text-neutral-500"}`}>
                   יומי
                 </button>
                 <button onClick={() => setLbView("week")}
-                  className={`flex-1 py-3 text-sm font-medium ${lbView === "week" ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-400"}`}>
+                  className={`flex-1 py-3 text-sm font-medium ${lbView === "week" ? "border-b-2 border-primary-600 text-primary-600" : "text-neutral-500"}`}>
                   שבועי
                 </button>
               </div>
               <div className="p-4 space-y-2">
-                {leaderboard.length === 0 && <p className="text-center text-gray-400 py-4">עוד אף אחד לא העלה צעדים היום</p>}
+                {leaderboard.length === 0 && <p className="text-center text-neutral-500 py-4">עוד אף אחד לא העלה צעדים היום</p>}
                 {leaderboard
                   .slice()
                   .sort((a, b) => (lbView === "today" ? b.today - a.today : b.week - a.week))
                   .map((entry, i) => (
-                    <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
+                    <div key={entry.id} className="flex items-center gap-3 rounded-lg bg-neutral-50 px-4 py-3">
                       <span className="text-lg font-bold w-6 text-center">
                         {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                       </span>
-                      <span className="flex-1 font-medium text-gray-800">{entry.name}</span>
-                      <span className="font-bold text-indigo-600">
+                      <span className="flex-1 font-medium text-black-matte">{entry.name}</span>
+                      <span className="font-bold text-primary-600">
                         {(lbView === "today" ? entry.today : entry.week).toLocaleString()} 👟
                       </span>
                     </div>
@@ -582,14 +582,14 @@ export default function CoachPage() {
             </div>
 
             <button onClick={loadLeaderboard}
-              className="w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50">
+              className="w-full rounded-lg border border-neutral-200 py-3 text-sm text-neutral-500 hover:bg-neutral-50">
               🔄 עדכן
             </button>
           </div>
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-100 bg-white">
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-neutral-100 bg-white">
         <div className="mx-auto flex max-w-lg">
           {([
             { id: "clients", icon: "👥", label: "מתאמנים" },
@@ -598,7 +598,7 @@ export default function CoachPage() {
             { id: "leaderboard", icon: "🏆", label: "תחרות" },
           ] as { id: CoachTab; icon: string; label: string }[]).map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex flex-1 flex-col items-center py-3 text-xs transition ${tab === t.id ? "text-indigo-600" : "text-gray-400"}`}>
+              className={`flex flex-1 flex-col items-center py-3 text-xs transition ${tab === t.id ? "text-primary-600" : "text-neutral-500"}`}>
               <span className="text-2xl">{t.icon}</span>
               <span className="mt-0.5">{t.label}</span>
             </button>

@@ -48,13 +48,15 @@ export default function ClientPage() {
   const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
 
   // Food / AI
-  const foodPhotoRef = useRef<HTMLInputElement>(null);
+  const foodCameraRef = useRef<HTMLInputElement>(null);
+  const foodGalleryRef = useRef<HTMLInputElement>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [foodError, setFoodError] = useState("");
 
   // Weight
-  const weightPhotoRef = useRef<HTMLInputElement>(null);
+  const weightCameraRef = useRef<HTMLInputElement>(null);
+  const weightGalleryRef = useRef<HTMLInputElement>(null);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [weightTarget, setWeightTarget] = useState<number | null>(null);
   const [newWeight, setNewWeight] = useState("");
@@ -62,7 +64,8 @@ export default function ClientPage() {
   const [savingWeight, setSavingWeight] = useState(false);
 
   // Steps
-  const stepsPhotoRef = useRef<HTMLInputElement>(null);
+  const stepsCameraRef = useRef<HTMLInputElement>(null);
+  const stepsGalleryRef = useRef<HTMLInputElement>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
@@ -302,21 +305,23 @@ export default function ClientPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={() => { foodPhotoRef.current?.setAttribute("capture", "environment"); foodPhotoRef.current?.click(); }}
+                onClick={() => foodCameraRef.current?.click()}
                 className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100"
               >
                 <span className="text-3xl">📷</span>
                 <span className="text-sm font-semibold">קאמרה</span>
               </button>
               <button
-                onClick={() => { foodPhotoRef.current?.removeAttribute("capture"); foodPhotoRef.current?.click(); }}
+                onClick={() => foodGalleryRef.current?.click()}
                 className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100"
               >
                 <span className="text-3xl">🖼️</span>
                 <span className="text-sm font-semibold">גלריה</span>
               </button>
             </div>
-            <input ref={foodPhotoRef} type="file" accept="image/*" className="hidden"
+            <input ref={foodCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
+            <input ref={foodGalleryRef} type="file" accept="image/*" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
 
             {analyzing && (
@@ -490,17 +495,19 @@ export default function ClientPage() {
                     onChange={(e) => setNewWeight(e.target.value)}
                     placeholder='ק"ג'
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-center text-xl font-bold" />
-                  <button onClick={() => { weightPhotoRef.current?.setAttribute("capture", "environment"); weightPhotoRef.current?.click(); }}
+                  <button onClick={() => weightCameraRef.current?.click()}
                     className="rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="צילום">
                     📷
                   </button>
-                  <button onClick={() => { weightPhotoRef.current?.removeAttribute("capture"); weightPhotoRef.current?.click(); }}
+                  <button onClick={() => weightGalleryRef.current?.click()}
                     className="rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="גלריה">
                     🖼️
                   </button>
                   {weightPhoto && <span className="text-2xl flex items-center">✅</span>}
                 </div>
-                <input ref={weightPhotoRef} type="file" accept="image/*" className="hidden"
+                <input ref={weightCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
+                <input ref={weightGalleryRef} type="file" accept="image/*" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
                 <button onClick={saveWeight} disabled={savingWeight || !newWeight}
                   className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
@@ -547,18 +554,20 @@ export default function ClientPage() {
             <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
               <p className="text-sm text-gray-500 text-center">צלם סקרינשוט מאפליקציית הבריאות באייפון</p>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => { stepsPhotoRef.current?.setAttribute("capture", "environment"); stepsPhotoRef.current?.click(); }}
+                <button onClick={() => stepsCameraRef.current?.click()}
                   disabled={uploadingSteps}
                   className="rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
                   📷 קאמרה
                 </button>
-                <button onClick={() => { stepsPhotoRef.current?.removeAttribute("capture"); stepsPhotoRef.current?.click(); }}
+                <button onClick={() => stepsGalleryRef.current?.click()}
                   disabled={uploadingSteps}
                   className="rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
                   🖼️ גלריה
                 </button>
               </div>
-              <input ref={stepsPhotoRef} type="file" accept="image/*" className="hidden"
+              <input ref={stepsCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
+              <input ref={stepsGalleryRef} type="file" accept="image/*" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
               {uploadingSteps && <p className="text-sm text-gray-500 text-center">קורא את הצעדים שלך...</p>}
               {stepsSuccess && <p className="text-green-600 font-semibold text-center">{stepsSuccess}</p>}

@@ -62,9 +62,9 @@ export default function LoginPage() {
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ duration: 0.6, type: "spring", stiffness: 100, damping: 15 }}
-            className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-600 text-2xl shadow-2xl font-black text-white"
+            className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-2xl bg-primary-600 text-lg shadow-2xl font-black text-white text-center leading-tight"
           >
-            A&L
+            THE<br/>WAY
           </motion.div>
 
           <motion.div

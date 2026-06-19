@@ -51,6 +51,7 @@ export default function ClientPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [foodError, setFoodError] = useState("");
+  const [itemGrams, setItemGrams] = useState<number[]>([]);
 
   // Weight
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
@@ -138,6 +139,10 @@ export default function ClientPage() {
     if (tab === "weight") loadWeight();
     if (tab === "steps") loadLeaderboard();
   }, [tab, loadWeight, loadLeaderboard]);
+
+  useEffect(() => {
+    setItemGrams(aiResult ? aiResult.items.map((it) => it.estimated_weight_g) : []);
+  }, [aiResult]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -338,7 +343,7 @@ export default function ClientPage() {
             <div className="grid grid-cols-2 gap-3">
               <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100">
                 <span className="text-3xl">📷</span>
-                <span className="text-sm font-semibold">קאמרה</span>
+                <span className="text-sm font-semibold">מצלמה</span>
                 <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
               </label>
@@ -364,7 +369,27 @@ export default function ClientPage() {
               <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">{foodError}</div>
             )}
 
-            {aiResult && (
+            {aiResult && (() => {
+              const grams = aiResult.items.map((it, i) => itemGrams[i] ?? it.estimated_weight_g);
+              const scaled = aiResult.items.map((it, i) => {
+                const r = it.estimated_weight_g > 0 ? grams[i] / it.estimated_weight_g : 1;
+                return {
+                  calories: Math.round(it.calories * r),
+                  carbs: Math.round(it.carbs_g * r),
+                  protein: Math.round(it.protein_g * r),
+                  fat: Math.round(it.fat_g * r),
+                };
+              });
+              const total = scaled.reduce((s, x) => s + x.calories, 0);
+              const setGram = (i: number, val: number) =>
+                setItemGrams((prev) => {
+                  const base = aiResult.items.map((it, idx) => prev[idx] ?? it.estimated_weight_g);
+                  base[i] = Math.max(5, Math.round(val));
+                  return base;
+                });
+              const step = (it: AiItem) => Math.max(5, Math.round(it.estimated_weight_g / 10));
+
+              return (
               <div className="rounded-2xl bg-white p-5 shadow-sm space-y-4">
                 {aiResult.photo_url && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -372,22 +397,35 @@ export default function ClientPage() {
                 )}
 
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-orange-500">{aiResult.total_calories}</div>
+                  <div className="text-4xl font-bold text-orange-500">{total}</div>
                   <div className="text-sm text-gray-400">קלוריות בארוחה</div>
                 </div>
 
-                <div className="space-y-2">
+                <p className="text-xs text-gray-400 text-center">התאם את הכמות בגרמים והקלוריות יתעדכנו</p>
+
+                <div className="space-y-3">
                   {aiResult.items.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                      <div>
+                    <div key={i} className="rounded-xl bg-gray-50 px-4 py-3 space-y-2">
+                      <div className="flex items-center justify-between">
                         <p className="font-medium text-gray-800">{item.name}</p>
-                        <p className="text-xs text-gray-400">~{item.estimated_weight_g} גרם</p>
+                        <div className="text-right">
+                          <p className="font-bold text-orange-500">{scaled[i].calories} קל'</p>
+                          <p className="text-xs text-gray-400">
+                            C:{scaled[i].carbs}g · P:{scaled[i].protein}g · F:{scaled[i].fat}g
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-orange-500">{item.calories} קל'</p>
-                        <p className="text-xs text-gray-400">
-                          C:{item.carbs_g}g · P:{item.protein_g}g · F:{item.fat_g}g
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setGram(i, grams[i] - step(item))}
+                          className="h-9 w-9 shrink-0 rounded-lg bg-white border border-gray-200 text-xl font-bold text-gray-600 active:bg-gray-100">−</button>
+                        <div className="flex flex-1 items-center justify-center gap-1">
+                          <input type="number" inputMode="numeric" value={grams[i]}
+                            onChange={(e) => setGram(i, parseInt(e.target.value, 10) || 5)}
+                            className="w-16 rounded-lg border border-gray-200 bg-white py-1 text-center font-semibold" />
+                          <span className="text-sm text-gray-400">גרם</span>
+                        </div>
+                        <button onClick={() => setGram(i, grams[i] + step(item))}
+                          className="h-9 w-9 shrink-0 rounded-lg bg-white border border-gray-200 text-xl font-bold text-gray-600 active:bg-gray-100">＋</button>
                       </div>
                     </div>
                   ))}
@@ -402,7 +440,8 @@ export default function ClientPage() {
                   צלם עוד
                 </button>
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
@@ -582,7 +621,7 @@ export default function ClientPage() {
               <p className="text-sm text-gray-500 text-center">צלם סקרינשוט מאפליקציית הבריאות באייפון</p>
               <div className="grid grid-cols-2 gap-2">
                 <label className={`rounded-xl bg-indigo-600 py-3 text-center font-semibold text-white hover:bg-indigo-700 cursor-pointer ${uploadingSteps ? "opacity-50 pointer-events-none" : ""}`}>
-                  📷 קאמרה
+                  📷 מצלמה
                   <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
                 </label>

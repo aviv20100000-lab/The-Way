@@ -91,7 +91,7 @@ button:focus-visible {
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  @apply ring-3 ring-primary-500 ring-offset-2 border-transparent bg-primary-50 transition-all duration-200;
+  @apply ring-2 ring-primary-600 ring-offset-2 border-transparent bg-white transition-all duration-200;
 }
 
 /* Reduce motion for users who prefer it */

@@ -786,8 +786,8 @@ export default function ClientPage() {
                   <input type="number" step="0.1" value={newWeight}
                     onChange={(e) => setNewWeight(e.target.value)}
                     placeholder='ק"ג'
-                    className="flex-1 rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-center text-xl font-bold text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all" />
-                  <label className="flex cursor-pointer items-center justify-center h-12 w-12 rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 text-2xl hover:bg-primary-50 hover:border-primary-300 transition-all" title="צילום">
+                    className="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-center text-xl font-bold text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
+                  <label className="flex cursor-pointer items-center justify-center h-12 w-12 rounded-lg border border-neutral-200 bg-white text-2xl hover:bg-neutral-50 transition-all" title="צילום">
                     📷
                     <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />

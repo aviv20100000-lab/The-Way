@@ -192,9 +192,9 @@ export const components = {
   button: {
     base: "inline-flex items-center justify-center font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg",
     variants: {
-      primary: "bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 hover:shadow-lg focus:ring-3 focus:ring-primary-200 active:scale-0.95",
-      secondary: "bg-neutral-100 text-neutral-900 hover:bg-neutral-200 hover:shadow-sm focus:ring-3 focus:ring-primary-200 active:scale-0.95",
-      ghost: "text-primary-600 hover:bg-primary-50 focus:ring-3 focus:ring-primary-200 active:scale-0.95",
+      primary: "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg focus:ring-2 focus:ring-primary-600 active:scale-0.95",
+      secondary: "bg-neutral-100 text-black-matte hover:bg-neutral-200 hover:shadow-sm focus:ring-2 focus:ring-primary-600 active:scale-0.95",
+      ghost: "text-primary-600 hover:bg-primary-50 focus:ring-2 focus:ring-primary-600 active:scale-0.95",
     },
     sizes: {
       sm: "h-9 px-3 text-sm",
@@ -203,15 +203,15 @@ export const components = {
     },
   },
   card: {
-    base: "rounded-2xl bg-white shadow-card ring-1 ring-white/50 overflow-hidden",
-    interactive: "rounded-2xl bg-white shadow-card ring-1 ring-white/50 overflow-hidden hover:shadow-floating hover:scale-1.01 transition-all duration-300",
-    premium: "rounded-3xl bg-gradient-to-br from-white via-white to-neutral-50 shadow-floating ring-1 ring-white/50 overflow-hidden hover:shadow-xl transition-all duration-300",
+    base: "rounded-2xl bg-white shadow-card overflow-hidden",
+    interactive: "rounded-2xl bg-white shadow-card overflow-hidden hover:shadow-lg transition-all duration-300",
+    premium: "rounded-2xl bg-white shadow-card overflow-hidden hover:shadow-lg transition-all duration-300",
   },
   input: {
-    base: "rounded-xl border-1.5 border-neutral-200 bg-white px-4 py-3 text-base text-neutral-900 transition-all focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:ring-offset-2",
+    base: "rounded-lg border border-neutral-200 bg-white px-4 py-3 text-base text-black-matte transition-all focus:border-transparent focus:ring-2 focus:ring-primary-600",
     label: "block text-sm font-semibold text-neutral-700 mb-2",
     helper: "text-xs text-neutral-500 mt-1",
-    error: "border-danger-500 ring-2 ring-danger-200 text-danger-600",
-    success: "border-success-500 ring-2 ring-success-200 text-success-600",
+    error: "border-red-500 ring-1 ring-red-200 text-red-600",
+    success: "border-green-500 ring-1 ring-green-200 text-green-600",
   },
 };

@@ -84,7 +84,14 @@
       "PowerShell(Stop-Process -Id 27492 -Force -ErrorAction SilentlyContinue)",
       "PowerShell(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue)",
       "mcp__Claude_in_Chrome__navigate",
-      "mcp__Claude_in_Chrome__tabs_context_mcp"
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(cd \"/c/Users/owner/OneDrive/שולחן העבודה/The Way\" && ls -la .vercel/ 2>/dev/null | head -10)",
+      "Bash(file public/images/backgrounds/event-bg*)",
+      "Bash(cd \"/c/Users/owner/OneDrive/שולחן העבודה/The Way\" && cp \"public/images/backgrounds/event-bg \\(2\\).jpg\" public/images/backgrounds/event-bg.jpg && ls -lh public/images/backgrounds/event-bg.jpg && echo \"✅ תמונה הוחלפה!\")",
+      "Bash(curl -s -I https://the-way-app-two.vercel.app/images/backgrounds/event-bg.jpg)",
+      "Bash(curl -s https://the-way-app-two.vercel.app/login)",
+      "Bash(curl -s https://the-way-app-two.vercel.app/_next/static/css/)",
+      "Bash(vercel deploy *)"
     ]
   }
 }

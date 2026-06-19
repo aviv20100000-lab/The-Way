@@ -53,14 +53,15 @@ export const typography = {
     mono: "'Courier New', monospace",
   },
   fontSize: {
-    xs: "0.75rem",
-    sm: "0.875rem",
-    base: "1rem",
-    lg: "1.125rem",
-    xl: "1.25rem",
-    "2xl": "1.5rem",
-    "3xl": "1.875rem",
-    "4xl": "2.25rem",
+    xs: "0.75rem",      // 12px
+    sm: "0.875rem",     // 14px
+    base: "1rem",       // 16px
+    lg: "1.125rem",     // 18px
+    xl: "1.25rem",      // 20px
+    "2xl": "1.5rem",    // 24px
+    "3xl": "1.875rem",  // 30px
+    "4xl": "2.25rem",   // 36px
+    "5xl": "2.75rem",   // 44px — display-lg
   },
   fontWeight: {
     regular: 400,
@@ -71,40 +72,80 @@ export const typography = {
     black: 900,
   },
   lineHeight: {
-    tight: 1.25,
-    normal: 1.5,
-    relaxed: 1.75,
+    tight: 1.2,        // Headings (Hebrew needs more space than English)
+    snug: 1.375,       // Subheadings
+    normal: 1.5,       // Body text
+    relaxed: 1.75,     // Long-form content
+  },
+  /* Typography hierarchy for premium feel */
+  scales: {
+    display: {
+      lg: { size: "2.5rem", weight: 900, lineHeight: 1.1, tracking: -0.02 },      // 40px
+      base: { size: "2rem", weight: 900, lineHeight: 1.2, tracking: -0.01 },       // 32px
+      sm: { size: "1.5rem", weight: 800, lineHeight: 1.3 },                        // 24px
+    },
+    heading: {
+      lg: { size: "1.5rem", weight: 700, lineHeight: 1.3 },                        // 24px
+      base: { size: "1.25rem", weight: 700, lineHeight: 1.4 },                     // 20px
+      sm: { size: "1.125rem", weight: 600, lineHeight: 1.4 },                      // 18px
+    },
+    body: {
+      lg: { size: "1rem", weight: 500, lineHeight: 1.6 },                          // 16px (emphasized)
+      base: { size: "0.875rem", weight: 400, lineHeight: 1.5 },                    // 14px (standard)
+      sm: { size: "0.75rem", weight: 400, lineHeight: 1.5 },                       // 12px (small)
+    },
+    caption: {
+      base: { size: "0.75rem", weight: 500, lineHeight: 1.4 },                     // 12px (label)
+      muted: { size: "0.75rem", weight: 400, lineHeight: 1.4, color: "text-neutral-500" },
+    },
   },
 };
 
 export const spacing = {
   0: "0",
-  1: "0.25rem",
-  2: "0.5rem",
-  3: "0.75rem",
-  4: "1rem",
-  5: "1.25rem",
-  6: "1.5rem",
-  8: "2rem",
-  10: "2.5rem",
-  12: "3rem",
-  16: "4rem",
+  1: "0.25rem",   // 4px — micro
+  2: "0.5rem",    // 8px — small
+  3: "0.75rem",   // 12px — spacing-item (between related elements)
+  4: "1rem",      // 16px — spacing-group (between sections)
+  5: "1.25rem",   // 20px — spacing-section (elevated spacing)
+  6: "1.5rem",    // 24px — card-padding
+  8: "2rem",      // 32px — section-gap
+  10: "2.5rem",   // 40px — large
+  12: "3rem",     // 48px — very large
+  16: "4rem",     // 64px — hero spacing
   20: "5rem",
   24: "6rem",
   32: "8rem",
 };
 
 export const shadows = {
-  xs: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-  sm: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)",
-  md: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)",
-  lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
-  xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-  /* Premium shadows */
-  glow: "0 0px 20px rgba(79, 70, 229, 0.1)",
-  floating: "0 10px 30px -10px rgba(0, 0, 0, 0.2)",
-  card: "0 2px 18px -10px rgba(0, 0, 0, 0.18), 0 0px 1px rgba(0, 0, 0, 0.03)",
-  elevated: "0 4px 20px -4px rgba(0, 0, 0, 0.15)",
+  /* Micro-interactions (barely visible) */
+  micro: "0 1px 3px rgba(0, 0, 0, 0.08)",
+
+  /* Light depth */
+  xs: "0 1px 2px rgba(0, 0, 0, 0.05)",
+  sm: "0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
+
+  /* Standard (cards, sections) */
+  md: "0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05)",
+
+  /* Elevated (hover state) */
+  lg: "0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05)",
+
+  /* Premium floating (modals, overlays) */
+  xl: "0 20px 25px rgba(0, 0, 0, 0.12), 0 8px 10px rgba(0, 0, 0, 0.05)",
+
+  /* Premium card shadow (default on cards) */
+  card: "0 2px 18px rgba(0, 0, 0, 0.15), 0 0px 1px rgba(0, 0, 0, 0.03)",
+
+  /* Floating/hover elevation (interactive cards) */
+  floating: "0 12px 35px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.06)",
+
+  /* Glow/accent (premium moments) */
+  glow: "0 0px 30px rgba(79, 70, 229, 0.15), 0 0px 60px rgba(79, 70, 229, 0.08)",
+
+  /* Inset (pressed state) */
+  inset: "inset 0 2px 4px rgba(0, 0, 0, 0.06), inset 0 1px 2px rgba(0, 0, 0, 0.03)",
 };
 
 export const borderRadius = {
@@ -120,11 +161,20 @@ export const borderRadius = {
 };
 
 export const transitions = {
-  fast: "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+  /* Micro-interactions (fast feedback) */
+  fast: "100ms cubic-bezier(0.4, 0, 0.2, 1)",
+
+  /* Standard UI changes */
   base: "250ms cubic-bezier(0.4, 0, 0.2, 1)",
+
+  /* Slower, more deliberate */
   slow: "350ms cubic-bezier(0.4, 0, 0.2, 1)",
-  /* Spring-like easing for premium feel */
-  spring: "250ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+
+  /* Spring for premium feel (snappy but smooth) */
+  spring: "300ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+
+  /* Smooth scroll/fade */
+  smooth: "400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
 };
 
 export const breakpoints = {
@@ -136,27 +186,32 @@ export const breakpoints = {
 };
 
 /**
- * Component Presets — reusable style combinations
+ * Component Presets — reusable style combinations (premium)
  */
 export const components = {
   button: {
-    base: "inline-flex items-center justify-center font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed",
+    base: "inline-flex items-center justify-center font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg",
     variants: {
-      primary: "bg-primary-600 text-white hover:bg-primary-700 active:scale-95",
-      secondary: "bg-neutral-100 text-neutral-900 hover:bg-neutral-200 active:scale-95",
-      ghost: "text-primary-600 hover:bg-primary-50 active:scale-95",
+      primary: "bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 hover:shadow-lg focus:ring-3 focus:ring-primary-200 active:scale-0.95",
+      secondary: "bg-neutral-100 text-neutral-900 hover:bg-neutral-200 hover:shadow-sm focus:ring-3 focus:ring-primary-200 active:scale-0.95",
+      ghost: "text-primary-600 hover:bg-primary-50 focus:ring-3 focus:ring-primary-200 active:scale-0.95",
     },
     sizes: {
-      sm: "px-3 py-1.5 text-sm",
-      md: "px-4 py-2 text-base",
-      lg: "px-6 py-3 text-lg",
+      sm: "h-9 px-3 text-sm",
+      md: "h-10 px-4 text-base",
+      lg: "h-12 px-6 text-lg",
     },
   },
   card: {
-    base: "rounded-2xl bg-white shadow-card ring-1 ring-black/[0.03] overflow-hidden",
-    interactive: "rounded-2xl bg-white shadow-card ring-1 ring-black/[0.03] overflow-hidden hover:shadow-floating transition-shadow duration-300",
+    base: "rounded-2xl bg-white shadow-card ring-1 ring-white/50 overflow-hidden",
+    interactive: "rounded-2xl bg-white shadow-card ring-1 ring-white/50 overflow-hidden hover:shadow-floating hover:scale-1.01 transition-all duration-300",
+    premium: "rounded-3xl bg-gradient-to-br from-white via-white to-neutral-50 shadow-floating ring-1 ring-white/50 overflow-hidden hover:shadow-xl transition-all duration-300",
   },
   input: {
-    base: "rounded-xl border border-neutral-200 bg-white px-4 py-3 text-base text-neutral-900 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary-500",
+    base: "rounded-xl border-1.5 border-neutral-200 bg-white px-4 py-3 text-base text-neutral-900 transition-all focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:ring-offset-2",
+    label: "block text-sm font-semibold text-neutral-700 mb-2",
+    helper: "text-xs text-neutral-500 mt-1",
+    error: "border-danger-500 ring-2 ring-danger-200 text-danger-600",
+    success: "border-success-500 ring-2 ring-success-200 text-success-600",
   },
 };

@@ -4,37 +4,61 @@ import { calcItemNutrition, MEAL_TYPE_LABELS } from "@/lib/types";
 import type { MealType } from "@/lib/types";
 
 const nutrientColors = {
-  calories: { bg: "bg-orange-50", text: "text-orange-600", label: "text-orange-500" },
-  protein: { bg: "bg-blue-50", text: "text-blue-600", label: "text-blue-500" },
-  carbs: { bg: "bg-amber-50", text: "text-amber-600", label: "text-amber-500" },
-  fat: { bg: "bg-purple-50", text: "text-purple-600", label: "text-purple-500" },
+  calories: {
+    gradient: "from-orange-600 to-orange-500",
+    emoji: "🔥",
+    icon: "kcal"
+  },
+  protein: {
+    gradient: "from-blue-600 to-blue-500",
+    emoji: "💪",
+    icon: "g"
+  },
+  carbs: {
+    gradient: "from-amber-600 to-amber-500",
+    emoji: "⚡",
+    icon: "g"
+  },
+  fat: {
+    gradient: "from-purple-600 to-purple-500",
+    emoji: "💧",
+    icon: "g"
+  },
 };
 
 export function NutritionBadge({ totals }: { totals: NutritionTotals }) {
   const nutrients = [
-    { label: "קלוריות", value: totals.calories, color: nutrientColors.calories },
-    { label: "חלבון", value: `${totals.protein}g`, color: nutrientColors.protein },
-    { label: "פחמימות", value: `${totals.carbs}g`, color: nutrientColors.carbs },
-    { label: "שומן", value: `${totals.fat}g`, color: nutrientColors.fat },
+    { label: "קלוריות", value: totals.calories, icon: "🔥", gradient: "from-orange-600 to-orange-500" },
+    { label: "חלבון", value: `${totals.protein}`, icon: "💪", gradient: "from-blue-600 to-blue-500" },
+    { label: "פחמימות", value: `${totals.carbs}`, icon: "⚡", gradient: "from-amber-600 to-amber-500" },
+    { label: "שומן", value: `${totals.fat}`, icon: "💧", gradient: "from-purple-600 to-purple-500" },
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       {nutrients.map((nutrient, i) => (
         <motion.div
           key={nutrient.label}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.3 }}
-          className={`rounded-lg ${nutrient.color.bg} p-2.5 text-center`}
+          className={`rounded-2xl bg-gradient-to-br ${nutrient.gradient} p-5 text-center text-white shadow-md hover:shadow-lg transition-shadow duration-300`}
         >
-          <div className={`font-bold text-sm ${nutrient.color.text}`}>{nutrient.value}</div>
-          <div className={`text-xs ${nutrient.color.label}`}>{nutrient.label}</div>
+          <div className="text-3xl mb-2">{nutrient.icon}</div>
+          <div className="font-bold text-xl">{nutrient.value}</div>
+          <div className="text-xs opacity-90 font-medium">{nutrient.label}</div>
         </motion.div>
       ))}
     </div>
   );
 }
+
+const mealTypeEmojis: Record<MealType, string> = {
+  breakfast: "🌅",
+  lunch: "☀️",
+  dinner: "🌙",
+  snack: "🍿",
+};
 
 export function MealCard({
   mealType,
@@ -71,15 +95,17 @@ export function MealCard({
     minute: "2-digit",
   });
 
+  const mealEmoji = mealTypeEmojis[mealType] || "🍽️";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, type: "spring", stiffness: 100, damping: 15 }}
-      className="overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/[0.03] hover:shadow-floating transition-shadow duration-300"
+      className="overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-white/50 hover:shadow-floating hover:scale-105 transition-all duration-300"
     >
       {photoUrl && (
-        <div className="relative aspect-video w-full bg-neutral-100 overflow-hidden">
+        <div className="relative aspect-square w-full bg-gradient-to-br from-neutral-100 to-neutral-200 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <motion.img
             src={photoUrl}
@@ -89,35 +115,65 @@ export function MealCard({
             transition={{ duration: 0.5 }}
             className="h-full w-full object-cover"
           />
+          {/* Meal type badge overlay */}
+          <div className="absolute top-3 end-3 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5 text-white text-xs font-semibold flex items-center gap-1">
+            {mealEmoji}
+            <span>{MEAL_TYPE_LABELS[mealType]}</span>
+          </div>
         </div>
       )}
-      <div className="p-5">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="p-6 space-y-4">
+        {/* Header */}
+        <div className="flex items-start justify-between">
           <div>
-            {userName && <p className="font-semibold text-neutral-900">{userName}</p>}
-            <p className="text-sm text-primary-600 font-medium">{MEAL_TYPE_LABELS[mealType]}</p>
+            {userName && <p className="font-semibold text-lg text-neutral-900">{userName}</p>}
+            <p className="text-sm text-neutral-500">{time}</p>
           </div>
-          <span className="text-xs text-neutral-500">{time}</span>
+          <div className="text-3xl">{mealEmoji}</div>
         </div>
 
-        {notes && <p className="mb-4 text-sm text-neutral-600 italic">{notes}</p>}
+        {/* Nutrition summary grid */}
+        <div className="grid grid-cols-4 gap-2">
+          <div className="rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 p-3 text-center">
+            <div className="text-lg font-bold text-orange-600">{totals.calories}</div>
+            <div className="text-xs text-orange-500">kcal</div>
+          </div>
+          <div className="rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 p-3 text-center">
+            <div className="text-lg font-bold text-blue-600">{totals.protein}g</div>
+            <div className="text-xs text-blue-500">חלבון</div>
+          </div>
+          <div className="rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 p-3 text-center">
+            <div className="text-lg font-bold text-amber-600">{totals.carbs}g</div>
+            <div className="text-xs text-amber-500">פחמימות</div>
+          </div>
+          <div className="rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 p-3 text-center">
+            <div className="text-lg font-bold text-purple-600">{totals.fat}g</div>
+            <div className="text-xs text-purple-500">שומן</div>
+          </div>
+        </div>
 
-        <ul className="mb-4 space-y-2 text-sm text-neutral-700">
-          {items.map((item, i) => (
-            <motion.li
-              key={i}
+        {/* Items list */}
+        <div className="space-y-2 max-h-32 overflow-y-auto">
+          {items.map((item, idx) => (
+            <motion.div
+              key={idx}
               initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="flex justify-between"
+              transition={{ delay: idx * 0.05 }}
+              className="flex justify-between items-center text-sm text-neutral-700 pb-2 border-b border-neutral-100 last:border-b-0"
             >
               <span>{item.food.name_he}</span>
-              <span className="text-neutral-500">{item.quantity} גרם</span>
-            </motion.li>
+              <span className="font-medium text-primary-600">{item.quantity}g</span>
+            </motion.div>
           ))}
-        </ul>
+        </div>
 
-        <NutritionBadge totals={totals} />
+        {/* Notes */}
+        {notes && (
+          <p className="text-sm text-neutral-600 italic border-s-2 border-primary-500 ps-3">
+            "{notes}"
+          </p>
+        )}
       </div>
     </motion.div>
   );

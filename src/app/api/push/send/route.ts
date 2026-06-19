@@ -32,14 +32,15 @@ export async function POST(req: NextRequest) {
     })).rows;
   }
 
-  const payload = JSON.stringify({ title, body, icon: "/icon-192.png" });
+  const payload = Buffer.from(JSON.stringify({ title, body, icon: "/icon-192.png" }), "utf8");
   let sent = 0;
 
   for (const sub of subs) {
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint as string, keys: { p256dh: sub.p256dh as string, auth: sub.auth as string } },
-        payload
+        payload,
+        { contentEncoding: "aes128gcm" }
       );
       sent++;
     } catch {

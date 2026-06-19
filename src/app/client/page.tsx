@@ -365,77 +365,165 @@ export default function ClientPage() {
         )}
 
         {/* ══ WEIGHT TAB ══ */}
-        {tab === "weight" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">מעקב משקל</h2>
+        {tab === "weight" && (() => {
+          const startWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight_kg : null;
+          const currentWeight = weightLogs.length > 0 ? weightLogs[0].weight_kg : null;
+          const totalToLose = startWeight && weightTarget ? startWeight - weightTarget : null;
+          const alreadyLost = startWeight && currentWeight ? startWeight - currentWeight : 0;
+          const progressPct = totalToLose && totalToLose > 0 ? Math.min(100, Math.max(0, (alreadyLost / totalToLose) * 100)) : 0;
+          const isHalfway = progressPct >= 50;
+          const isGoal = progressPct >= 100;
 
-            {/* Add weight */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
-              <p className="font-medium text-gray-700">הזן משקל היום</p>
-              <div className="flex gap-3">
-                <input
-                  type="number"
-                  step="0.1"
-                  value={newWeight}
-                  onChange={(e) => setNewWeight(e.target.value)}
-                  placeholder='ק"ג'
-                  className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-center text-xl font-bold"
-                />
-                <button onClick={() => weightPhotoRef.current?.click()}
-                  className="rounded-xl border border-gray-200 px-4 py-3 text-2xl">
-                  {weightPhoto ? "✅" : "📸"}
-                </button>
-              </div>
-              <input ref={weightPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
-              <button onClick={saveWeight} disabled={savingWeight || !newWeight}
-                className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
-                {savingWeight ? "שומר..." : "שמור משקל"}
-              </button>
-            </div>
+          // Next Sunday (every 2 weeks)
+          const today = new Date();
+          const dayOfWeek = today.getDay();
+          const daysUntilSunday = dayOfWeek === 0 ? 14 : 7 - dayOfWeek;
+          const nextWeighIn = new Date(today);
+          nextWeighIn.setDate(today.getDate() + daysUntilSunday);
+          const nextWeighInStr = nextWeighIn.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
 
-            {/* Target */}
-            {weightTarget && (
-              <div className="rounded-xl bg-green-50 px-4 py-3 text-center">
-                <span className="text-sm text-green-700">🎯 יעד משקל: <strong>{weightTarget} ק"ג</strong></span>
-                {latestWeight && (
-                  <p className="text-xs text-green-500 mt-1">
-                    נשאר עוד {Math.max(0, latestWeight - weightTarget).toFixed(1)} ק"ג
+          const milestoneMsg = isGoal
+            ? "הגעת! 🏆 הוכחת לעצמך שאפשר. עכשיו השמירה מתחילה."
+            : isHalfway
+            ? "חצי הדרך! עצרת רגע? זה בגלל שחצי הדרך מרגישה כמו שיא — אבל זה רק נקודת ההתחלה האמיתית. הגוף שלך כבר יודע שזה אפשרי. עכשיו תוכיח לו שאתה יודע גם."
+            : progressPct >= 25
+            ? "אתה בתנועה. כל שקילה שמוסיפה לתמונה — גם כשהמספר לא זז — היא הצלחה."
+            : "כל קילוגרם שירד הוא הכי קשה — כי הוא היה צריך את האומץ להתחיל.";
+
+          return (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-gray-800">מעקב משקל</h2>
+
+              {/* Journey progress */}
+              {startWeight && weightTarget && currentWeight && (
+                <div className={`rounded-2xl p-5 shadow-sm space-y-4 ${isHalfway ? "bg-gradient-to-br from-indigo-600 to-purple-600 text-white" : "bg-white"}`}>
+                  {isHalfway && (
+                    <div className="text-center">
+                      <div className="text-4xl mb-1">{isGoal ? "🏆" : "🎉"}</div>
+                      <p className="font-bold text-lg">{isGoal ? "הגעת ליעד!" : "חצי הדרך!"}</p>
+                    </div>
+                  )}
+
+                  <p className={`text-sm leading-relaxed ${isHalfway ? "text-indigo-100" : "text-gray-500"} text-center`}>
+                    {milestoneMsg}
                   </p>
-                )}
-              </div>
-            )}
 
-            {/* History */}
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-500">היסטוריה</p>
-              {weightLogs.length === 0 && <p className="text-center text-gray-400 py-4">עדיין לא נרשם משקל</p>}
-              {weightLogs.map((log, i) => (
-                <div key={log.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    {log.photo_url
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={log.photo_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                      : <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">⚖️</div>
-                    }
-                    <div>
-                      <p className="font-bold text-gray-800">{log.weight_kg} ק"ג</p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(log.logged_at).toLocaleDateString("he-IL")}
-                      </p>
+                  {/* Road track */}
+                  <div className="relative pt-2 pb-2">
+                    {/* Track background */}
+                    <div className={`h-4 rounded-full ${isHalfway ? "bg-white/20" : "bg-gray-100"}`} />
+                    {/* Progress fill */}
+                    <div
+                      className={`absolute top-2 right-0 h-4 rounded-full transition-all duration-700 ${isGoal ? "bg-yellow-400" : isHalfway ? "bg-white" : "bg-indigo-500"}`}
+                      style={{ width: `${progressPct}%`, left: "auto" }}
+                    />
+                    {/* Halfway marker */}
+                    <div className="absolute top-0 flex flex-col items-center" style={{ right: "50%", transform: "translateX(50%)" }}>
+                      <div className={`w-1 h-6 ${isHalfway ? "bg-white/40" : "bg-gray-300"}`} />
+                      <span className="text-xs mt-1 whitespace-nowrap" style={{ color: isHalfway ? "rgba(255,255,255,0.7)" : "#9ca3af" }}>חצי</span>
+                    </div>
+                    {/* Runner emoji at current position */}
+                    <div
+                      className="absolute -top-3 text-2xl transition-all duration-700"
+                      style={{ right: `${progressPct}%`, transform: "translateX(50%)" }}
+                    >
+                      {isGoal ? "🏆" : "🏃"}
                     </div>
                   </div>
-                  {i > 0 && (
-                    <span className={`text-sm font-medium ${log.weight_kg < weightLogs[i - 1].weight_kg ? "text-green-500" : "text-red-400"}`}>
-                      {log.weight_kg < weightLogs[i - 1].weight_kg ? "▼" : "▲"}
-                      {Math.abs(log.weight_kg - weightLogs[i - 1].weight_kg).toFixed(1)}
-                    </span>
-                  )}
+
+                  {/* Numbers */}
+                  <div className="flex justify-between text-sm">
+                    <div className="text-center">
+                      <p className={`font-bold text-base ${isHalfway ? "text-white" : "text-gray-800"}`}>{startWeight}</p>
+                      <p className={isHalfway ? "text-indigo-200 text-xs" : "text-gray-400 text-xs"}>התחלה</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`font-bold text-xl ${isHalfway ? "text-white" : "text-indigo-600"}`}>{currentWeight}</p>
+                      <p className={isHalfway ? "text-indigo-200 text-xs" : "text-gray-400 text-xs"}>עכשיו</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`font-bold text-base ${isHalfway ? "text-yellow-300" : "text-green-600"}`}>{weightTarget}</p>
+                      <p className={isHalfway ? "text-indigo-200 text-xs" : "text-gray-400 text-xs"}>יעד</p>
+                    </div>
+                  </div>
+
+                  {/* Stats row */}
+                  <div className={`flex justify-around rounded-xl py-3 ${isHalfway ? "bg-white/15" : "bg-gray-50"}`}>
+                    <div className="text-center">
+                      <p className={`font-bold text-lg ${isHalfway ? "text-white" : "text-gray-800"}`}>{alreadyLost > 0 ? `-${alreadyLost.toFixed(1)}` : "0"}</p>
+                      <p className={`text-xs ${isHalfway ? "text-indigo-200" : "text-gray-400"}`}>ק"ג ירדו</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`font-bold text-lg ${isHalfway ? "text-white" : "text-gray-800"}`}>{Math.round(progressPct)}%</p>
+                      <p className={`text-xs ${isHalfway ? "text-indigo-200" : "text-gray-400"}`}>מהדרך</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`font-bold text-lg ${isHalfway ? "text-white" : "text-gray-800"}`}>{Math.max(0, (currentWeight ?? 0) - weightTarget).toFixed(1)}</p>
+                      <p className={`text-xs ${isHalfway ? "text-indigo-200" : "text-gray-400"}`}>נשאר</p>
+                    </div>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Next weigh-in */}
+              <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 flex items-center gap-3">
+                <span className="text-2xl">📅</span>
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">שקילה הבאה</p>
+                  <p className="text-xs text-amber-600">{nextWeighInStr} • כל שבועיים ביום ראשון</p>
+                </div>
+              </div>
+
+              {/* Add weight */}
+              <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
+                <p className="font-medium text-gray-700">הזן משקל</p>
+                <div className="flex gap-3">
+                  <input type="number" step="0.1" value={newWeight}
+                    onChange={(e) => setNewWeight(e.target.value)}
+                    placeholder='ק"ג'
+                    className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-center text-xl font-bold" />
+                  <button onClick={() => weightPhotoRef.current?.click()}
+                    className="rounded-xl border border-gray-200 px-4 py-3 text-2xl">
+                    {weightPhoto ? "✅" : "📸"}
+                  </button>
+                </div>
+                <input ref={weightPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
+                <button onClick={saveWeight} disabled={savingWeight || !newWeight}
+                  className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+                  {savingWeight ? "שומר..." : "שמור משקל"}
+                </button>
+              </div>
+
+              {/* History */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-500">היסטוריה</p>
+                {weightLogs.length === 0 && <p className="text-center text-gray-400 py-4">עדיין לא נרשם משקל</p>}
+                {weightLogs.map((log, i) => (
+                  <div key={log.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      {log.photo_url
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={log.photo_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                        : <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">⚖️</div>
+                      }
+                      <div>
+                        <p className="font-bold text-gray-800">{log.weight_kg} ק"ג</p>
+                        <p className="text-xs text-gray-400">{new Date(log.logged_at).toLocaleDateString("he-IL")}</p>
+                      </div>
+                    </div>
+                    {i < weightLogs.length - 1 && (
+                      <span className={`text-sm font-medium ${log.weight_kg < weightLogs[i + 1].weight_kg ? "text-green-500" : "text-red-400"}`}>
+                        {log.weight_kg < weightLogs[i + 1].weight_kg ? "▼" : "▲"}
+                        {Math.abs(log.weight_kg - weightLogs[i + 1].weight_kg).toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ══ STEPS TAB ══ */}
         {tab === "steps" && (

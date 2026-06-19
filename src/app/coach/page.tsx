@@ -1,0 +1,388 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+type CoachTab = "clients" | "quotes" | "leaderboard";
+
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface Quote {
+  id: string;
+  text: string;
+  author: string | null;
+}
+
+interface LeaderboardEntry {
+  id: string;
+  name: string;
+  today: number;
+  week: number;
+}
+
+interface Goals {
+  target_weight_kg: number | null;
+  daily_calories: number | null;
+  daily_water_ml: number;
+}
+
+export default function CoachPage() {
+  const router = useRouter();
+  const [tab, setTab] = useState<CoachTab>("clients");
+  const [coachName, setCoachName] = useState("מאמן");
+
+  // Clients
+  const [clients, setClients] = useState<Client[]>([]);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [newClient, setNewClient] = useState({ name: "", email: "", password: "" });
+  const [addError, setAddError] = useState("");
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientGoals, setClientGoals] = useState<Goals>({ target_weight_kg: null, daily_calories: null, daily_water_ml: 2000 });
+  const [savingGoals, setSavingGoals] = useState(false);
+
+  // Quotes
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [newQuote, setNewQuote] = useState({ text: "", author: "" });
+  const [addingQuote, setAddingQuote] = useState(false);
+
+  // Leaderboard
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [lbView, setLbView] = useState<"today" | "week">("today");
+
+  // Push notifications
+  const [pushTitle, setPushTitle] = useState("");
+  const [pushBody, setPushBody] = useState("");
+  const [sendingPush, setSendingPush] = useState(false);
+  const [pushResult, setPushResult] = useState("");
+
+  const loadClients = useCallback(async () => {
+    const res = await fetch("/api/clients");
+    if (res.status === 401 || res.status === 403) { router.push("/login"); return; }
+    setClients(await res.json());
+  }, [router]);
+
+  const loadQuotes = useCallback(async () => {
+    const res = await fetch("/api/quotes");
+    setQuotes(await res.json());
+  }, []);
+
+  const loadLeaderboard = useCallback(async () => {
+    const res = await fetch("/api/steps?type=leaderboard");
+    setLeaderboard(await res.json());
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.name) setCoachName(d.name); });
+    loadClients();
+  }, [loadClients]);
+
+  useEffect(() => {
+    if (tab === "quotes") loadQuotes();
+    if (tab === "leaderboard") loadLeaderboard();
+  }, [tab, loadQuotes, loadLeaderboard]);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
+
+  async function addClient() {
+    setAddError("");
+    const res = await fetch("/api/clients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newClient),
+    });
+    const data = await res.json();
+    if (!res.ok) { setAddError(data.error); return; }
+    setShowAddClient(false);
+    setNewClient({ name: "", email: "", password: "" });
+    loadClients();
+  }
+
+  async function openClientGoals(client: Client) {
+    setSelectedClient(client);
+    const res = await fetch(`/api/goals?userId=${client.id}`);
+    const data = await res.json();
+    setClientGoals({
+      target_weight_kg: data.target_weight_kg,
+      daily_calories: data.daily_calories,
+      daily_water_ml: data.daily_water_ml ?? 2000,
+    });
+  }
+
+  async function saveGoals() {
+    if (!selectedClient) return;
+    setSavingGoals(true);
+    await fetch("/api/goals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: selectedClient.id, ...clientGoals }),
+    });
+    setSavingGoals(false);
+    setSelectedClient(null);
+  }
+
+  async function addQuote() {
+    if (!newQuote.text.trim()) return;
+    setAddingQuote(true);
+    await fetch("/api/quotes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newQuote),
+    });
+    setNewQuote({ text: "", author: "" });
+    setAddingQuote(false);
+    loadQuotes();
+  }
+
+  async function sendPush() {
+    if (!pushTitle.trim() || !pushBody.trim()) return;
+    setSendingPush(true);
+    setPushResult("");
+    const res = await fetch("/api/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: pushTitle, body: pushBody }),
+    });
+    const data = await res.json();
+    setPushResult(`נשלח ל-${data.sent} מתאמנים ✓`);
+    setPushTitle("");
+    setPushBody("");
+    setSendingPush(false);
+  }
+
+  async function deleteQuote(id: string) {
+    await fetch("/api/quotes", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setQuotes((q) => q.filter((x) => x.id !== id));
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24" dir="rtl">
+      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
+          <div>
+            <h1 className="text-lg font-bold">THE WAY — מאמן</h1>
+            <p className="text-xs text-gray-400">שלום, {coachName}</p>
+          </div>
+          <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">יציאה</button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-lg px-4 pt-4">
+
+        {tab === "clients" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">המתאמנים שלי</h2>
+              <button onClick={() => setShowAddClient(true)}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                + הוסף
+              </button>
+            </div>
+
+            {showAddClient && (
+              <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
+                <h3 className="font-bold">מתאמן חדש</h3>
+                {addError && <p className="text-sm text-red-500">{addError}</p>}
+                <input placeholder="שם" value={newClient.name}
+                  onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3" />
+                <input placeholder="אימייל" value={newClient.email} dir="ltr"
+                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3" />
+                <input placeholder="סיסמה" type="password" value={newClient.password} dir="ltr"
+                  onChange={(e) => setNewClient({ ...newClient, password: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3" />
+                <div className="flex gap-2">
+                  <button onClick={() => setShowAddClient(false)}
+                    className="flex-1 rounded-xl border py-2 text-gray-500">ביטול</button>
+                  <button onClick={addClient}
+                    className="flex-1 rounded-xl bg-indigo-600 py-2 text-white font-medium">הוסף</button>
+                </div>
+              </div>
+            )}
+
+            {clients.length === 0 && !showAddClient && (
+              <p className="text-center text-gray-400 py-8">אין מתאמנים עדיין</p>
+            )}
+
+            {clients.map((c) => (
+              <div key={c.id} className="rounded-2xl bg-white p-4 shadow-sm flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-800">{c.name}</p>
+                  <p className="text-sm text-gray-400" dir="ltr">{c.email}</p>
+                </div>
+                <button onClick={() => openClientGoals(c)}
+                  className="rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600 hover:bg-gray-200">
+                  🎯 יעדים
+                </button>
+              </div>
+            ))}
+
+            {selectedClient && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={() => setSelectedClient(null)}>
+                <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="font-bold text-lg">יעדים עבור {selectedClient.name}</h3>
+
+                  <label className="block">
+                    <span className="text-sm text-gray-500">יעד משקל (ק"ג)</span>
+                    <input type="number" step="0.5"
+                      value={clientGoals.target_weight_kg ?? ""}
+                      onChange={(e) => setClientGoals({ ...clientGoals, target_weight_kg: e.target.value ? parseFloat(e.target.value) : null })}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3"
+                      placeholder="לדוגמה: 75" />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm text-gray-500">יעד קלוריות יומי</span>
+                    <input type="number"
+                      value={clientGoals.daily_calories ?? ""}
+                      onChange={(e) => setClientGoals({ ...clientGoals, daily_calories: e.target.value ? parseInt(e.target.value) : null })}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3"
+                      placeholder="לדוגמה: 1800" />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-sm text-gray-500">יעד מים יומי (מ"ל)</span>
+                    <input type="number"
+                      value={clientGoals.daily_water_ml}
+                      onChange={(e) => setClientGoals({ ...clientGoals, daily_water_ml: parseInt(e.target.value) || 2000 })}
+                      className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3" />
+                  </label>
+
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelectedClient(null)}
+                      className="flex-1 rounded-xl border py-3 text-gray-500">ביטול</button>
+                    <button onClick={saveGoals} disabled={savingGoals}
+                      className="flex-1 rounded-xl bg-green-600 py-3 text-white font-semibold disabled:opacity-50">
+                      {savingGoals ? "שומר..." : "שמור יעדים"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "quotes" && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">ציטוטים מוטיבציוניים</h2>
+
+            {/* Send push notification */}
+            <div className="rounded-2xl bg-indigo-50 p-5 border border-indigo-100 space-y-3">
+              <p className="font-semibold text-indigo-800">📣 שלח הודעה לכל המתאמנים</p>
+              <input value={pushTitle} onChange={(e) => setPushTitle(e.target.value)}
+                placeholder="כותרת ההודעה"
+                className="w-full rounded-xl border border-indigo-200 px-4 py-3 bg-white" />
+              <input value={pushBody} onChange={(e) => setPushBody(e.target.value)}
+                placeholder="תוכן ההודעה"
+                className="w-full rounded-xl border border-indigo-200 px-4 py-3 bg-white" />
+              <button onClick={sendPush} disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
+                className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white disabled:opacity-50">
+                {sendingPush ? "שולח..." : "📱 שלח עכשיו"}
+              </button>
+              {pushResult && <p className="text-center text-sm text-green-600 font-medium">{pushResult}</p>}
+            </div>
+
+
+            <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
+              <textarea
+                value={newQuote.text}
+                onChange={(e) => setNewQuote({ ...newQuote, text: e.target.value })}
+                placeholder="כתוב משפט מוטיבציוני..."
+                rows={3}
+                className="w-full rounded-xl border border-gray-200 px-4 py-3 resize-none"
+              />
+              <input
+                value={newQuote.author}
+                onChange={(e) => setNewQuote({ ...newQuote, author: e.target.value })}
+                placeholder="מאת (אופציונלי)"
+                className="w-full rounded-xl border border-gray-200 px-4 py-3"
+              />
+              <button onClick={addQuote} disabled={addingQuote || !newQuote.text.trim()}
+                className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white disabled:opacity-50">
+                {addingQuote ? "מוסיף..." : "➕ הוסף ציטוט"}
+              </button>
+            </div>
+
+            {quotes.length === 0 && <p className="text-center text-gray-400 py-4">אין ציטוטים עדיין</p>}
+            {quotes.map((q) => (
+              <div key={q.id} className="rounded-2xl bg-white p-4 shadow-sm">
+                <p className="text-gray-800 leading-relaxed">"{q.text}"</p>
+                {q.author && <p className="text-sm text-gray-400 mt-1">— {q.author}</p>}
+                <button onClick={() => deleteQuote(q.id)}
+                  className="mt-2 text-xs text-red-400 hover:text-red-600">🗑️ מחק</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "leaderboard" && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">לוח תחרות צעדים</h2>
+
+            <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+              <div className="flex border-b">
+                <button onClick={() => setLbView("today")}
+                  className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-400"}`}>
+                  יומי
+                </button>
+                <button onClick={() => setLbView("week")}
+                  className={`flex-1 py-3 text-sm font-medium ${lbView === "week" ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-400"}`}>
+                  שבועי
+                </button>
+              </div>
+              <div className="p-4 space-y-2">
+                {leaderboard.length === 0 && <p className="text-center text-gray-400 py-4">אין נתונים עדיין</p>}
+                {leaderboard
+                  .slice()
+                  .sort((a, b) => (lbView === "today" ? b.today - a.today : b.week - a.week))
+                  .map((entry, i) => (
+                    <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
+                      <span className="text-lg font-bold w-6 text-center">
+                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                      </span>
+                      <span className="flex-1 font-medium text-gray-800">{entry.name}</span>
+                      <span className="font-bold text-indigo-600">
+                        {(lbView === "today" ? entry.today : entry.week).toLocaleString()} 👟
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <button onClick={loadLeaderboard}
+              className="w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50">
+              🔄 רענן
+            </button>
+          </div>
+        )}
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-100 bg-white">
+        <div className="mx-auto flex max-w-lg">
+          {([
+            { id: "clients", icon: "👥", label: "מתאמנים" },
+            { id: "quotes", icon: "💬", label: "ציטוטים" },
+            { id: "leaderboard", icon: "🏆", label: "תחרות" },
+          ] as { id: CoachTab; icon: string; label: string }[]).map((t) => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex flex-1 flex-col items-center py-3 text-xs transition ${tab === t.id ? "text-indigo-600" : "text-gray-400"}`}>
+              <span className="text-2xl">{t.icon}</span>
+              <span className="mt-0.5">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+}

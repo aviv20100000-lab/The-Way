@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\")",
+      "Bash(npm rebuild *)",
+      "Bash(curl -s http://localhost:3000/login -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s http://localhost:3000/api/auth/me -w \"\\\\n%{http_code}\")",
+      "Bash(npm uninstall *)",
+      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"coach@theway.com\",\"password\":\"123456\"}' -c /tmp/cookies.txt)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"dani@theway.com\",\"password\":\"123456\"}' -c /tmp/cookies2.txt)",
+      "Bash(curl -s http://localhost:3000/api/water -b /tmp/cookies2.txt)",
+      "Bash(curl -s http://localhost:3000/api/quotes -b /tmp/cookies2.txt)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"coach@theway.com\",\"password\":\"123456\"}')"
+    ]
+  }
+}

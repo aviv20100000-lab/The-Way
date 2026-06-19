@@ -280,7 +280,7 @@ export default function CoachPage() {
             {showAddClient && (
               <div className="rounded-2xl bg-white p-6 shadow-card space-y-4">
                 <h3 className="text-heading-sm font-semibold text-black-matte">הוספת מתאמן</h3>
-                {addError && <p className="text-sm text-red-600 bg-red-50 rounded-lg p-3 font-normal">{addError}</p>}
+                {addError && <p className="text-sm text-red-600 bg-red-100 rounded-lg p-3 font-normal">{addError}</p>}
                 <input placeholder="שם" value={newClient.name}
                   onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
                   className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
@@ -390,13 +390,13 @@ export default function CoachPage() {
                               {clientData.weights.length > 1 && (() => {
                                 const diff = clientData.weights[0].weight_kg - clientData.weights[1].weight_kg;
                                 return (
-                                  <span className={`mb-1 text-sm font-medium ${diff < 0 ? "text-green-600" : diff > 0 ? "text-red-600" : "text-neutral-500"}`}>
+                                  <span className={`mb-1 text-sm font-medium ${diff < 0 ? "text-green-700" : diff > 0 ? "text-red-600" : "text-neutral-500"}`}>
                                     {diff < 0 ? "▼" : diff > 0 ? "▲" : ""}{Math.abs(diff).toFixed(1)}
                                   </span>
                                 );
                               })()}
                               {clientData.goals.target_weight_kg && (
-                                <span className="mr-auto text-sm text-green-600 mb-1">יעד: {clientData.goals.target_weight_kg}</span>
+                                <span className="mr-auto text-sm text-green-700 mb-1">יעד: {clientData.goals.target_weight_kg}</span>
                               )}
                             </div>
                             <div className="space-y-1">
@@ -511,7 +511,7 @@ export default function CoachPage() {
                 className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
                 {sendingPush ? "שולח..." : "📱 שלח עכשיו"}
               </button>
-              {pushResult && <p className="text-center text-sm text-green-600 font-medium">{pushResult}</p>}
+              {pushResult && <p className="text-center text-sm text-green-700 font-medium">{pushResult}</p>}
             </div>
 
 

@@ -144,13 +144,38 @@ export default function ClientPage() {
     router.push("/login");
   }
 
+  function compressToJpeg(file: File): Promise<File> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round((height / width) * MAX); width = MAX; }
+          else { width = Math.round((width / height) * MAX); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => resolve(blob ? new File([blob], "photo.jpg", { type: "image/jpeg" }) : file),
+          "image/jpeg", 0.82
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
   async function analyzeFood(file: File) {
     setAnalyzing(true);
     setFoodError("");
     setAiResult(null);
-    const fd = new FormData();
-    fd.append("photo", file);
     try {
+      const jpeg = await compressToJpeg(file);
+      const fd = new FormData();
+      fd.append("photo", jpeg);
       const res = await fetch("/api/analyze-food", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
@@ -183,15 +208,18 @@ export default function ClientPage() {
   async function uploadStepsScreenshot(file: File) {
     setUploadingSteps(true);
     setStepsSuccess("");
-    const fd = new FormData();
-    fd.append("screenshot", file);
-    const res = await fetch("/api/steps", { method: "POST", body: fd });
-    const data = await res.json();
-    if (res.ok) {
-      setTodaySteps(data.steps);
-      setStepsSuccess(`זוהו ${data.steps.toLocaleString()} צעדים!`);
-      loadLeaderboard();
-    }
+    try {
+      const jpeg = await compressToJpeg(file);
+      const fd = new FormData();
+      fd.append("screenshot", jpeg);
+      const res = await fetch("/api/steps", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        setTodaySteps(data.steps);
+        setStepsSuccess(`זוהו ${data.steps.toLocaleString()} צעדים!`);
+        loadLeaderboard();
+      }
+    } catch { /* ignore */ }
     setUploadingSteps(false);
   }
 

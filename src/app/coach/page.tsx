@@ -94,9 +94,9 @@ export default function CoachPage() {
 
   const loadQuotes = useCallback(async () => {
     try {
-      const res = await fetch("/api/quotes");
+      const res = await fetch("/api/quotes?action=list");
       const data = await res.json();
-      setQuotes(data || []);
+      setQuotes(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Error loading quotes:", e);
       setQuotes([]);
@@ -243,12 +243,16 @@ export default function CoachPage() {
   }
 
   async function deleteQuote(id: string) {
-    await fetch("/api/quotes", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    setQuotes((q) => q.filter((x) => x.id !== id));
+    try {
+      await fetch("/api/quotes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quoteId: id }),
+      });
+      setQuotes((q) => q.filter((x) => x.id !== id));
+    } catch (e) {
+      console.error("Error deleting quote:", e);
+    }
   }
 
   return (

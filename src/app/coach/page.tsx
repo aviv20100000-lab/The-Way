@@ -378,7 +378,7 @@ export default function CoachPage() {
                   ) : (
                     <>
                       {/* Weight */}
-                      <div className="rounded-2xl bg-neutral-50 p-4 shadow-sm">
+                      <div className="rounded-2xl bg-neutral-50 p-4 shadow-xs">
                         <p className="text-sm font-semibold text-neutral-700 mb-2">⚖️ משקל</p>
                         {clientData.weights.length === 0 ? (
                           <p className="text-sm text-neutral-500 font-normal">עוד לא נשקל</p>
@@ -413,11 +413,11 @@ export default function CoachPage() {
 
                       {/* Steps + Water today */}
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl bg-white p-4 shadow-sm text-center">
+                        <div className="rounded-2xl bg-white p-4 shadow-xs text-center">
                           <p className="text-xs text-neutral-500 mb-1">👟 צעדים היום</p>
                           <p className="text-2xl font-bold text-primary-600">{clientData.steps_today.toLocaleString()}</p>
                         </div>
-                        <div className="rounded-2xl bg-white p-4 shadow-sm text-center">
+                        <div className="rounded-2xl bg-white p-4 shadow-xs text-center">
                           <p className="text-xs text-neutral-500 mb-1">💧 מים היום</p>
                           <p className="text-2xl font-bold text-blue-500">{(clientData.water_today / 1000).toFixed(1)}<span className="text-sm">L</span></p>
                           <p className="text-xs text-neutral-400">יעד {(clientData.goals.daily_water_ml / 1000).toFixed(1)}L</p>
@@ -425,7 +425,7 @@ export default function CoachPage() {
                       </div>
 
                       {/* Meals — day / week / month */}
-                      <div className="rounded-2xl bg-white p-4 shadow-sm">
+                      <div className="rounded-2xl bg-white p-4 shadow-xs">
                         <p className="text-sm font-medium text-neutral-500 mb-3">🍽️ תזונה</p>
                         <MealHistory meals={clientData.meals} title="" />
                       </div>
@@ -456,7 +456,7 @@ export default function CoachPage() {
               const isExpanded = expandedLog === log.id;
 
               return (
-                <div key={log.id} className="rounded-2xl bg-white shadow-sm overflow-hidden">
+                <div key={log.id} className="rounded-2xl bg-white shadow-xs overflow-hidden">
                   <button className="w-full text-right p-4" onClick={() => setExpandedLog(isExpanded ? null : log.id)}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -551,7 +551,7 @@ export default function CoachPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-black-matte">דירוג צעדים 🏆</h2>
 
-            <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl bg-white shadow-xs overflow-hidden">
               <div className="flex border-b">
                 <button onClick={() => setLbView("today")}
                   className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-primary-600 text-primary-600" : "text-neutral-500"}`}>

@@ -301,7 +301,10 @@ export default function ClientPage() {
         className="sticky top-0 z-20 bg-neutral-50/80 backdrop-blur-xl border-b border-neutral-200/50"
       >
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
-          <h1 className="text-base font-extrabold tracking-tight text-neutral-900">THE WAY</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-extrabold tracking-tight text-neutral-900">THE WAY</h1>
+            <span className="text-xs font-medium text-neutral-500">by Aviv & Liav</span>
+          </div>
           <motion.button
             onClick={logout}
             whileHover={{ scale: 1.05 }}

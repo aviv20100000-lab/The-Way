@@ -228,8 +228,11 @@ export default function CoachPage() {
     <div className="min-h-screen bg-gray-50 pb-24" dir="rtl">
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-lg font-bold">THE WAY — מאמן</h1>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold">THE WAY — מאמן</h1>
+              <span className="text-xs font-medium text-gray-400">by Aviv & Liav</span>
+            </div>
             <p className="text-xs text-gray-400">היי {coachName} 👋</p>
           </div>
           <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">יציאה</button>

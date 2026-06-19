@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
 
-  const { title, body, userId } = await req.json();
+  const { title, body, userId, debug } = await req.json();
   if (!title || !body) return NextResponse.json({ error: "חסרים פרטים" }, { status: 400 });
 
   // Get subscriptions — either specific user or all clients
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Encode non-ASCII as \uXXXX so Hebrew survives push encryption intact
-  const payload = JSON.stringify({ title, body, icon: "/icon-192.png" })
+  const payload = JSON.stringify({ title, body, icon: "/icon-192.png", debug: !!debug })
     .replace(/[^\x00-\x7F]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
   let sent = 0;
 

@@ -498,39 +498,19 @@ export default function ClientPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-gray-800">מה אכלת? 🍽️</h2>
 
-            <div className="grid grid-cols-2 gap-3.5">
-              <motion.label
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1, duration: 0.5, type: "spring" }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 p-6 text-white shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <span className="text-4xl">📷</span>
-                <div className="text-center">
-                  <p className="font-bold text-sm">מצלמה</p>
-                  <p className="text-xs text-white/70">צלם עכשיו</p>
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100">
+                <span className="text-3xl">📷</span>
+                <span className="text-sm font-semibold">מצלמה</span>
                 <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
-              </motion.label>
-              <motion.label
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.5, type: "spring" }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 p-6 text-white shadow-lg hover:shadow-xl transition-shadow"
-              >
-                <span className="text-4xl">🖼️</span>
-                <div className="text-center">
-                  <p className="font-bold text-sm">גלריה</p>
-                  <p className="text-xs text-white/70">בחר מהגלריה</p>
-                </div>
+              </label>
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100">
+                <span className="text-3xl">🖼️</span>
+                <span className="text-sm font-semibold">גלריה</span>
                 <input type="file" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
-              </motion.label>
+              </label>
             </div>
             <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700 text-center">
               📲 ב-iOS — פתח תמונה ב-Photos, לחץ שתף ← <strong>THE WAY</strong>

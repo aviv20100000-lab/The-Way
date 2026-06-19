@@ -1,5 +1,5 @@
-// sw version: v4
-const SW_VERSION = "v4";
+// sw version: v5
+const SW_VERSION = "v5";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -20,19 +20,30 @@ self.addEventListener("message", (event) => {
 self.addEventListener("push", (event) => {
   let raw = "";
   let data = {};
+  let parsedOk = false;
   try {
     raw = event.data ? event.data.text() : "{}";
     data = JSON.parse(raw);
+    parsedOk = true;
   } catch (e) {
-    data = { title: "THE WAY", body: raw };
+    data = {};
   }
 
-  const title = (data.title || "THE WAY") + " [" + SW_VERSION + "]";
+  // DEBUG mode: if the payload says debug, show raw bytes so we can diagnose
+  let title;
+  let body;
+  if (data && data.debug) {
+    title = "DEBUG " + SW_VERSION + (parsedOk ? " parsed" : " FAILED");
+    body = "RAW: " + raw.slice(0, 120);
+  } else {
+    title = (data.title || "THE WAY") + " [" + SW_VERSION + "]";
+    body = data.body || "";
+  }
 
   event.waitUntil(
     self.registration.showNotification(title, {
-      body: data.body || "",
-      icon: data.icon || "/icon-192.png",
+      body: body,
+      icon: "/icon-192.png",
       badge: "/icon-192.png",
       vibrate: [200, 100, 200],
       dir: "rtl",

@@ -132,8 +132,11 @@ export function Header({ title, userName, onLogout }: { title: string; userName:
       className="sticky top-0 z-10 border-b border-neutral-200 bg-white/80 backdrop-blur-md"
     >
       <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-4">
-        <div>
-          <h1 className="text-lg font-bold text-neutral-900">{title}</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-neutral-900">{title}</h1>
+            <span className="text-xs font-medium text-neutral-400">by Aviv & Liav</span>
+          </div>
           <p className="text-sm text-neutral-500">שלום, {userName}</p>
         </div>
         <motion.button

@@ -51,7 +51,10 @@
       "mcp__Claude_Preview__preview_start",
       "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
       "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
-      "PowerShell(\"Node processes stopped\")"
+      "PowerShell(\"Node processes stopped\")",
+      "PowerShell($env:VERCEL_TOKEN = \"vcp_6HVhXGg8ZEZNGs1dp18c4E4IofMMbajIgP0tKsHnT3ovUNMcTZ3OrsPu\"; cd \"C:\\\\Users\\\\owner\\\\OneDrive\\\\שולחן העבודה\\\\The Way\"; vercel deploy --prod --yes --token $env:VERCEL_TOKEN 2>&1 | tail -30)",
+      "Bash(git revert *)",
+      "Bash(git push *)"
     ]
   }
 }

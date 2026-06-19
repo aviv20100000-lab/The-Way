@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import MealHistory from "@/components/MealHistory";
+import ProgressRing from "@/components/ProgressRing";
 
 type Tab = "home" | "food" | "weight" | "steps";
 
@@ -271,75 +272,113 @@ export default function ClientPage() {
   }
 
   const waterPct = Math.min(100, Math.round((waterTotal / waterGoal) * 100));
+  const stepsPct = Math.min(100, Math.round((todaySteps / 10000) * 100));
   const latestWeight = weightLogs[0]?.weight_kg ?? null;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "בוקר טוב" : hour < 17 ? "צהריים טובים" : hour < 21 ? "ערב טוב" : "לילה טוב";
+  const todayStr = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24" dir="rtl">
+    <div className="min-h-screen bg-[#F4F4F2] pb-32 text-gray-900" dir="rtl">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">THE WAY</h1>
-            <p className="text-xs text-gray-400">היי {userName} 👋</p>
-          </div>
-          <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">יציאה</button>
+      <header className="sticky top-0 z-20 bg-[#F4F4F2]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
+          <h1 className="text-base font-extrabold tracking-[-0.02em] text-gray-900">THE WAY</h1>
+          <button onClick={logout}
+            className="rounded-full bg-white/70 px-3.5 py-1.5 text-xs font-medium text-gray-500 shadow-sm ring-1 ring-black/[0.04] active:scale-95 transition">
+            יציאה
+          </button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-lg px-4 pt-4">
+      <main className="mx-auto max-w-lg px-4 pt-1">
 
         {/* ══ HOME TAB ══ */}
         {tab === "home" && (
-          <div className="space-y-4">
-            {/* Quote */}
-            {quote && (
-              <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-5 text-white shadow-lg">
-                <p className="text-sm opacity-75 mb-1">💬 למחשבה</p>
-                <p className="text-lg font-semibold leading-snug">"{quote}"</p>
-              </div>
-            )}
+          <div className="space-y-3.5">
+            {/* Hero — greeting + quote */}
+            <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#17181D] to-[#33363F] p-6 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.55)]">
+              <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/[0.06] blur-2xl" />
+              <p className="text-xs font-medium tracking-wide text-white/45">{todayStr}</p>
+              <h2 className="mt-1.5 text-[26px] font-bold leading-tight tracking-tight">
+                {greeting}, {userName || "אלוף"} 👋
+              </h2>
+              {quote && (
+                <div className="mt-5 border-t border-white/10 pt-4">
+                  <p className="text-[15px] leading-relaxed text-white/75">&ldquo;{quote}&rdquo;</p>
+                </div>
+              )}
+            </div>
 
-            {/* Steps today */}
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-600">👟 צעדים היום</span>
-                <span className="text-2xl font-bold text-indigo-600">{todaySteps.toLocaleString()}</span>
+            {/* Stats row — steps + weight */}
+            <div className="grid grid-cols-2 gap-3.5">
+              {/* Steps */}
+              <div className="flex flex-col items-center rounded-[24px] bg-white p-4 shadow-[0_2px_18px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.03]">
+                <ProgressRing pct={stepsPct} size={104} stroke={10} color="#4F46E5" track="#EEF0FF">
+                  <span className="text-2xl font-bold text-gray-900">{(todaySteps / 1000).toFixed(todaySteps >= 1000 ? 1 : 0)}K</span>
+                  <span className="mt-0.5 text-[11px] font-medium text-gray-400">צעדים</span>
+                </ProgressRing>
+                <p className="mt-3 text-sm font-semibold text-gray-700">👟 צעדים</p>
+                <p className="text-xs text-gray-400">מתוך 10,000</p>
               </div>
-              <div className="h-2 w-full rounded-full bg-gray-100">
-                <div className="h-2 rounded-full bg-indigo-400 transition-all" style={{ width: `${Math.min(100, (todaySteps / 10000) * 100)}%` }} />
+
+              {/* Weight */}
+              <div className="flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_2px_18px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.03]">
+                <p className="text-sm font-semibold text-gray-700">⚖️ משקל</p>
+                {latestWeight ? (
+                  <>
+                    <div className="flex items-end gap-1.5">
+                      <span className="text-[40px] font-bold leading-none text-gray-900">{latestWeight}</span>
+                      <span className="mb-1.5 text-sm text-gray-400">ק"ג</span>
+                    </div>
+                    {weightTarget && (
+                      <div className="mt-2">
+                        <div className="h-2 w-full rounded-full bg-gray-100">
+                          <div className="h-2 rounded-full bg-emerald-400 transition-all duration-700"
+                            style={{ width: `${Math.max(0, Math.min(100, 100 - ((latestWeight - weightTarget) / latestWeight) * 100))}%` }} />
+                        </div>
+                        <p className="mt-1.5 text-xs font-medium text-emerald-600">יעד: {weightTarget} ק"ג</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="py-4 text-sm text-gray-400">עוד לא נשקלת</p>
+                )}
               </div>
-              <p className="mt-1 text-xs text-gray-400">יעד יומי: 10,000 צעדים</p>
             </div>
 
             {/* Water */}
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-600">💧 שתייה היום</span>
-                <span className="font-bold text-blue-600">{(waterTotal / 1000).toFixed(1)}L / {waterGoal / 1000}L</span>
-              </div>
-              <div className="h-3 w-full rounded-full bg-blue-50">
-                <div className="h-3 rounded-full bg-blue-400 transition-all" style={{ width: `${waterPct}%` }} />
-              </div>
-              <div className="mt-3 flex gap-2">
-                {[150, 250, 500].map((ml) => (
-                  <button key={ml} onClick={() => addWater(ml)}
-                    className="flex-1 rounded-xl bg-blue-50 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
-                    +{ml}מ"ל
-                  </button>
-                ))}
+            <div className="rounded-[24px] bg-white p-5 shadow-[0_2px_18px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.03]">
+              <div className="flex items-center gap-4">
+                <ProgressRing pct={waterPct} size={88} stroke={9} color="#0EA5E9" track="#E0F2FE">
+                  <span className="text-lg font-bold text-gray-900">{(waterTotal / 1000).toFixed(1)}</span>
+                  <span className="text-[10px] font-medium text-gray-400">ליטר</span>
+                </ProgressRing>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-gray-700">💧 שתייה היום</p>
+                  <p className="text-xs text-gray-400">יעד {(waterGoal / 1000).toFixed(1)} ליטר</p>
+                  <div className="mt-3 flex gap-2">
+                    {[150, 250, 500].map((ml) => (
+                      <button key={ml} onClick={() => addWater(ml)}
+                        className="flex-1 rounded-xl bg-sky-50 py-2 text-sm font-semibold text-sky-600 active:scale-95 transition hover:bg-sky-100">
+                        +{ml}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Notifications */}
             {notifStatus === "granted" ? (
-              <div className="flex items-center gap-3 rounded-2xl bg-green-50 p-4 border border-green-100">
+              <div className="flex items-center gap-3 rounded-[24px] bg-emerald-50 p-4 ring-1 ring-emerald-100">
                 <span className="text-2xl">✅</span>
-                <p className="font-semibold text-green-700">התראות דלוקות — מעולה!</p>
+                <p className="font-semibold text-emerald-700">התראות דלוקות — מעולה!</p>
               </div>
             ) : !isPwa ? (
-              <div className="rounded-2xl bg-amber-50 p-4 border border-amber-200 text-right">
-                <p className="font-semibold text-amber-800 mb-2">📲 רוצה לקבל הודעות מהמאמן?</p>
-                <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
+              <div className="rounded-[24px] bg-amber-50 p-5 ring-1 ring-amber-100">
+                <p className="font-semibold text-amber-900 mb-2">📲 רוצה לקבל הודעות מהמאמן?</p>
+                <ol className="text-sm text-amber-800/90 space-y-1 list-decimal list-inside">
                   <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
                   <li>בחר <strong>"הוסף למסך הבית"</strong></li>
                   <li>פתח מהמסך הבית ולחץ על כפתור ההתראות</li>
@@ -347,32 +386,13 @@ export default function ClientPage() {
               </div>
             ) : (
               <button onClick={enableNotifications}
-                className="flex w-full items-center gap-3 rounded-2xl bg-indigo-600 p-4 text-right shadow-sm">
+                className="flex w-full items-center gap-3 rounded-[24px] bg-gray-900 p-5 text-right shadow-lg active:scale-[0.99] transition">
                 <span className="text-2xl">🔔</span>
                 <div>
                   <p className="font-semibold text-white text-lg">הפעל התראות</p>
-                  <p className="text-xs text-indigo-200">כדי שהמאמן יוכל לשלוח לך הודעות</p>
+                  <p className="text-xs text-white/50">כדי שהמאמן יוכל לשלוח לך הודעות</p>
                 </div>
               </button>
-            )}
-
-            {/* Weight summary */}
-            {latestWeight && (
-              <div className="rounded-2xl bg-white p-4 shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">⚖️ המשקל שלך</p>
-                <div className="flex items-end gap-2">
-                  <span className="text-3xl font-bold text-gray-800">{latestWeight}</span>
-                  <span className="text-gray-400 mb-1">ק"ג</span>
-                  {weightTarget && (
-                    <span className="mr-auto text-sm text-green-600 font-medium">יעד: {weightTarget} ק"ג</span>
-                  )}
-                </div>
-                {weightTarget && (
-                  <div className="mt-2 h-2 w-full rounded-full bg-gray-100">
-                    <div className="h-2 rounded-full bg-green-400" style={{ width: `${Math.max(0, Math.min(100, 100 - ((latestWeight - weightTarget) / latestWeight) * 100))}%` }} />
-                  </div>
-                )}
-              </div>
             )}
           </div>
         )}
@@ -756,21 +776,23 @@ export default function ClientPage() {
         )}
       </main>
 
-      {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-gray-100 bg-white pb-safe">
-        <div className="mx-auto flex max-w-lg">
-          {([
-            { id: "home", icon: "🏠", label: "בית" },
-            { id: "food", icon: "🍽️", label: "אוכל" },
-            { id: "weight", icon: "⚖️", label: "משקל" },
-            { id: "steps", icon: "👟", label: "תחרות" },
-          ] as { id: Tab; icon: string; label: string }[]).map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex flex-1 flex-col items-center py-3 text-xs transition ${tab === t.id ? "text-indigo-600" : "text-gray-400"}`}>
-              <span className="text-2xl">{t.icon}</span>
-              <span className="mt-0.5">{t.label}</span>
-            </button>
-          ))}
+      {/* Bottom Nav — floating pill */}
+      <nav className="fixed inset-x-0 bottom-0 z-20 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+        <div className="mx-auto max-w-lg px-5">
+          <div className="flex items-center justify-around gap-1 rounded-[22px] border border-black/[0.04] bg-white/90 p-1.5 shadow-[0_10px_34px_-8px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+            {([
+              { id: "home", icon: "🏠", label: "בית" },
+              { id: "food", icon: "🍽️", label: "אוכל" },
+              { id: "weight", icon: "⚖️", label: "משקל" },
+              { id: "steps", icon: "👟", label: "תחרות" },
+            ] as { id: Tab; icon: string; label: string }[]).map((t) => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 text-[11px] font-medium transition-all duration-200 ${tab === t.id ? "bg-gray-900 text-white" : "text-gray-400 active:scale-95"}`}>
+                <span className="text-xl">{t.icon}</span>
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
     </div>

@@ -94,18 +94,18 @@ export default function ClientPage() {
     setLeaderboard(data);
   }, []);
 
+  const [isPwa, setIsPwa] = useState(false);
+
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((d) => { if (d.name) setUserName(d.name); })
       .catch(() => {});
     loadHome();
+    setIsPwa(window.matchMedia("(display-mode: standalone)").matches);
     if ("Notification" in window) {
       const perm = Notification.permission as string;
       setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
-      if (perm === "default" || perm === "unknown") {
-        setTimeout(() => enableNotifications(), 1500);
-      }
     }
   }, [loadHome]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -249,13 +249,27 @@ export default function ClientPage() {
             </div>
 
             {/* Notifications */}
-            {notifStatus !== "granted" && (
+            {notifStatus === "granted" ? (
+              <div className="flex items-center gap-3 rounded-2xl bg-green-50 p-4 border border-green-100">
+                <span className="text-2xl">✅</span>
+                <p className="font-semibold text-green-700">התראות פעילות</p>
+              </div>
+            ) : !isPwa ? (
+              <div className="rounded-2xl bg-amber-50 p-4 border border-amber-200 text-right">
+                <p className="font-semibold text-amber-800 mb-2">📲 התקן את האפליקציה לקבלת התראות</p>
+                <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
+                  <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
+                  <li>בחר <strong>"הוסף למסך הבית"</strong></li>
+                  <li>פתח מהמסך הבית ולחץ על כפתור ההתראות</li>
+                </ol>
+              </div>
+            ) : (
               <button onClick={enableNotifications}
-                className="flex w-full items-center gap-3 rounded-2xl bg-indigo-50 p-4 text-right shadow-sm border border-indigo-100">
+                className="flex w-full items-center gap-3 rounded-2xl bg-indigo-600 p-4 text-right shadow-sm">
                 <span className="text-2xl">🔔</span>
                 <div>
-                  <p className="font-semibold text-indigo-800">אפשר התראות</p>
-                  <p className="text-xs text-indigo-500">קבל תזכורות מים, הודעות מהמאמן ועוד</p>
+                  <p className="font-semibold text-white text-lg">אפשר התראות</p>
+                  <p className="text-xs text-indigo-200">לחץ כאן כדי לקבל הודעות מהמאמן</p>
                 </div>
               </button>
             )}

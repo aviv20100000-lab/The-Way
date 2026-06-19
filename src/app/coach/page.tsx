@@ -529,21 +529,21 @@ export default function CoachPage() {
               <p className="font-semibold text-base text-black-matte">📣 שלח הודעה</p>
               <input
                 type="text"
-                value={pushTitle}
+                value={pushTitle || ""}
                 onChange={(e) => setPushTitle(e.target.value)}
                 placeholder="כותרת"
                 className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
               />
               <input
                 type="text"
-                value={pushBody}
+                value={pushBody || ""}
                 onChange={(e) => setPushBody(e.target.value)}
                 placeholder="תוכן"
                 className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
               />
               <button
-                onClick={sendPush}
-                disabled={sendingPush || !pushTitle.trim() || !pushBody.trim()}
+                onClick={() => { try { sendPush(); } catch(e) { console.log(e); } }}
+                disabled={sendingPush || !(pushTitle?.trim()) || !(pushBody?.trim())}
                 className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
               >
                 {sendingPush ? "שולח..." : "שלח"}
@@ -553,7 +553,7 @@ export default function CoachPage() {
 
             <div className="rounded-2xl bg-white p-4 shadow-xs space-y-3">
               <textarea
-                value={newQuote.text}
+                value={newQuote?.text || ""}
                 onChange={(e) => setNewQuote({ ...newQuote, text: e.target.value })}
                 placeholder="ציטוט..."
                 rows={3}
@@ -561,27 +561,27 @@ export default function CoachPage() {
               />
               <input
                 type="text"
-                value={newQuote.author}
+                value={newQuote?.author || ""}
                 onChange={(e) => setNewQuote({ ...newQuote, author: e.target.value })}
                 placeholder="מחבר"
                 className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
               />
               <button
-                onClick={addQuote}
-                disabled={addingQuote || !newQuote.text.trim()}
+                onClick={() => { try { addQuote(); } catch(e) { console.log(e); } }}
+                disabled={addingQuote || !(newQuote?.text?.trim())}
                 className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
               >
                 {addingQuote ? "מוסיף..." : "הוסף"}
               </button>
             </div>
 
-            {quotes.length === 0 && <p className="text-center text-neutral-500 py-4">אין ציטוטים עדיין</p>}
-            {quotes.map((q) => (
-              <div key={q.id} className="rounded-2xl bg-white p-4 shadow-xs">
-                <p className="text-black-matte">"{q.text}"</p>
-                {q.author && <p className="text-sm text-neutral-500 mt-2">— {q.author}</p>}
+            {quotes && quotes.length === 0 && <p className="text-center text-neutral-500 py-4">אין ציטוטים עדיין</p>}
+            {quotes && quotes.map((q) => (
+              <div key={q?.id} className="rounded-2xl bg-white p-4 shadow-xs">
+                <p className="text-black-matte">"{q?.text}"</p>
+                {q?.author && <p className="text-sm text-neutral-500 mt-2">— {q?.author}</p>}
                 <button
-                  onClick={() => deleteQuote(q.id)}
+                  onClick={() => { try { deleteQuote(q?.id); } catch(e) { console.log(e); } }}
                   className="mt-3 text-xs text-red-600 font-normal"
                 >
                   מחק

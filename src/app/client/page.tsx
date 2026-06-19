@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import MealHistory from "@/components/MealHistory";
 import ProgressRing from "@/components/ProgressRing";
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
 type Tab = "home" | "food" | "weight" | "steps";
 
 interface AiItem {
@@ -145,10 +154,13 @@ export default function ClientPage() {
     setNotifStatus(permission as "granted" | "denied");
     if (permission !== "granted") return;
 
+    const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapid) return;
+
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      applicationServerKey: urlBase64ToUint8Array(vapid),
     });
     await fetch("/api/push/subscribe", {
       method: "POST",

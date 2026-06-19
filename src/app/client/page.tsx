@@ -360,87 +360,135 @@ export default function ClientPage() {
 
             {/* Stats row — steps + weight */}
             <div className="grid grid-cols-2 gap-3.5">
-              {/* Steps */}
-              <div className="flex flex-col items-center rounded-[24px] bg-white p-4 shadow-[0_2px_18px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.03]">
-                <ProgressRing pct={stepsPct} size={104} stroke={10} color="#4F46E5" track="#EEF0FF">
-                  <span className="text-2xl font-bold text-gray-900">{(todaySteps / 1000).toFixed(todaySteps >= 1000 ? 1 : 0)}K</span>
-                  <span className="mt-0.5 text-[11px] font-medium text-gray-400">צעדים</span>
+              {/* Steps Card — Premium gradient */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.5, type: "spring" }}
+                className="flex flex-col items-center rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-lg hover:shadow-xl transition-shadow"
+              >
+                <ProgressRing pct={stepsPct} size={104} stroke={10} color="#ffffff" track="rgba(255,255,255,0.2)">
+                  <span className="text-2xl font-bold text-white">{(todaySteps / 1000).toFixed(todaySteps >= 1000 ? 1 : 0)}K</span>
+                  <span className="mt-0.5 text-[11px] font-medium text-white/70">צעדים</span>
                 </ProgressRing>
-                <p className="mt-3 text-sm font-semibold text-gray-700">👟 צעדים</p>
-                <p className="text-xs text-gray-400">מתוך 10,000</p>
-              </div>
+                <p className="mt-4 text-sm font-bold text-white">👟 צעדים</p>
+                <p className="text-xs text-white/70">מתוך 10,000</p>
+              </motion.div>
 
-              {/* Weight */}
-              <div className="flex flex-col justify-between rounded-[24px] bg-white p-4 shadow-[0_2px_18px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.03]">
-                <p className="text-sm font-semibold text-gray-700">⚖️ משקל</p>
+              {/* Weight Card — Elegant gradient */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, duration: 0.5, type: "spring" }}
+                className="flex flex-col justify-between rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 p-5 text-white shadow-lg hover:shadow-xl transition-shadow"
+              >
+                <p className="text-sm font-bold text-white">⚖️ משקל</p>
                 {latestWeight ? (
                   <>
-                    <div className="flex items-end gap-1.5">
-                      <span className="text-[40px] font-bold leading-none text-gray-900">{latestWeight}</span>
-                      <span className="mb-1.5 text-sm text-gray-400">ק"ג</span>
+                    <div className="flex items-end gap-1.5 mt-2">
+                      <motion.span
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.35, duration: 0.4 }}
+                        className="text-4xl font-black leading-none text-white"
+                      >
+                        {latestWeight}
+                      </motion.span>
+                      <span className="mb-1 text-sm text-white/80">ק"ג</span>
                     </div>
                     {weightTarget && (
-                      <div className="mt-2">
-                        <div className="h-2 w-full rounded-full bg-gray-100">
-                          <div className="h-2 rounded-full bg-emerald-400 transition-all duration-700"
-                            style={{ width: `${Math.max(0, Math.min(100, 100 - ((latestWeight - weightTarget) / latestWeight) * 100))}%` }} />
+                      <div className="mt-3">
+                        <div className="h-2 w-full rounded-full bg-white/20 overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${Math.max(0, Math.min(100, 100 - ((latestWeight - weightTarget) / latestWeight) * 100))}%`,
+                            }}
+                            transition={{ delay: 0.4, duration: 1 }}
+                            className="h-2 rounded-full bg-white"
+                          />
                         </div>
-                        <p className="mt-1.5 text-xs font-medium text-emerald-600">יעד: {weightTarget} ק"ג</p>
+                        <p className="mt-1.5 text-xs font-medium text-white/80">יעד: {weightTarget} ק"ג</p>
                       </div>
                     )}
                   </>
                 ) : (
-                  <p className="py-4 text-sm text-gray-400">עוד לא נשקלת</p>
+                  <p className="py-4 text-sm text-white/80">עוד לא נשקלת</p>
                 )}
-              </div>
+              </motion.div>
             </div>
 
             {/* Water */}
-            <div className="rounded-[24px] bg-white p-5 shadow-[0_2px_18px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/[0.03]">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
+              className="rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-500 p-6 text-white shadow-lg hover:shadow-xl transition-shadow"
+            >
               <div className="flex items-center gap-4">
-                <ProgressRing pct={waterPct} size={88} stroke={9} color="#0EA5E9" track="#E0F2FE">
-                  <span className="text-lg font-bold text-gray-900">{(waterTotal / 1000).toFixed(1)}</span>
-                  <span className="text-[10px] font-medium text-gray-400">ליטר</span>
+                <ProgressRing pct={waterPct} size={88} stroke={9} color="#ffffff" track="rgba(255,255,255,0.25)">
+                  <span className="text-lg font-bold text-white">{(waterTotal / 1000).toFixed(1)}</span>
+                  <span className="text-[10px] font-medium text-white/70">ליטר</span>
                 </ProgressRing>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-700">💧 שתייה היום</p>
-                  <p className="text-xs text-gray-400">יעד {(waterGoal / 1000).toFixed(1)} ליטר</p>
+                  <p className="text-sm font-bold text-white">💧 שתייה היום</p>
+                  <p className="text-xs text-white/80">יעד {(waterGoal / 1000).toFixed(1)} ליטר</p>
                   <div className="mt-3 flex gap-2">
                     {[150, 250, 500].map((ml) => (
-                      <button key={ml} onClick={() => addWater(ml)}
-                        className="flex-1 rounded-xl bg-sky-50 py-2 text-sm font-semibold text-sky-600 active:scale-95 transition hover:bg-sky-100">
+                      <motion.button
+                        key={ml}
+                        onClick={() => addWater(ml)}
+                        whileTap={{ scale: 0.9 }}
+                        whileHover={{ scale: 1.05 }}
+                        className="flex-1 rounded-lg bg-white/20 py-2 text-sm font-semibold text-white hover:bg-white/30 active:scale-95 transition backdrop-blur-sm border border-white/20"
+                      >
                         +{ml}
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Notifications */}
             {notifStatus === "granted" ? (
-              <div className="flex items-center gap-3 rounded-[24px] bg-emerald-50 p-4 ring-1 ring-emerald-100">
-                <span className="text-2xl">✅</span>
-                <p className="font-semibold text-emerald-700">התראות דלוקות — מעולה!</p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 p-5 text-white shadow-lg ring-1 ring-emerald-400/50"
+              >
+                <span className="text-2xl animate-bounce">✅</span>
+                <p className="font-bold">התראות דלוקות — מעולה!</p>
+              </motion.div>
             ) : !isPwa ? (
-              <div className="rounded-[24px] bg-amber-50 p-5 ring-1 ring-amber-100">
-                <p className="font-semibold text-amber-900 mb-2">📲 רוצה לקבל הודעות מהמאמן?</p>
-                <ol className="text-sm text-amber-800/90 space-y-1 list-decimal list-inside">
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 p-6 text-white shadow-lg ring-1 ring-amber-300/50"
+              >
+                <p className="font-bold mb-3 text-lg">📲 רוצה לקבל הודעות מהמאמן?</p>
+                <ol className="text-sm text-white/90 space-y-2 list-decimal list-inside">
                   <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
                   <li>בחר <strong>"הוסף למסך הבית"</strong></li>
                   <li>פתח מהמסך הבית ולחץ על כפתור ההתראות</li>
                 </ol>
-              </div>
+              </motion.div>
             ) : (
-              <button onClick={enableNotifications}
-                className="flex w-full items-center gap-3 rounded-[24px] bg-gray-900 p-5 text-right shadow-lg active:scale-[0.99] transition">
-                <span className="text-2xl">🔔</span>
+              <motion.button
+                onClick={enableNotifications}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35, duration: 0.5 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex w-full items-center gap-4 rounded-2xl bg-gradient-to-r from-primary-700 to-primary-800 p-6 text-right text-white shadow-lg hover:shadow-xl transition-shadow"
+              >
+                <span className="text-3xl">🔔</span>
                 <div>
-                  <p className="font-semibold text-white text-lg">הפעל התראות</p>
-                  <p className="text-xs text-white/50">כדי שהמאמן יוכל לשלוח לך הודעות</p>
+                  <p className="font-bold text-lg">הפעל התראות</p>
+                  <p className="text-xs text-white/70">כדי שהמאמן יוכל לשלוח לך הודעות</p>
                 </div>
-              </button>
+              </motion.button>
             )}
           </div>
         )}

@@ -225,34 +225,34 @@ export default function CoachPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 pb-24" dir="rtl">
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-lg border-b border-neutral-200/40">
+    <div className="min-h-screen bg-white pb-24" dir="rtl">
+      <header className="sticky top-0 z-20 bg-white border-b border-neutral-100">
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black tracking-tight text-neutral-900">THE WAY — מאמן</h1>
-              <span className="text-xs font-semibold text-neutral-500">by Aviv & Liav</span>
+              <h1 className="text-lg font-bold tracking-tight text-black-matte">THE WAY — מאמן</h1>
+              <span className="text-xs font-normal text-neutral-500">by Aviv & Liav</span>
             </div>
-            <p className="text-xs text-neutral-600 font-medium">היי {coachName} 👋</p>
+            <p className="text-xs text-neutral-600 font-normal">היי {coachName} 👋</p>
           </div>
-          <button onClick={logout} className="rounded-xl bg-neutral-100 px-4 py-2 text-xs font-semibold text-neutral-700 shadow-micro ring-1 ring-black/[0.04] hover:bg-neutral-200 transition-all duration-200">יציאה</button>
+          <button onClick={logout} className="rounded-lg bg-neutral-100 px-4 py-2 text-xs font-semibold text-black-matte hover:bg-neutral-200 transition-all duration-200">יציאה</button>
         </div>
       </header>
 
       <main className="mx-auto max-w-lg px-5 pt-5">
 
         {tab === "clients" && (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {/* Notifications for the coach */}
             {notifStatus === "granted" ? (
-              <div className="flex items-center gap-3 rounded-3xl bg-gradient-to-r from-emerald-500 to-teal-500 p-6 text-white shadow-lg ring-1 ring-emerald-400/50">
+              <div className="flex items-center gap-3 rounded-2xl bg-neutral-100 p-6 shadow-card">
                 <span className="text-2xl">✅</span>
-                <p className="font-bold text-heading-sm">התראות דלוקות — מעולה!</p>
+                <p className="font-semibold text-heading-sm text-black-matte">התראות דלוקות — מעולה!</p>
               </div>
             ) : !isPwa ? (
-              <div className="rounded-3xl bg-gradient-to-r from-amber-400 to-orange-500 p-6 text-white shadow-lg ring-1 ring-amber-300/50">
-                <p className="font-bold mb-4 text-heading-sm">📲 רוצה לקבל התראות?</p>
-                <ol className="text-sm text-white/90 space-y-2 list-decimal list-inside font-medium">
+              <div className="rounded-2xl bg-neutral-100 p-6 shadow-card space-y-3">
+                <p className="font-semibold text-heading-sm text-black-matte">📲 רוצה לקבל התראות?</p>
+                <ol className="text-sm text-neutral-600 space-y-2 list-decimal list-inside font-normal">
                   <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
                   <li>בחר <strong>&quot;הוסף למסך הבית&quot;</strong></li>
                   <li>פתח מהמסך הבית ולחץ על כפתור ההתראות</li>
@@ -260,41 +260,41 @@ export default function CoachPage() {
               </div>
             ) : (
               <button onClick={enableNotifications}
-                className="flex w-full items-center gap-4 rounded-3xl bg-gradient-to-r from-primary-700 to-primary-800 p-6 text-right text-white shadow-lg hover:shadow-floating transition-all duration-300">
+                className="flex w-full items-center gap-4 rounded-2xl bg-primary-600 p-6 text-right text-white shadow-card hover:shadow-lg transition-all duration-300">
                 <span className="text-4xl">🔔</span>
                 <div>
-                  <p className="font-bold text-heading-sm">הפעל התראות</p>
-                  <p className="text-xs text-white/70 font-medium">כדי לקבל עדכונים מהאפליקציה</p>
+                  <p className="font-semibold text-heading-sm">הפעל התראות</p>
+                  <p className="text-xs text-white/70 font-normal">כדי לקבל עדכונים מהאפליקציה</p>
                 </div>
               </button>
             )}
 
             <div className="flex items-center justify-between">
-              <h2 className="text-heading-base font-bold text-neutral-900">המתאמנים שלך</h2>
+              <h2 className="text-heading-base font-semibold text-black-matte">המתאמנים שלך</h2>
               <button onClick={() => setShowAddClient(true)}
-                className="rounded-2xl bg-gradient-to-r from-primary-600 to-primary-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-floating transition-all duration-300">
+                className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition-all duration-300">
                 + הוסף
               </button>
             </div>
 
             {showAddClient && (
-              <div className="rounded-3xl bg-white p-6 shadow-card space-y-4">
-                <h3 className="text-heading-sm font-bold">הוספת מתאמן</h3>
-                {addError && <p className="text-sm text-danger-600 bg-danger-50 rounded-xl p-3">{addError}</p>}
+              <div className="rounded-2xl bg-white p-6 shadow-card space-y-4">
+                <h3 className="text-heading-sm font-semibold text-black-matte">הוספת מתאמן</h3>
+                {addError && <p className="text-sm text-red-600 bg-red-50 rounded-lg p-3 font-normal">{addError}</p>}
                 <input placeholder="שם" value={newClient.name}
                   onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-                  className="w-full rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all" />
+                  className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
                 <input placeholder="אימייל" value={newClient.email} dir="ltr"
                   onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                  className="w-full rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all" />
+                  className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
                 <input placeholder="סיסמה" type="password" value={newClient.password} dir="ltr"
                   onChange={(e) => setNewClient({ ...newClient, password: e.target.value })}
-                  className="w-full rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all" />
+                  className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
                 <div className="flex gap-3 pt-2">
                   <button onClick={() => setShowAddClient(false)}
-                    className="flex-1 rounded-2xl border-1.5 border-neutral-200 py-3 text-neutral-700 font-semibold hover:bg-neutral-50 transition-all">ביטול</button>
+                    className="flex-1 rounded-lg border border-neutral-200 py-3 text-black-matte font-semibold hover:bg-neutral-50 transition-all">ביטול</button>
                   <button onClick={addClient}
-                    className="flex-1 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-700 py-3 text-white font-semibold shadow-lg hover:shadow-floating transition-all">הוסף</button>
+                    className="flex-1 rounded-lg bg-primary-600 py-3 text-white font-semibold hover:bg-primary-700 transition-all">הוסף</button>
                 </div>
               </div>
             )}
@@ -304,18 +304,18 @@ export default function CoachPage() {
             )}
 
             {clients.map((c, i) => (
-              <div key={c.id} className="rounded-3xl bg-white p-5 shadow-card hover:shadow-floating hover:scale-105 transition-all duration-300 flex items-center justify-between gap-3">
+              <div key={c.id} className="rounded-2xl bg-white shadow-card hover:shadow-lg transition-all duration-300 flex items-center justify-between gap-3 p-5">
                 <div className="min-w-0">
-                  <p className="font-semibold text-neutral-900 truncate text-body-lg">{c.name}</p>
-                  <p className="text-xs text-neutral-500 truncate font-medium" dir="ltr">{c.email}</p>
+                  <p className="font-semibold text-black-matte truncate text-body-lg">{c.name}</p>
+                  <p className="text-xs text-neutral-500 truncate font-normal" dir="ltr">{c.email}</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button onClick={() => openClientData(c)}
-                    className="rounded-2xl bg-primary-100 px-4 py-2.5 text-sm font-semibold text-primary-700 hover:bg-primary-200 hover:shadow-md transition-all">
+                    className="rounded-lg bg-neutral-100 px-4 py-2.5 text-sm font-semibold text-black-matte hover:bg-neutral-200 transition-all">
                     📊
                   </button>
                   <button onClick={() => openClientGoals(c)}
-                    className="rounded-2xl bg-neutral-100 px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-200 hover:shadow-md transition-all">
+                    className="rounded-lg bg-neutral-100 px-4 py-2.5 text-sm font-semibold text-black-matte hover:bg-neutral-200 transition-all">
                     🎯
                   </button>
                 </div>
@@ -324,15 +324,15 @@ export default function CoachPage() {
 
             {selectedClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={() => setSelectedClient(null)}>
-                <div className="w-full max-w-lg rounded-t-3xl bg-white p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="text-heading-base font-bold">🎯 יעדים של {selectedClient.name}</h3>
+                <div className="w-full max-w-lg rounded-t-2xl bg-white p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-heading-base font-semibold text-black-matte">🎯 יעדים של {selectedClient.name}</h3>
 
                   <label className="block">
                     <span className="text-caption font-semibold text-neutral-600 uppercase tracking-wide">יעד משקל (ק"ג)</span>
                     <input type="number" step="0.5"
                       value={clientGoals.target_weight_kg ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, target_weight_kg: e.target.value ? parseFloat(e.target.value) : null })}
-                      className="mt-2 w-full rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all"
+                      className="mt-2 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all"
                       placeholder="לדוגמה: 75" />
                   </label>
 
@@ -341,7 +341,7 @@ export default function CoachPage() {
                     <input type="number"
                       value={clientGoals.daily_calories ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_calories: e.target.value ? parseInt(e.target.value) : null })}
-                      className="mt-2 w-full rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all"
+                      className="mt-2 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all"
                       placeholder="לדוגמה: 1800" />
                   </label>
 
@@ -350,14 +350,14 @@ export default function CoachPage() {
                     <input type="number"
                       value={clientGoals.daily_water_ml}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_water_ml: parseInt(e.target.value) || 2000 })}
-                      className="mt-2 w-full rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all" />
+                      className="mt-2 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
                   </label>
 
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => setSelectedClient(null)}
-                      className="flex-1 rounded-2xl border-1.5 border-neutral-200 py-3 text-neutral-700 font-semibold hover:bg-neutral-50 transition-all">ביטול</button>
+                      className="flex-1 rounded-lg border border-neutral-200 py-3 text-black-matte font-semibold hover:bg-neutral-50 transition-all">ביטול</button>
                     <button onClick={saveGoals} disabled={savingGoals}
-                      className="flex-1 rounded-2xl bg-gradient-to-r from-success-600 to-success-700 py-3 text-white font-semibold shadow-lg hover:shadow-floating disabled:opacity-50 transition-all">
+                      className="flex-1 rounded-lg bg-primary-600 py-3 text-white font-semibold hover:bg-primary-700 disabled:opacity-50 transition-all">
                       {savingGoals ? "שומר..." : "שמור יעדים"}
                     </button>
                   </div>
@@ -367,26 +367,26 @@ export default function CoachPage() {
 
             {dataClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setDataClient(null)}>
-                <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-3xl bg-gray-50 p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between sticky top-0 bg-gray-50 pb-1">
-                    <h3 className="font-bold text-lg">📊 {dataClient.name}</h3>
-                    <button onClick={() => setDataClient(null)} className="text-gray-400 text-2xl leading-none">×</button>
+                <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between sticky top-0 bg-white pb-1">
+                    <h3 className="font-semibold text-lg text-black-matte">📊 {dataClient.name}</h3>
+                    <button onClick={() => setDataClient(null)} className="text-neutral-400 text-2xl leading-none">×</button>
                   </div>
 
                   {!clientData ? (
-                    <p className="text-center text-gray-400 py-8">טוען נתונים...</p>
+                    <p className="text-center text-neutral-400 py-8 font-normal">טוען נתונים...</p>
                   ) : (
                     <>
                       {/* Weight */}
-                      <div className="rounded-2xl bg-white p-4 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500 mb-2">⚖️ משקל</p>
+                      <div className="rounded-2xl bg-neutral-50 p-4 shadow-sm">
+                        <p className="text-sm font-semibold text-neutral-700 mb-2">⚖️ משקל</p>
                         {clientData.weights.length === 0 ? (
-                          <p className="text-sm text-gray-400">עוד לא נשקל</p>
+                          <p className="text-sm text-neutral-500 font-normal">עוד לא נשקל</p>
                         ) : (
                           <>
                             <div className="flex items-end gap-2 mb-3">
-                              <span className="text-3xl font-bold text-gray-800">{clientData.weights[0].weight_kg}</span>
-                              <span className="text-gray-400 mb-1">ק"ג</span>
+                              <span className="text-3xl font-bold text-black-matte">{clientData.weights[0].weight_kg}</span>
+                              <span className="text-neutral-500 mb-1 font-normal">ק"ג</span>
                               {clientData.weights.length > 1 && (() => {
                                 const diff = clientData.weights[0].weight_kg - clientData.weights[1].weight_kg;
                                 return (

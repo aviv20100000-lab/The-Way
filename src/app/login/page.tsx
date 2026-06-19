@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,65 +34,160 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-500 text-3xl text-white shadow-lg">
+    <div className="min-h-screen bg-gradient-to-b from-neutral-900 via-primary-900 to-primary-800 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated background elements */}
+      <motion.div
+        className="absolute inset-0 opacity-20"
+        initial={{ backgroundPosition: "0% 0%" }}
+        animate={{ backgroundPosition: "100% 100%" }}
+        transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
+        style={{
+          backgroundImage: "radial-gradient(circle at 20% 50%, rgba(79, 70, 229, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.2) 0%, transparent 50%)",
+          backgroundSize: "200% 200%",
+        }}
+      />
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Header with animation */}
+        <motion.div
+          className="mb-8 text-center"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.6, type: "spring", stiffness: 100, damping: 15 }}
+            className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary-500 to-primary-600 text-4xl shadow-2xl"
+          >
             🥗
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">THE WAY</h1>
-          <p className="text-xs font-medium text-brand-600">by Aviv & Liav</p>
-          <p className="mt-2 text-gray-500">הדרך שלך. בוא נעשה אותה ביחד.</p>
-        </div>
+          </motion.div>
 
-        <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-xl">
-          <h2 className="mb-6 text-xl font-semibold">כניסה לאפליקציה</h2>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+          >
+            <h1 className="text-4xl font-bold text-white tracking-tight">THE WAY</h1>
+            <p className="text-xs font-medium text-primary-200 mt-1">by Aviv & Liav</p>
+          </motion.div>
 
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="mt-3 text-lg text-neutral-200 font-medium"
+          >
+            הדרך שלך. בוא נעשה אותה ביחד.
+          </motion.p>
+        </motion.div>
+
+        {/* Form card with animation */}
+        <motion.form
+          onSubmit={handleSubmit}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="rounded-3xl bg-white/95 backdrop-blur-lg p-8 shadow-2xl ring-1 ring-white/20"
+        >
+          <h2 className="mb-7 text-2xl font-bold text-neutral-900">כניסה</h2>
+
+          {/* Error message */}
           {error && (
-            <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-5 rounded-xl bg-gradient-to-r from-rose-50 to-red-50 p-4 border border-rose-200"
+            >
+              <p className="text-sm font-medium text-rose-700">{error}</p>
+            </motion.div>
           )}
 
-          <label className="mb-4 block">
-            <span className="mb-1 block text-sm font-medium text-gray-700">אימייל</span>
+          {/* Email field */}
+          <motion.label
+            className="mb-5 block"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <span className="mb-2 block text-sm font-semibold text-neutral-700">אימייל</span>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               placeholder="your@email.com"
               required
               dir="ltr"
+              disabled={loading}
+              className="w-full rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-200/50 disabled:opacity-50"
+              aria-label="אימייל"
             />
-          </label>
+          </motion.label>
 
-          <label className="mb-6 block">
-            <span className="mb-1 block text-sm font-medium text-gray-700">סיסמה</span>
+          {/* Password field */}
+          <motion.label
+            className="mb-7 block"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            <span className="mb-2 block text-sm font-semibold text-neutral-700">סיסמה</span>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200"
               placeholder="••••••"
               required
               dir="ltr"
+              disabled={loading}
+              className="w-full rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-200/50 disabled:opacity-50"
+              aria-label="סיסמה"
             />
-          </label>
+          </motion.label>
 
-          <button
+          {/* Submit button */}
+          <motion.button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-brand-600 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="w-full rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 py-3 font-semibold text-white shadow-lg transition hover:shadow-xl hover:from-primary-700 hover:to-primary-800 disabled:opacity-60 disabled:cursor-not-allowed"
+            aria-busy={loading}
           >
-            {loading ? "נכנסים..." : "כניסה"}
-          </button>
+            {loading ? (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="inline-flex items-center gap-2"
+              >
+                <motion.span
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="inline-block"
+                >
+                  ⏳
+                </motion.span>
+                נכנסים...
+              </motion.span>
+            ) : (
+              "כניסה"
+            )}
+          </motion.button>
+        </motion.form>
 
-          <div className="mt-6 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
-            <p className="font-medium text-gray-800">חשבונות לדוגמה:</p>
-            <p className="mt-1" dir="ltr">מאמן: coach@theway.com</p>
-            <p dir="ltr">מתאמן: dani@theway.com</p>
-            <p dir="ltr">סיסמה: 123456</p>
-          </div>
-        </form>
+        {/* Footer note */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+          className="mt-6 text-center text-sm text-neutral-300"
+        >
+          האפליקציה שלך לעקוב אחרי תזונה וכושר בדרך העילאית
+        </motion.p>
       </div>
     </div>
   );

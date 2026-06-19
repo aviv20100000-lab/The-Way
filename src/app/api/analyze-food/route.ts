@@ -3,18 +3,21 @@ import { getSessionUser } from "@/lib/auth";
 import { analyzeFoodPhotoBase64 } from "@/lib/anthropic";
 
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
-
-  const formData = await req.formData();
-  const photo = formData.get("photo") as File | null;
-
-  if (!photo) {
-    return NextResponse.json({ error: "צריך להעלות תמונה" }, { status: 400 });
-  }
-
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+
+    const formData = await req.formData();
+    const photo = formData.get("photo") as File | null;
+
+    if (!photo) {
+      return NextResponse.json({ error: "צריך להעלות תמונה" }, { status: 400 });
+    }
+
     const buffer = Buffer.from(await photo.arrayBuffer());
+    const sizeKB = Math.round(buffer.length / 1024);
+    console.log(`analyze-food: received ${sizeKB}KB, type=${photo.type}`);
+
     const base64 = buffer.toString("base64");
     const analysis = await analyzeFoodPhotoBase64(base64, photo.type || "image/jpeg");
 
@@ -38,7 +41,8 @@ export async function POST(req: NextRequest) {
       notes: "",
     });
   } catch (error) {
-    console.error("AI analysis error:", error);
-    return NextResponse.json({ error: "שגיאה בניתוח התמונה" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("analyze-food error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

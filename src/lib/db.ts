@@ -23,9 +23,11 @@ function getDb(): DbClient {
 }
 
 const db = {
-  execute: (...args: Parameters<DbClient["execute"]>) => getDb().execute(...args),
-  executeMultiple: (...args: Parameters<DbClient["executeMultiple"]>) => getDb().executeMultiple(...args),
-  batch: (...args: Parameters<DbClient["batch"]>) => getDb().batch(...args),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  execute: (stmt: any) => getDb().execute(stmt),
+  executeMultiple: (stmt: string) => getDb().executeMultiple(stmt),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  batch: (stmts: any, mode?: any) => getDb().batch(stmts, mode),
 };
 
 export async function initDb() {
@@ -128,3 +130,4 @@ export async function initDb() {
 }
 
 export default db;
+

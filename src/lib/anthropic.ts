@@ -4,24 +4,7 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-export async function analyzeFoodPhoto(imageUrl: string) {
-  const response = await client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
-    max_tokens: 1024,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "url",
-              url: imageUrl,
-            },
-          },
-          {
-            type: "text",
-            text: `Analyze this food image and provide estimates in Hebrew. For each food item visible:
+const FOOD_PROMPT = `Analyze this food image and provide estimates in Hebrew. For each food item visible:
 1. Name (in Hebrew)
 2. Estimated weight/quantity
 3. Estimated calories
@@ -44,8 +27,26 @@ Return as JSON array with structure:
     {"size": "בינוני", "weight_g": 100, "calories": 150},
     {"size": "גדול", "weight_g": 150, "calories": 225}
   ]
-}]`,
-          },
+}]`;
+
+function parseFoodResponse(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+export async function analyzeFoodPhoto(imageUrl: string) {
+  const response = await client.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 1024,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "url", url: imageUrl } },
+          { type: "text", text: FOOD_PROMPT },
         ],
       },
     ],
@@ -53,11 +54,42 @@ Return as JSON array with structure:
 
   const content = response.content[0];
   if (content.type !== "text") throw new Error("Unexpected response type");
+  return parseFoodResponse(content.text);
+}
 
+export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) {
+  const validType = (["image/jpeg", "image/png", "image/gif", "image/webp"].includes(mediaType)
+    ? mediaType
+    : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+  const response = await client.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 1024,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: validType, data: base64 } },
+          { type: "text", text: FOOD_PROMPT },
+        ],
+      },
+    ],
+  });
+
+  const content = response.content[0];
+  if (content.type !== "text") throw new Error("Unexpected response type");
+  return parseFoodResponse(content.text);
+}
+
+const STEPS_PROMPT = `This is a screenshot from iPhone Health app or similar. Extract the number of steps shown.
+Return ONLY a JSON object: {"steps": <number>}
+If you cannot find a step count, return {"steps": 0}`;
+
+function parseStepsResponse(text: string): number {
   try {
-    return JSON.parse(content.text);
+    return JSON.parse(text).steps || 0;
   } catch {
-    return { raw: content.text };
+    return 0;
   }
 }
 
@@ -65,35 +97,36 @@ export async function extractStepsFromScreenshot(imageUrl: string): Promise<numb
   const response = await client.messages.create({
     model: "claude-3-5-sonnet-20241022",
     max_tokens: 256,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: {
-              type: "url",
-              url: imageUrl,
-            },
-          },
-          {
-            type: "text",
-            text: `This is a screenshot from iPhone Health app or similar. Extract the number of steps shown.
-Return ONLY a JSON object: {"steps": <number>}
-If you cannot find a step count, return {"steps": 0}`,
-          },
-        ],
-      },
-    ],
+    messages: [{
+      role: "user",
+      content: [
+        { type: "image", source: { type: "url", url: imageUrl } },
+        { type: "text", text: STEPS_PROMPT },
+      ],
+    }],
   });
-
   const content = response.content[0];
   if (content.type !== "text") throw new Error("Unexpected response type");
+  return parseStepsResponse(content.text);
+}
 
-  try {
-    const result = JSON.parse(content.text);
-    return result.steps || 0;
-  } catch {
-    return 0;
-  }
+export async function extractStepsFromScreenshotBase64(base64: string, mediaType: string): Promise<number> {
+  const validType = (["image/jpeg", "image/png", "image/gif", "image/webp"].includes(mediaType)
+    ? mediaType
+    : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+  const response = await client.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 256,
+    messages: [{
+      role: "user",
+      content: [
+        { type: "image", source: { type: "base64", media_type: validType, data: base64 } },
+        { type: "text", text: STEPS_PROMPT },
+      ],
+    }],
+  });
+  const content = response.content[0];
+  if (content.type !== "text") throw new Error("Unexpected response type");
+  return parseStepsResponse(content.text);
 }

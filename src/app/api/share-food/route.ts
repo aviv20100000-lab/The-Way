@@ -4,14 +4,11 @@ import { analyzeFoodPhotoBase64 } from "@/lib/anthropic";
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+  if (!user) return NextResponse.redirect(new URL("/login", req.url));
 
   const formData = await req.formData();
   const photo = formData.get("photo") as File | null;
-
-  if (!photo) {
-    return NextResponse.json({ error: "צריך להעלות תמונה" }, { status: 400 });
-  }
+  if (!photo) return NextResponse.redirect(new URL("/?tab=food", req.url));
 
   try {
     const buffer = Buffer.from(await photo.arrayBuffer());
@@ -24,7 +21,7 @@ export async function POST(req: NextRequest) {
       0
     );
 
-    return NextResponse.json({
+    const result = {
       items: items.map((item: any) => ({
         name: item.name_he || item.name,
         estimated_weight_g: item.estimated_weight_g || 100,
@@ -36,9 +33,17 @@ export async function POST(req: NextRequest) {
       total_calories: Math.round(totalCalories),
       photo_url: "",
       notes: "",
+    };
+
+    const res = NextResponse.redirect(new URL("/?tab=food", req.url));
+    res.cookies.set("shared_food_result", JSON.stringify(result), {
+      maxAge: 120,
+      path: "/",
+      httpOnly: false,
+      sameSite: "lax",
     });
-  } catch (error) {
-    console.error("AI analysis error:", error);
-    return NextResponse.json({ error: "שגיאה בניתוח התמונה" }, { status: 500 });
+    return res;
+  } catch {
+    return NextResponse.redirect(new URL("/?tab=food", req.url));
   }
 }

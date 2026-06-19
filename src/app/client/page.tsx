@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Tab = "home" | "food" | "weight" | "steps";
@@ -48,15 +48,11 @@ export default function ClientPage() {
   const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
 
   // Food / AI
-  const foodCameraRef = useRef<HTMLInputElement>(null);
-  const foodGalleryRef = useRef<HTMLInputElement>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [foodError, setFoodError] = useState("");
 
   // Weight
-  const weightCameraRef = useRef<HTMLInputElement>(null);
-  const weightGalleryRef = useRef<HTMLInputElement>(null);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [weightTarget, setWeightTarget] = useState<number | null>(null);
   const [newWeight, setNewWeight] = useState("");
@@ -64,8 +60,6 @@ export default function ClientPage() {
   const [savingWeight, setSavingWeight] = useState(false);
 
   // Steps
-  const stepsCameraRef = useRef<HTMLInputElement>(null);
-  const stepsGalleryRef = useRef<HTMLInputElement>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
@@ -109,6 +103,16 @@ export default function ClientPage() {
     if ("Notification" in window) {
       const perm = Notification.permission as string;
       setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
+    }
+
+    const match = document.cookie.split(";").find((c) => c.trim().startsWith("shared_food_result="));
+    if (match) {
+      try {
+        const json = decodeURIComponent(match.trim().slice("shared_food_result=".length));
+        setAiResult(JSON.parse(json));
+        setTab("food");
+      } catch { /* ignore */ }
+      document.cookie = "shared_food_result=; max-age=0; path=/";
     }
   }, [loadHome]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -304,25 +308,22 @@ export default function ClientPage() {
             <h2 className="text-xl font-bold text-gray-800">מה אכלת? 🍽️</h2>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => foodCameraRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100"
-              >
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100">
                 <span className="text-3xl">📷</span>
                 <span className="text-sm font-semibold">קאמרה</span>
-              </button>
-              <button
-                onClick={() => foodGalleryRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100"
-              >
+                <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
+              </label>
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100">
                 <span className="text-3xl">🖼️</span>
                 <span className="text-sm font-semibold">גלריה</span>
-              </button>
+                <input type="file" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
+              </label>
             </div>
-            <input ref={foodCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
-            <input ref={foodGalleryRef} type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
+            <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700 text-center">
+              📲 ב-iOS — פתח תמונה ב-Photos, לחץ שתף ← <strong>THE WAY</strong>
+            </div>
 
             {analyzing && (
               <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
@@ -368,7 +369,7 @@ export default function ClientPage() {
                   <p className="text-sm text-gray-500 text-center italic">"{aiResult.notes}"</p>
                 )}
 
-                <button onClick={() => { setAiResult(null); foodPhotoRef.current?.click(); }}
+                <button onClick={() => { setAiResult(null); setFoodError(""); }}
                   className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700">
                   צלם עוד
                 </button>
@@ -495,20 +496,18 @@ export default function ClientPage() {
                     onChange={(e) => setNewWeight(e.target.value)}
                     placeholder='ק"ג'
                     className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-center text-xl font-bold" />
-                  <button onClick={() => weightCameraRef.current?.click()}
-                    className="rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="צילום">
+                  <label className="flex cursor-pointer items-center rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="צילום">
                     📷
-                  </button>
-                  <button onClick={() => weightGalleryRef.current?.click()}
-                    className="rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="גלריה">
+                    <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
+                  </label>
+                  <label className="flex cursor-pointer items-center rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="גלריה">
                     🖼️
-                  </button>
+                    <input type="file" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
+                  </label>
                   {weightPhoto && <span className="text-2xl flex items-center">✅</span>}
                 </div>
-                <input ref={weightCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
-                <input ref={weightGalleryRef} type="file" accept="image/*" className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
                 <button onClick={saveWeight} disabled={savingWeight || !newWeight}
                   className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
                   {savingWeight ? "שומר..." : "עדכן משקל"}
@@ -554,21 +553,17 @@ export default function ClientPage() {
             <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
               <p className="text-sm text-gray-500 text-center">צלם סקרינשוט מאפליקציית הבריאות באייפון</p>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => stepsCameraRef.current?.click()}
-                  disabled={uploadingSteps}
-                  className="rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                <label className={`rounded-xl bg-indigo-600 py-3 text-center font-semibold text-white hover:bg-indigo-700 cursor-pointer ${uploadingSteps ? "opacity-50 pointer-events-none" : ""}`}>
                   📷 קאמרה
-                </button>
-                <button onClick={() => stepsGalleryRef.current?.click()}
-                  disabled={uploadingSteps}
-                  className="rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
+                  <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
+                </label>
+                <label className={`rounded-xl bg-indigo-600 py-3 text-center font-semibold text-white hover:bg-indigo-700 cursor-pointer ${uploadingSteps ? "opacity-50 pointer-events-none" : ""}`}>
                   🖼️ גלריה
-                </button>
+                  <input type="file" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
+                </label>
               </div>
-              <input ref={stepsCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
-              <input ref={stepsGalleryRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
               {uploadingSteps && <p className="text-sm text-gray-500 text-center">קורא את הצעדים שלך...</p>}
               {stepsSuccess && <p className="text-green-600 font-semibold text-center">{stepsSuccess}</p>}
               <p className="text-xs text-gray-400 text-center">עשית היום: <strong>{todaySteps.toLocaleString()} צעדים</strong></p>

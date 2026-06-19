@@ -247,11 +247,11 @@ export default function CoachPage() {
             {notifStatus === "granted" ? (
               <div className="flex items-center gap-3 rounded-2xl bg-neutral-100 p-6 shadow-card">
                 <span className="text-2xl">✅</span>
-                <p className="font-semibold text-heading-sm text-black-matte">התראות דלוקות — מעולה!</p>
+                <p className="font-semibold text-base text-black-matte">התראות דלוקות — מעולה!</p>
               </div>
             ) : !isPwa ? (
               <div className="rounded-2xl bg-neutral-100 p-6 shadow-card space-y-3">
-                <p className="font-semibold text-heading-sm text-black-matte">📲 רוצה לקבל התראות?</p>
+                <p className="font-semibold text-base text-black-matte">📲 רוצה לקבל התראות?</p>
                 <ol className="text-sm text-neutral-600 space-y-2 list-decimal list-inside font-normal">
                   <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
                   <li>בחר <strong>&quot;הוסף למסך הבית&quot;</strong></li>
@@ -263,14 +263,14 @@ export default function CoachPage() {
                 className="flex w-full items-center gap-4 rounded-2xl bg-primary-600 p-6 text-right text-white shadow-card hover:shadow-lg transition-all duration-300">
                 <span className="text-4xl">🔔</span>
                 <div>
-                  <p className="font-semibold text-heading-sm">הפעל התראות</p>
+                  <p className="font-semibold text-base">הפעל התראות</p>
                   <p className="text-xs text-white/70 font-normal">כדי לקבל עדכונים מהאפליקציה</p>
                 </div>
               </button>
             )}
 
             <div className="flex items-center justify-between">
-              <h2 className="text-heading-base font-semibold text-black-matte">המתאמנים שלך</h2>
+              <h2 className="text-lg font-semibold text-black-matte">המתאמנים שלך</h2>
               <button onClick={() => setShowAddClient(true)}
                 className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition-all duration-300">
                 + הוסף
@@ -279,7 +279,7 @@ export default function CoachPage() {
 
             {showAddClient && (
               <div className="rounded-2xl bg-white p-6 shadow-card space-y-4">
-                <h3 className="text-heading-sm font-semibold text-black-matte">הוספת מתאמן</h3>
+                <h3 className="text-base font-semibold text-black-matte">הוספת מתאמן</h3>
                 {addError && <p className="text-sm text-red-600 bg-red-100 rounded-lg p-3 font-normal">{addError}</p>}
                 <input placeholder="שם" value={newClient.name}
                   onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
@@ -300,13 +300,13 @@ export default function CoachPage() {
             )}
 
             {clients.length === 0 && !showAddClient && (
-              <p className="text-center text-neutral-400 py-10 text-body-sm">עוד אין מתאמנים — לחץ על הוסף כדי להתחיל</p>
+              <p className="text-center text-neutral-400 py-10 text-sm">עוד אין מתאמנים — לחץ על הוסף כדי להתחיל</p>
             )}
 
             {clients.map((c, i) => (
               <div key={c.id} className="rounded-2xl bg-white shadow-card hover:shadow-lg transition-all duration-300 flex items-center justify-between gap-3 p-5">
                 <div className="min-w-0">
-                  <p className="font-semibold text-black-matte truncate text-body-lg">{c.name}</p>
+                  <p className="font-semibold text-black-matte truncate text-base">{c.name}</p>
                   <p className="text-xs text-neutral-500 truncate font-normal" dir="ltr">{c.email}</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
@@ -325,10 +325,10 @@ export default function CoachPage() {
             {selectedClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={() => setSelectedClient(null)}>
                 <div className="w-full max-w-lg rounded-t-2xl bg-white p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="text-heading-base font-semibold text-black-matte">🎯 יעדים של {selectedClient.name}</h3>
+                  <h3 className="text-lg font-semibold text-black-matte">🎯 יעדים של {selectedClient.name}</h3>
 
                   <label className="block">
-                    <span className="text-caption font-semibold text-neutral-600 uppercase tracking-wide">יעד משקל (ק"ג)</span>
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">יעד משקל (ק"ג)</span>
                     <input type="number" step="0.5"
                       value={clientGoals.target_weight_kg ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, target_weight_kg: e.target.value ? parseFloat(e.target.value) : null })}
@@ -337,7 +337,7 @@ export default function CoachPage() {
                   </label>
 
                   <label className="block">
-                    <span className="text-caption font-semibold text-neutral-600 uppercase tracking-wide">יעד קלוריות יומי</span>
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">יעד קלוריות יומי</span>
                     <input type="number"
                       value={clientGoals.daily_calories ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_calories: e.target.value ? parseInt(e.target.value) : null })}
@@ -346,7 +346,7 @@ export default function CoachPage() {
                   </label>
 
                   <label className="block">
-                    <span className="text-caption font-semibold text-neutral-600 uppercase tracking-wide">יעד מים יומי (מ"ל)</span>
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">יעד מים יומי (מ"ל)</span>
                     <input type="number"
                       value={clientGoals.daily_water_ml}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_water_ml: parseInt(e.target.value) || 2000 })}
@@ -419,7 +419,7 @@ export default function CoachPage() {
                         </div>
                         <div className="rounded-2xl bg-white p-4 shadow-xs text-center">
                           <p className="text-xs text-neutral-500 mb-1">💧 מים היום</p>
-                          <p className="text-2xl font-bold text-blue-500">{(clientData.water_today / 1000).toFixed(1)}<span className="text-sm">L</span></p>
+                          <p className="text-2xl font-bold text-primary-600">{(clientData.water_today / 1000).toFixed(1)}<span className="text-sm">L</span></p>
                           <p className="text-xs text-neutral-400">יעד {(clientData.goals.daily_water_ml / 1000).toFixed(1)}L</p>
                         </div>
                       </div>
@@ -541,7 +541,7 @@ export default function CoachPage() {
                 <p className="text-black-matte leading-relaxed">"{q.text}"</p>
                 {q.author && <p className="text-sm text-neutral-500 mt-1 font-normal">— {q.author}</p>}
                 <button onClick={() => deleteQuote(q.id)}
-                  className="mt-2 text-xs text-red-600 hover:text-red-700 font-normal">🗑️ מחק</button>
+                  className="mt-2 text-xs text-red-600 hover:text-red-600 font-normal">🗑️ מחק</button>
               </div>
             ))}
           </div>

@@ -39,12 +39,12 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-500 text-3xl text-white shadow-lg">
             🥗
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">The Way</h1>
-          <p className="mt-2 text-gray-500">מעקב תזונה חכם למאמנים ומתאמנים</p>
+          <h1 className="text-3xl font-bold text-gray-900">THE WAY</h1>
+          <p className="mt-2 text-gray-500">הדרך שלך. בוא נעשה אותה ביחד.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-2xl bg-white p-8 shadow-xl">
-          <h2 className="mb-6 text-xl font-semibold">התחברות</h2>
+          <h2 className="mb-6 text-xl font-semibold">כניסה לאפליקציה</h2>
 
           {error && (
             <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</div>
@@ -81,7 +81,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-brand-600 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            {loading ? "מתחבר..." : "התחבר"}
+            {loading ? "נכנסים..." : "כניסה"}
           </button>
 
           <div className="mt-6 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">

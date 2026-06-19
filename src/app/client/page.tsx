@@ -198,7 +198,7 @@ export default function ClientPage() {
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
           <div>
             <h1 className="text-lg font-bold text-gray-900">THE WAY</h1>
-            <p className="text-xs text-gray-400">שלום, {userName}</p>
+            <p className="text-xs text-gray-400">היי {userName} 👋</p>
           </div>
           <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">יציאה</button>
         </div>
@@ -212,7 +212,7 @@ export default function ClientPage() {
             {/* Quote */}
             {quote && (
               <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-5 text-white shadow-lg">
-                <p className="text-sm opacity-75 mb-1">💬 המשפט של היום</p>
+                <p className="text-sm opacity-75 mb-1">💬 למחשבה</p>
                 <p className="text-lg font-semibold leading-snug">"{quote}"</p>
               </div>
             )}
@@ -226,13 +226,13 @@ export default function ClientPage() {
               <div className="h-2 w-full rounded-full bg-gray-100">
                 <div className="h-2 rounded-full bg-indigo-400 transition-all" style={{ width: `${Math.min(100, (todaySteps / 10000) * 100)}%` }} />
               </div>
-              <p className="mt-1 text-xs text-gray-400">יעד: 10,000 צעדים</p>
+              <p className="mt-1 text-xs text-gray-400">יעד יומי: 10,000 צעדים</p>
             </div>
 
             {/* Water */}
             <div className="rounded-2xl bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-600">💧 מים היום</span>
+                <span className="text-sm font-medium text-gray-600">💧 שתייה היום</span>
                 <span className="font-bold text-blue-600">{(waterTotal / 1000).toFixed(1)}L / {waterGoal / 1000}L</span>
               </div>
               <div className="h-3 w-full rounded-full bg-blue-50">
@@ -252,11 +252,11 @@ export default function ClientPage() {
             {notifStatus === "granted" ? (
               <div className="flex items-center gap-3 rounded-2xl bg-green-50 p-4 border border-green-100">
                 <span className="text-2xl">✅</span>
-                <p className="font-semibold text-green-700">התראות פעילות</p>
+                <p className="font-semibold text-green-700">התראות דלוקות — מעולה!</p>
               </div>
             ) : !isPwa ? (
               <div className="rounded-2xl bg-amber-50 p-4 border border-amber-200 text-right">
-                <p className="font-semibold text-amber-800 mb-2">📲 התקן את האפליקציה לקבלת התראות</p>
+                <p className="font-semibold text-amber-800 mb-2">📲 רוצה לקבל הודעות מהמאמן?</p>
                 <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
                   <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
                   <li>בחר <strong>"הוסף למסך הבית"</strong></li>
@@ -268,8 +268,8 @@ export default function ClientPage() {
                 className="flex w-full items-center gap-3 rounded-2xl bg-indigo-600 p-4 text-right shadow-sm">
                 <span className="text-2xl">🔔</span>
                 <div>
-                  <p className="font-semibold text-white text-lg">אפשר התראות</p>
-                  <p className="text-xs text-indigo-200">לחץ כאן כדי לקבל הודעות מהמאמן</p>
+                  <p className="font-semibold text-white text-lg">הפעל התראות</p>
+                  <p className="text-xs text-indigo-200">כדי שהמאמן יוכל לשלוח לך הודעות</p>
                 </div>
               </button>
             )}
@@ -277,7 +277,7 @@ export default function ClientPage() {
             {/* Weight summary */}
             {latestWeight && (
               <div className="rounded-2xl bg-white p-4 shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">⚖️ משקל אחרון</p>
+                <p className="text-sm text-gray-500 mb-1">⚖️ המשקל שלך</p>
                 <div className="flex items-end gap-2">
                   <span className="text-3xl font-bold text-gray-800">{latestWeight}</span>
                   <span className="text-gray-400 mb-1">ק"ג</span>
@@ -298,15 +298,15 @@ export default function ClientPage() {
         {/* ══ FOOD TAB ══ */}
         {tab === "food" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">ניתוח אוכל עם AI</h2>
+            <h2 className="text-xl font-bold text-gray-800">מה אכלת? 🍽️</h2>
 
             <button
               onClick={() => foodPhotoRef.current?.click()}
               className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50 p-10 text-indigo-600 hover:bg-indigo-100"
             >
               <span className="text-5xl">📸</span>
-              <span className="font-semibold">צלם את הארוחה שלך</span>
-              <span className="text-sm opacity-70">ה-AI ינתח קלוריות אוטומטית</span>
+              <span className="font-semibold">צלם את האוכל</span>
+              <span className="text-sm opacity-70">תוך שניות נדע כמה קלוריות יש כאן</span>
             </button>
             <input ref={foodPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
@@ -314,7 +314,7 @@ export default function ClientPage() {
             {analyzing && (
               <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
                 <div className="text-4xl mb-2 animate-spin">🔍</div>
-                <p className="text-gray-600">ה-AI מנתח את הארוחה שלך...</p>
+                <p className="text-gray-600">מנתח את האוכל שלך, רגע אחד...</p>
               </div>
             )}
 
@@ -331,7 +331,7 @@ export default function ClientPage() {
 
                 <div className="text-center">
                   <div className="text-4xl font-bold text-orange-500">{aiResult.total_calories}</div>
-                  <div className="text-sm text-gray-400">קלוריות סה"כ</div>
+                  <div className="text-sm text-gray-400">קלוריות בארוחה</div>
                 </div>
 
                 <div className="space-y-2">
@@ -357,7 +357,7 @@ export default function ClientPage() {
 
                 <button onClick={() => { setAiResult(null); foodPhotoRef.current?.click(); }}
                   className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700">
-                  צלם ארוחה נוספת
+                  צלם עוד
                 </button>
               </div>
             )}
@@ -476,7 +476,7 @@ export default function ClientPage() {
 
               {/* Add weight */}
               <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
-                <p className="font-medium text-gray-700">הזן משקל</p>
+                <p className="font-medium text-gray-700">כמה אתה שוקל היום?</p>
                 <div className="flex gap-3">
                   <input type="number" step="0.1" value={newWeight}
                     onChange={(e) => setNewWeight(e.target.value)}
@@ -491,14 +491,14 @@ export default function ClientPage() {
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
                 <button onClick={saveWeight} disabled={savingWeight || !newWeight}
                   className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
-                  {savingWeight ? "שומר..." : "שמור משקל"}
+                  {savingWeight ? "שומר..." : "עדכן משקל"}
                 </button>
               </div>
 
               {/* History */}
               <div className="space-y-2">
                 <p className="text-sm font-medium text-gray-500">היסטוריה</p>
-                {weightLogs.length === 0 && <p className="text-center text-gray-400 py-4">עדיין לא נרשם משקל</p>}
+                {weightLogs.length === 0 && <p className="text-center text-gray-400 py-4">עוד לא שקלת — בוא נתחיל 💪</p>}
                 {weightLogs.map((log, i) => (
                   <div key={log.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
                     <div className="flex items-center gap-3">
@@ -528,20 +528,20 @@ export default function ClientPage() {
         {/* ══ STEPS TAB ══ */}
         {tab === "steps" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">תחרות צעדים</h2>
+            <h2 className="text-xl font-bold text-gray-800">תחרות צעדים 👟</h2>
 
             {/* Upload screenshot */}
             <div className="rounded-2xl bg-white p-5 shadow-sm text-center space-y-3">
-              <p className="text-sm text-gray-500">צלם סקרינשוט מאפליקציית הבריאות</p>
+              <p className="text-sm text-gray-500">צלם סקרינשוט מאפליקציית הבריאות באייפון</p>
               <button onClick={() => stepsPhotoRef.current?.click()}
                 disabled={uploadingSteps}
                 className="w-full rounded-xl bg-indigo-600 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
-                {uploadingSteps ? "מעבד..." : "📱 העלה סקרינשוט"}
+                {uploadingSteps ? "קורא את הצעדים שלך..." : "📱 העלה סקרינשוט"}
               </button>
               <input ref={stepsPhotoRef} type="file" accept="image/*" capture="environment" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
               {stepsSuccess && <p className="text-green-600 font-semibold">{stepsSuccess}</p>}
-              <p className="text-xs text-gray-400">הצעדים שלך היום: <strong>{todaySteps.toLocaleString()}</strong></p>
+              <p className="text-xs text-gray-400">עשית היום: <strong>{todaySteps.toLocaleString()} צעדים</strong></p>
             </div>
 
             {/* Leaderboard */}

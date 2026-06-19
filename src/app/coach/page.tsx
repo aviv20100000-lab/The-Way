@@ -185,7 +185,7 @@ export default function CoachPage() {
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-3">
           <div>
             <h1 className="text-lg font-bold">THE WAY — מאמן</h1>
-            <p className="text-xs text-gray-400">שלום, {coachName}</p>
+            <p className="text-xs text-gray-400">היי {coachName} 👋</p>
           </div>
           <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">יציאה</button>
         </div>
@@ -196,7 +196,7 @@ export default function CoachPage() {
         {tab === "clients" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">המתאמנים שלי</h2>
+              <h2 className="text-xl font-bold text-gray-800">המתאמנים שלך</h2>
               <button onClick={() => setShowAddClient(true)}
                 className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                 + הוסף
@@ -205,7 +205,7 @@ export default function CoachPage() {
 
             {showAddClient && (
               <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
-                <h3 className="font-bold">מתאמן חדש</h3>
+                <h3 className="font-bold">הוספת מתאמן</h3>
                 {addError && <p className="text-sm text-red-500">{addError}</p>}
                 <input placeholder="שם" value={newClient.name}
                   onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
@@ -226,7 +226,7 @@ export default function CoachPage() {
             )}
 
             {clients.length === 0 && !showAddClient && (
-              <p className="text-center text-gray-400 py-8">אין מתאמנים עדיין</p>
+              <p className="text-center text-gray-400 py-8">עוד אין מתאמנים — לחץ על הוסף כדי להתחיל</p>
             )}
 
             {clients.map((c) => (
@@ -245,7 +245,7 @@ export default function CoachPage() {
             {selectedClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={() => setSelectedClient(null)}>
                 <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="font-bold text-lg">יעדים עבור {selectedClient.name}</h3>
+                  <h3 className="font-bold text-lg">יעדים של {selectedClient.name}</h3>
 
                   <label className="block">
                     <span className="text-sm text-gray-500">יעד משקל (ק"ג)</span>
@@ -350,7 +350,7 @@ export default function CoachPage() {
 
             {/* Send push notification */}
             <div className="rounded-2xl bg-indigo-50 p-5 border border-indigo-100 space-y-3">
-              <p className="font-semibold text-indigo-800">📣 שלח הודעה לכל המתאמנים</p>
+              <p className="font-semibold text-indigo-800">📣 שלח הודעה לכולם</p>
               <input value={pushTitle} onChange={(e) => setPushTitle(e.target.value)}
                 placeholder="כותרת ההודעה"
                 className="w-full rounded-xl border border-indigo-200 px-4 py-3 bg-white" />
@@ -385,7 +385,7 @@ export default function CoachPage() {
               </button>
             </div>
 
-            {quotes.length === 0 && <p className="text-center text-gray-400 py-4">אין ציטוטים עדיין</p>}
+            {quotes.length === 0 && <p className="text-center text-gray-400 py-4">עוד לא הוספת ציטוטים</p>}
             {quotes.map((q) => (
               <div key={q.id} className="rounded-2xl bg-white p-4 shadow-sm">
                 <p className="text-gray-800 leading-relaxed">"{q.text}"</p>
@@ -399,7 +399,7 @@ export default function CoachPage() {
 
         {tab === "leaderboard" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">לוח תחרות צעדים</h2>
+            <h2 className="text-xl font-bold text-gray-800">דירוג צעדים 🏆</h2>
 
             <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
               <div className="flex border-b">
@@ -413,7 +413,7 @@ export default function CoachPage() {
                 </button>
               </div>
               <div className="p-4 space-y-2">
-                {leaderboard.length === 0 && <p className="text-center text-gray-400 py-4">אין נתונים עדיין</p>}
+                {leaderboard.length === 0 && <p className="text-center text-gray-400 py-4">עוד אף אחד לא העלה צעדים היום</p>}
                 {leaderboard
                   .slice()
                   .sort((a, b) => (lbView === "today" ? b.today - a.today : b.week - a.week))
@@ -433,7 +433,7 @@ export default function CoachPage() {
 
             <button onClick={loadLeaderboard}
               className="w-full rounded-xl border border-gray-200 py-3 text-sm text-gray-500 hover:bg-gray-50">
-              🔄 רענן
+              🔄 עדכן
             </button>
           </div>
         )}

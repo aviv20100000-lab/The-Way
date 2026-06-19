@@ -116,7 +116,7 @@ export function MealCard({
             className="h-full w-full object-cover"
           />
           {/* Meal type badge overlay */}
-          <div className="absolute top-3 end-3 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5 text-white text-xs font-semibold flex items-center gap-1">
+          <div className="absolute top-3 end-3 bg-black/40 backdrop-blur rounded-full px-3 py-1.5 text-white text-xs font-semibold flex items-center gap-1">
             {mealEmoji}
             <span>{MEAL_TYPE_LABELS[mealType]}</span>
           </div>

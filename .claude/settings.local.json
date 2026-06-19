@@ -94,7 +94,12 @@
       "Bash(curl -s http://localhost:3000/client -b /tmp/cookies.txt)",
       "Bash(curl -s http://localhost:3000/login)",
       "Bash(grep -E \"\\\\.\\(tsx|ts|css\\)$\")",
-      "Bash(grep -o \"^\\\\\\\\.[a-z-]*\" src/app/globals.css)"
+      "Bash(grep -o \"^\\\\\\\\.[a-z-]*\" src/app/globals.css)",
+      "Bash(sed -i 's/shadow-sm/shadow-xs/g' src/app/client/page.tsx)",
+      "Bash(sed -i 's/shadow-micro/shadow-xs/g' src/app/client/page.tsx)",
+      "Bash(sed -i 's/rounded-t-2xl/rounded-t-xl/g' src/app/coach/page.tsx)",
+      "Bash(sed -i 's/backdrop-blur-sm/backdrop-blur/g' src/components/ui.tsx)",
+      "Bash(sed -i 's/text-body-sm/text-sm/g' src/components/LoadingStates.tsx)"
     ]
   }
 }

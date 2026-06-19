@@ -539,7 +539,7 @@ export default function ClientPage() {
             </div>
 
             {analyzing && (
-              <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
+              <div className="rounded-2xl bg-white p-6 text-center shadow-xs">
                 <div className="text-4xl mb-2 animate-spin">🔍</div>
                 <p className="text-gray-600">מנתח את האוכל שלך, רגע אחד...</p>
               </div>
@@ -570,7 +570,7 @@ export default function ClientPage() {
               const step = (it: AiItem) => Math.max(5, Math.round(it.estimated_weight_g / 10));
 
               return (
-              <div className="rounded-2xl bg-white p-5 shadow-sm space-y-4">
+              <div className="rounded-2xl bg-white p-5 shadow-xs space-y-4">
                 {aiResult.photo_url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={aiResult.photo_url} alt="ארוחה" className="w-full rounded-xl object-cover max-h-48" />
@@ -647,7 +647,7 @@ export default function ClientPage() {
             })()}
 
             {/* Calories today */}
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="rounded-2xl bg-white p-4 shadow-xs">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-600">🔥 קלוריות היום</span>
                 <span className="font-bold text-orange-500">
@@ -701,7 +701,7 @@ export default function ClientPage() {
 
               {/* Journey progress */}
               {startWeight && weightTarget && currentWeight && (
-                <div className={`rounded-2xl p-5 shadow-sm space-y-4 ${isHalfway ? "bg-gradient-to-br from-indigo-600 to-purple-600 text-white" : "bg-white"}`}>
+                <div className={`rounded-2xl p-5 shadow-xs space-y-4 ${isHalfway ? "bg-gradient-to-br from-indigo-600 to-purple-600 text-white" : "bg-white"}`}>
                   {isHalfway && (
                     <div className="text-center">
                       <div className="text-4xl mb-1">{isGoal ? "🏆" : "🎉"}</div>
@@ -815,7 +815,7 @@ export default function ClientPage() {
                     initial={{ opacity: 0, x: 8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-micro hover:shadow-xs transition-shadow"
+                    className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-xs hover:shadow-xs transition-shadow"
                   >
                     <div className="flex items-center gap-3">
                       {log.photo_url
@@ -847,7 +847,7 @@ export default function ClientPage() {
             <h2 className="text-xl font-bold text-gray-800">תחרות צעדים 👟</h2>
 
             {/* Upload screenshot */}
-            <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
+            <div className="rounded-2xl bg-white p-5 shadow-xs space-y-3">
               <p className="text-sm text-gray-500 text-center">צלם סקרינשוט מאפליקציית הבריאות באייפון</p>
               <div className="grid grid-cols-2 gap-2">
                 <label className={`rounded-xl bg-indigo-600 py-3 text-center font-semibold text-white hover:bg-indigo-700 cursor-pointer ${uploadingSteps ? "opacity-50 pointer-events-none" : ""}`}>
@@ -867,7 +867,7 @@ export default function ClientPage() {
             </div>
 
             {/* Leaderboard */}
-            <div className="rounded-2xl bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl bg-white shadow-xs overflow-hidden">
               <div className="flex border-b">
                 <button onClick={() => setLbView("today")}
                   className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-400"}`}>

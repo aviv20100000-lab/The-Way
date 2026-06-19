@@ -82,7 +82,7 @@ export function EmptyState({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.4 }}
-        className="text-body-sm text-neutral-600 max-w-sm mb-6"
+        className="text-sm text-neutral-600 max-w-md mb-6"
       >
         {description}
       </motion.p>
@@ -125,7 +125,7 @@ export function LoadingSpinner() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="mt-4 text-body-sm text-neutral-600"
+        className="mt-4 text-sm text-neutral-600"
       >
         טוען...
       </motion.p>
@@ -153,7 +153,7 @@ export function ErrorState({
     >
       <div className="text-6xl mb-4">⚠️</div>
       <h3 className="text-heading-base font-bold text-neutral-900 mb-2">{title}</h3>
-      <p className="text-body-sm text-neutral-600 max-w-sm mb-6 text-center">{description}</p>
+      <p className="text-sm text-neutral-600 max-w-md mb-6 text-center">{description}</p>
       {onRetry && (
         <motion.button
           whileHover={{ scale: 1.05 }}

@@ -17,6 +17,7 @@
     "@libsql/client": "^0.17.4",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
+    "csrf": "^3.1.0",
     "framer-motion": "^12.40.0",
     "jose": "^6.0.11",
     "next": "^15.3.3",

@@ -2,9 +2,18 @@ export async function apiCall<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+
+  if (options?.method && ["POST", "PUT", "DELETE", "PATCH"].includes(options.method)) {
+    const csrfToken = getCookie("csrf-token");
+    if (csrfToken) {
+      headers["x-csrf-token"] = csrfToken;
+    }
+  }
+
   const res = await fetch(endpoint, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: { ...headers, ...options?.headers },
   });
 
   if (!res.ok) {
@@ -26,4 +35,12 @@ export async function apiCall<T>(
   }
 
   return res.json();
+}
+
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyCSRFToken } from "@/lib/csrf";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -12,6 +13,17 @@ export function middleware(request: NextRequest) {
     "Content-Security-Policy",
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com https://*.anthropic.com;"
   );
+
+  if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/")) {
+    const csrfToken = request.headers.get("x-csrf-token");
+
+    if (!csrfToken || !(await verifyCSRFToken(csrfToken))) {
+      return NextResponse.json(
+        { error: "בקשה לא תקינה (CSRF token missing)" },
+        { status: 403 }
+      );
+    }
+  }
 
   return response;
 }

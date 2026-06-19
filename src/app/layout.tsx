@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaRegister from "./pwa-register";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { CSRFTokenProvider } from "@/components/CSRFTokenProvider";
 
 export const metadata: Metadata = {
   title: "THE WAY",
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-gray-50 text-gray-900 antialiased">
         <ErrorBoundary>
+          <CSRFTokenProvider />
           <PwaRegister />
           {children}
         </ErrorBoundary>

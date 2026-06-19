@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserByEmail, setSession, verifyPassword } from "@/lib/auth";
 import { ensureSeed } from "@/lib/seed";
+import { checkRateLimit } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
+  const clientIp = req.headers.get("x-forwarded-for") || "unknown";
+  const rateLimit = checkRateLimit(clientIp, "auth");
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "יותר מדי ניסיונות התחברות. נסה שוב בעוד כמה דקות." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimit.resetIn / 1000)) } }
+    );
+  }
+
   await ensureSeed();
   const { email, password } = await req.json();
   if (!email || !password) return NextResponse.json({ error: "נא למלא אימייל וסיסמה" }, { status: 400 });

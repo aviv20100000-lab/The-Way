@@ -52,7 +52,6 @@
       "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
       "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
       "PowerShell(\"Node processes stopped\")",
-      "PowerShell(cd \"C:\\\\Users\\\\owner\\\\OneDrive\\\\שולחן העבודה\\\\The Way\"; vercel deploy --prod --yes 2>&1 | tail -30)",
       "Bash(git revert *)",
       "Bash(git push *)",
       "Bash(curl -s \"https://the-way-app-two.vercel.app/login\")",
@@ -83,7 +82,9 @@
       "Bash(netstat -ano)",
       "Bash(kill -9 27492)",
       "PowerShell(Stop-Process -Id 27492 -Force -ErrorAction SilentlyContinue)",
-      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue)",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__tabs_context_mcp"
     ]
   }
 }

@@ -27,11 +27,33 @@ Return as JSON array with structure:
     {"size": "בינוני", "weight_g": 100, "calories": 150},
     {"size": "גדול", "weight_g": 150, "calories": 225}
   ]
-}]`;
+}]
+
+IMPORTANT: Return ONLY the raw JSON array. No markdown code fences, no explanations, no extra text. If you cannot identify any food, return a best-effort estimate — never return empty or zero values.`;
+
+function extractJson(text: string): string {
+  // Strip markdown code fences if present
+  let t = text.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) t = fence[1].trim();
+  // Grab the outermost JSON array or object
+  const firstArr = t.indexOf("[");
+  const firstObj = t.indexOf("{");
+  let start = -1;
+  if (firstArr === -1) start = firstObj;
+  else if (firstObj === -1) start = firstArr;
+  else start = Math.min(firstArr, firstObj);
+  if (start === -1) return t;
+  const open = t[start];
+  const close = open === "[" ? "]" : "}";
+  const end = t.lastIndexOf(close);
+  if (end > start) return t.slice(start, end + 1);
+  return t;
+}
 
 function parseFoodResponse(text: string) {
   try {
-    return JSON.parse(text);
+    return JSON.parse(extractJson(text));
   } catch {
     return { raw: text };
   }
@@ -87,7 +109,7 @@ If you cannot find a step count, return {"steps": 0}`;
 
 function parseStepsResponse(text: string): number {
   try {
-    return JSON.parse(text).steps || 0;
+    return JSON.parse(extractJson(text)).steps || 0;
   } catch {
     return 0;
   }

@@ -101,9 +101,13 @@ export default function ClientPage() {
       .catch(() => {});
     loadHome();
     if ("Notification" in window) {
-      setNotifStatus(Notification.permission as "granted" | "denied" | "unknown");
+      const perm = Notification.permission as string;
+      setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
+      if (perm === "default" || perm === "unknown") {
+        setTimeout(() => enableNotifications(), 1500);
+      }
     }
-  }, [loadHome]);
+  }, [loadHome]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function enableNotifications() {
     if (!("Notification" in window) || !("serviceWorker" in navigator)) return;

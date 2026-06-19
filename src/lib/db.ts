@@ -1,21 +1,32 @@
-import { createClient } from "@libsql/client";
+﻿import { createClient } from "@libsql/client";
 import { mkdirSync } from "fs";
 import { join } from "path";
 
-const isCloud = !!process.env.TURSO_URL;
+type DbClient = ReturnType<typeof createClient>;
 
-let db: ReturnType<typeof createClient>;
+let _db: DbClient | null = null;
 
-if (isCloud) {
-  db = createClient({
-    url: process.env.TURSO_URL!,
-    authToken: process.env.TURSO_TOKEN,
-  });
-} else {
-  const dataDir = join(process.cwd(), "data");
-  mkdirSync(dataDir, { recursive: true });
-  db = createClient({ url: `file:${join(dataDir, "nutrition.db")}` });
+function getDb(): DbClient {
+  if (!_db) {
+    if (process.env.TURSO_URL) {
+      _db = createClient({
+        url: process.env.TURSO_URL,
+        authToken: process.env.TURSO_TOKEN,
+      });
+    } else {
+      const dataDir = join(process.cwd(), "data");
+      mkdirSync(dataDir, { recursive: true });
+      _db = createClient({ url: `file:${join(dataDir, "nutrition.db")}` });
+    }
+  }
+  return _db;
 }
+
+const db = {
+  execute: (...args: Parameters<DbClient["execute"]>) => getDb().execute(...args),
+  executeMultiple: (...args: Parameters<DbClient["executeMultiple"]>) => getDb().executeMultiple(...args),
+  batch: (...args: Parameters<DbClient["batch"]>) => getDb().batch(...args),
+};
 
 export async function initDb() {
   await db.executeMultiple(`

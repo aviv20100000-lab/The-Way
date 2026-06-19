@@ -26,7 +26,7 @@ export async function verifyPassword(password: string, hash: string) {
 export async function createToken(user: User) {
   return new SignJWT({ sub: user.id, role: user.role, name: user.name })
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("30d")
+    .setExpirationTime("365d")
     .sign(SECRET);
 }
 
@@ -42,7 +42,7 @@ export async function setSession(user: User) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: 60 * 60 * 24 * 365,
     path: "/",
   });
 }

@@ -101,9 +101,9 @@ export default function LoginPage() {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-5 rounded-xl bg-gradient-to-r from-rose-50 to-red-50 p-4 border border-rose-200"
+              className="mb-5 rounded-xl bg-red-100 p-4 border border-red-200"
             >
-              <p className="text-sm font-medium text-rose-700">{error}</p>
+              <p className="text-sm font-medium text-red-700">{error}</p>
             </motion.div>
           )}
 
@@ -123,7 +123,7 @@ export default function LoginPage() {
               required
               dir="ltr"
               disabled={loading}
-              className="w-full rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-200/50 disabled:opacity-50"
+              className="w-full rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition focus:border-primary-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:opacity-50"
               aria-label="אימייל"
             />
           </motion.label>
@@ -144,7 +144,7 @@ export default function LoginPage() {
               required
               dir="ltr"
               disabled={loading}
-              className="w-full rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-200/50 disabled:opacity-50"
+              className="w-full rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition focus:border-primary-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:opacity-50"
               aria-label="סיסמה"
             />
           </motion.label>

@@ -40,6 +40,7 @@ export default function LoginPage() {
             🥗
           </div>
           <h1 className="text-3xl font-bold text-gray-900">THE WAY</h1>
+          <p className="text-xs font-medium text-brand-600">by Aviv & Liav</p>
           <p className="mt-2 text-gray-500">הדרך שלך. בוא נעשה אותה ביחד.</p>
         </div>
 

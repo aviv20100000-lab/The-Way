@@ -48,7 +48,10 @@
       "Bash(tasklist)",
       "Bash(findstr node *)",
       "Bash(taskkill /F /IM node.exe)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(\"Node processes stopped\")"
     ]
   }
 }

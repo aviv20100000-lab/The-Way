@@ -32,7 +32,9 @@ export async function POST(req: NextRequest) {
     })).rows;
   }
 
-  const payload = JSON.stringify({ title, body, icon: "/icon-192.png" });
+  // Encode non-ASCII as \uXXXX so Hebrew survives push encryption intact
+  const payload = JSON.stringify({ title, body, icon: "/icon-192.png" })
+    .replace(/[^\x00-\x7F]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
   let sent = 0;
 
   for (const sub of subs) {

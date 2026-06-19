@@ -34,7 +34,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-900 via-primary-900 to-primary-800 bg-event flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-neutral-900 via-primary-900 to-primary-800 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background image overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/70 via-primary-900/65 to-primary-800/70 pointer-events-none" />
 

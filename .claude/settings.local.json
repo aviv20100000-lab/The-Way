@@ -91,7 +91,9 @@
       "Bash(curl -s -I https://the-way-app-two.vercel.app/images/backgrounds/event-bg.jpg)",
       "Bash(curl -s https://the-way-app-two.vercel.app/login)",
       "Bash(curl -s https://the-way-app-two.vercel.app/_next/static/css/)",
-      "Bash(vercel deploy *)"
+      "Bash(vercel deploy *)",
+      "Bash(grep -v \"node_modules\\\\|sql\\\\`\")",
+      "Bash(npm audit *)"
     ]
   }
 }

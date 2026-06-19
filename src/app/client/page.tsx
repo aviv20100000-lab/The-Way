@@ -537,14 +537,45 @@ export default function ClientPage() {
             </div>
 
             {analyzing && (
-              <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-                <div className="text-4xl mb-2 animate-spin">🔍</div>
-                <p className="text-gray-600">מנתח את האוכל שלך, רגע אחד...</p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 p-8 text-center text-white shadow-lg"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="text-5xl mb-4 inline-block"
+                >
+                  🔍
+                </motion.div>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-lg font-semibold"
+                >
+                  מנתח את האוכל שלך...
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-xs text-white/70 mt-2"
+                >
+                  רגע אחד, בעזרת AI
+                </motion.p>
+              </motion.div>
             )}
 
             {foodError && (
-              <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">{foodError}</div>
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl bg-gradient-to-r from-danger-500 to-rose-600 border border-danger-400 p-5 text-sm text-white font-medium shadow-lg"
+              >
+                ⚠️ {foodError}
+              </motion.div>
             )}
 
             {aiResult && (() => {

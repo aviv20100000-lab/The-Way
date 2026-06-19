@@ -81,37 +81,64 @@ export default function CoachPage() {
   const [isPwa, setIsPwa] = useState(false);
 
   const loadClients = useCallback(async () => {
-    const res = await fetch("/api/clients");
-    if (res.status === 401 || res.status === 403) { router.push("/login"); return; }
-    setClients(await res.json());
+    try {
+      const res = await fetch("/api/clients");
+      if (res.status === 401 || res.status === 403) { router.push("/login"); return; }
+      const data = await res.json();
+      setClients(data || []);
+    } catch (e) {
+      console.error("Error loading clients:", e);
+      setClients([]);
+    }
   }, [router]);
 
   const loadQuotes = useCallback(async () => {
-    const res = await fetch("/api/quotes");
-    setQuotes(await res.json());
+    try {
+      const res = await fetch("/api/quotes");
+      const data = await res.json();
+      setQuotes(data || []);
+    } catch (e) {
+      console.error("Error loading quotes:", e);
+      setQuotes([]);
+    }
   }, []);
 
   const loadFoodLogs = useCallback(async () => {
     setFoodLoading(true);
-    const res = await fetch("/api/food-logs");
-    setFoodLogs(await res.json());
+    try {
+      const res = await fetch("/api/food-logs");
+      const data = await res.json();
+      setFoodLogs(data || []);
+    } catch (e) {
+      console.error("Error loading food logs:", e);
+      setFoodLogs([]);
+    }
     setFoodLoading(false);
   }, []);
 
   const loadLeaderboard = useCallback(async () => {
-    const res = await fetch("/api/steps?type=leaderboard");
-    setLeaderboard(await res.json());
+    try {
+      const res = await fetch("/api/steps?type=leaderboard");
+      const data = await res.json();
+      setLeaderboard(data || []);
+    } catch (e) {
+      console.error("Error loading leaderboard:", e);
+      setLeaderboard([]);
+    }
   }, []);
 
   useEffect(() => {
-    fetch("/api/auth/me").then((r) => r.json()).then((d) => { if (d.name) setCoachName(d.name); });
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => { if (d.name) setCoachName(d.name); })
+      .catch(() => {});
     loadClients();
     setIsPwa(window.matchMedia("(display-mode: standalone)").matches);
     if ("Notification" in window) {
       const perm = Notification.permission as string;
       setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
     }
-  }, [loadClients]);
+  }, [loadClients]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function enableNotifications() {
     if (!("Notification" in window) || !("serviceWorker" in navigator)) return;

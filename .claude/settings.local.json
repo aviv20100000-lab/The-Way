@@ -99,7 +99,9 @@
       "Bash(sed -i 's/shadow-micro/shadow-xs/g' src/app/client/page.tsx)",
       "Bash(sed -i 's/rounded-t-2xl/rounded-t-xl/g' src/app/coach/page.tsx)",
       "Bash(sed -i 's/backdrop-blur-sm/backdrop-blur/g' src/components/ui.tsx)",
-      "Bash(sed -i 's/text-body-sm/text-sm/g' src/components/LoadingStates.tsx)"
+      "Bash(sed -i 's/text-body-sm/text-sm/g' src/components/LoadingStates.tsx)",
+      "Bash(node /tmp/full_audit.js)",
+      "Bash(vercel logs *)"
     ]
   }
 }

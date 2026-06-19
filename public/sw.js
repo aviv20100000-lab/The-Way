@@ -9,6 +9,14 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "GET_VERSION") {
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage(SW_VERSION);
+    }
+  }
+});
+
 self.addEventListener("push", (event) => {
   let raw = "";
   let data = {};

@@ -39,7 +39,7 @@ function parseFoodResponse(text: string) {
 
 export async function analyzeFoodPhoto(imageUrl: string) {
   const response = await client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-6",
     max_tokens: 1024,
     messages: [
       {
@@ -63,7 +63,7 @@ export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) 
     : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
   const response = await client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-6",
     max_tokens: 1024,
     messages: [
       {
@@ -95,7 +95,7 @@ function parseStepsResponse(text: string): number {
 
 export async function extractStepsFromScreenshot(imageUrl: string): Promise<number> {
   const response = await client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-6",
     max_tokens: 256,
     messages: [{
       role: "user",
@@ -116,7 +116,7 @@ export async function extractStepsFromScreenshotBase64(base64: string, mediaType
     : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
   const response = await client.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-6",
     max_tokens: 256,
     messages: [{
       role: "user",

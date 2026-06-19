@@ -4,13 +4,14 @@ import db from "@/lib/db";
 import { ensureSeed } from "@/lib/seed";
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL!.replace(/^﻿/, ""),
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
   await ensureSeed();
   const session = await getSessionUser();
   if (!session || session.role !== "coach") {

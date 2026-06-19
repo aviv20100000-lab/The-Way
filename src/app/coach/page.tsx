@@ -538,7 +538,7 @@ export default function CoachPage() {
                 className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
                 {sendingPush ? "שולח..." : "📱 שלח עכשיו"}
               </button>
-              {pushResult && <p className="text-center text-sm text-green-700 font-medium">{pushResult}</p>}
+              {pushResult && <p className="text-center text-sm text-primary-600 font-medium">{pushResult}</p>}
             </div>
 
 
@@ -568,7 +568,7 @@ export default function CoachPage() {
                 <p className="text-black-matte leading-relaxed">"{q.text}"</p>
                 {q.author && <p className="text-sm text-neutral-500 mt-1 font-normal">— {q.author}</p>}
                 <button onClick={() => deleteQuote(q.id)}
-                  className="mt-2 text-xs text-red-600 hover:text-red-600 font-normal">🗑️ מחק</button>
+                  className="mt-2 text-xs text-red-600 hover:text-red-700 font-normal">🗑️ מחק</button>
               </div>
             ))}
           </div>

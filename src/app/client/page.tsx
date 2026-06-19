@@ -292,7 +292,7 @@ export default function ClientPage() {
   const todayStr = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="min-h-screen bg-neutral-50 pb-32 text-neutral-900" dir="rtl">
+    <div className={`min-h-screen pb-32 text-neutral-900 ${(tab === "home" || tab === "steps") ? "bg-event" : "bg-neutral-50"}`} dir="rtl">
       {/* Header */}
       <motion.header
         initial={{ y: -24, opacity: 0 }}
@@ -316,7 +316,11 @@ export default function ClientPage() {
         </div>
       </motion.header>
 
-      <main className="mx-auto max-w-lg px-4 pt-1">
+      <main className="mx-auto max-w-lg px-4 pt-1 relative">
+        {/* Background overlay for home and steps tabs */}
+        {(tab === "home" || tab === "steps") && (
+          <div className="fixed inset-0 bg-gradient-to-b from-neutral-50/75 via-neutral-50/65 to-neutral-50/75 pointer-events-none" style={{ top: "64px", zIndex: 0 }} />
+        )}
 
         {/* ══ HOME TAB ══ */}
         {tab === "home" && (

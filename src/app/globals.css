@@ -118,3 +118,34 @@ select:focus-visible {
     @apply !duration-0 !delay-0;
   }
 }
+
+/* Background images with overlay */
+.bg-event {
+  background-image: url('/images/backgrounds/event-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+.bg-event-overlay {
+  position: relative;
+}
+
+.bg-event-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/images/backgrounds/event-bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-event-overlay > * {
+  position: relative;
+  z-index: 1;
+}

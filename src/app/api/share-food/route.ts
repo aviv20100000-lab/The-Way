@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     res.cookies.set("shared_food_result", JSON.stringify(result), {
       maxAge: 120,
       path: "/",
-      httpOnly: false,
+      httpOnly: true,
       sameSite: "lax",
     });
     return res;

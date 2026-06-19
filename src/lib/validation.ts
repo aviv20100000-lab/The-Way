@@ -6,8 +6,8 @@ export function validateEmail(email: string): boolean {
 }
 
 export function validatePassword(password: string): { valid: boolean; error?: string } {
-  if (password.length < 6) {
-    return { valid: false, error: "סיסמה חייבת להיות לפחות 6 תווים" };
+  if (password.length < 12) {
+    return { valid: false, error: "סיסמה חייבת להיות לפחות 12 תווים" };
   }
   if (password.length > 128) {
     return { valid: false, error: "סיסמה ארוכה מדי (מקסימום 128 תווים)" };

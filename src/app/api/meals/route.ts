@@ -37,9 +37,19 @@ export async function POST(req: NextRequest) {
 
   let photoUrl: string | undefined;
   if (photo && photo.size > 0) {
+    const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+    const ext = (photo.name.split(".").pop() || "jpg").toLowerCase();
+    if (!VALID_EXTENSIONS.includes(ext)) {
+      return NextResponse.json({ error: "סוג קובץ לא מותר (jpg, png, gif, webp בלבד)" }, { status: 400 });
+    }
+    if (photo.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "קובץ גדול מדי (עד 10MB)" }, { status: 400 });
+    }
+
     const uploadsDir = join(process.cwd(), "public", "uploads");
     await mkdir(uploadsDir, { recursive: true });
-    const ext = photo.name.split(".").pop() || "jpg";
     const filename = `${uuid()}.${ext}`;
     await writeFile(join(uploadsDir, filename), Buffer.from(await photo.arrayBuffer()));
     photoUrl = `/uploads/${filename}`;

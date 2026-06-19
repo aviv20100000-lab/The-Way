@@ -18,8 +18,12 @@ const QUOTES = [
 ];
 
 export async function GET(req: NextRequest) {
+  if (!process.env.ADMIN_TOKEN) {
+    return NextResponse.json({ error: "Admin token not configured" }, { status: 500 });
+  }
+
   const token = req.nextUrl.searchParams.get("token");
-  if (token !== process.env.ADMIN_TOKEN && token !== "dev") {
+  if (token !== process.env.ADMIN_TOKEN) {
     return NextResponse.json({ error: "ללא הרשאה" }, { status: 401 });
   }
 

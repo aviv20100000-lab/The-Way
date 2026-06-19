@@ -1,10 +1,19 @@
+// sw version: v3
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
-    const text = event.data?.text() ?? "{}";
+    const text = event.data ? event.data.text() : "{}";
     data = JSON.parse(text);
   } catch (e) {
-    data = { title: "THE WAY", body: event.data?.text() ?? "" };
+    data = { title: "THE WAY", body: event.data ? event.data.text() : "" };
   }
 
   event.waitUntil(

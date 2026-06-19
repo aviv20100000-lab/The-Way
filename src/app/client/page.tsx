@@ -341,7 +341,7 @@ export default function ClientPage() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25, duration: 0.5 }}
-                className="text-display-base leading-tight text-black-matte"
+                className="text-3xl leading-tight text-black-matte"
               >
                 {greeting}, {userName || "אלוף"} 👋
               </motion.h2>
@@ -371,7 +371,7 @@ export default function ClientPage() {
                   <span className="text-xl font-bold text-black-matte">{(todaySteps / 1000).toFixed(todaySteps >= 1000 ? 1 : 0)}K</span>
                   <span className="mt-0.5 text-xs font-normal text-neutral-500">צעדים</span>
                 </ProgressRing>
-                <p className="mt-4 text-heading-sm font-semibold text-black-matte">👟 צעדים</p>
+                <p className="mt-4 text-base font-semibold text-black-matte">👟 צעדים</p>
                 <p className="text-xs text-neutral-500 font-normal mt-1">מתוך 10,000</p>
               </motion.div>
 
@@ -432,7 +432,7 @@ export default function ClientPage() {
                 </ProgressRing>
                 <div className="flex-1 space-y-3">
                   <div>
-                    <p className="text-heading-sm font-semibold text-black-matte">💧 שתייה היום</p>
+                    <p className="text-base font-semibold text-black-matte">💧 שתייה היום</p>
                     <p className="text-xs text-neutral-500 font-normal mt-1">יעד {(waterGoal / 1000).toFixed(1)} ליטר</p>
                   </div>
                   <div className="flex gap-2">
@@ -461,7 +461,7 @@ export default function ClientPage() {
                 className="flex items-center gap-3 rounded-2xl bg-neutral-100 p-6 shadow-card"
               >
                 <span className="text-2xl animate-bounce">✅</span>
-                <p className="font-semibold text-heading-sm text-black-matte">התראות דלוקות — מעולה!</p>
+                <p className="font-semibold text-base text-black-matte">התראות דלוקות — מעולה!</p>
               </motion.div>
             ) : !isPwa ? (
               <motion.div
@@ -470,7 +470,7 @@ export default function ClientPage() {
                 transition={{ delay: 0.6, duration: 0.5 }}
                 className="rounded-2xl bg-neutral-100 p-6 shadow-card space-y-3"
               >
-                <p className="font-semibold text-heading-sm text-black-matte">📲 רוצה לקבל הודעות מהמאמן?</p>
+                <p className="font-semibold text-base text-black-matte">📲 רוצה לקבל הודעות מהמאמן?</p>
                 <ol className="text-sm text-neutral-600 space-y-2 list-decimal list-inside font-normal">
                   <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
                   <li>בחר <strong>"הוסף למסך הבית"</strong></li>
@@ -489,7 +489,7 @@ export default function ClientPage() {
               >
                 <span className="text-4xl">🔔</span>
                 <div>
-                  <p className="font-semibold text-heading-sm">הפעל התראות</p>
+                  <p className="font-semibold text-base">הפעל התראות</p>
                   <p className="text-xs text-white/70 font-normal">כדי שהמאמן יוכל לשלוח לך הודעות</p>
                 </div>
               </motion.button>
@@ -503,7 +503,7 @@ export default function ClientPage() {
             <motion.h2
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-heading-base font-semibold text-black-matte"
+              className="text-lg font-semibold text-black-matte"
             >
               מה אכלת? 🍽️
             </motion.h2>
@@ -616,7 +616,7 @@ export default function ClientPage() {
                 )}
 
                 {mealSaved === "saved" ? (
-                  <div className="rounded-xl bg-green-50 border border-green-100 py-3 text-center font-semibold text-green-700">
+                  <div className="rounded-xl bg-green-50 border border-green-100 py-3 text-center font-semibold text-primary-600">
                     ✅ נשמר ונשלח למאמן!
                   </div>
                 ) : (
@@ -747,7 +747,7 @@ export default function ClientPage() {
                       <p className={isHalfway ? "text-indigo-200 text-xs" : "text-gray-400 text-xs"}>עכשיו</p>
                     </div>
                     <div className="text-center">
-                      <p className={`font-bold text-base ${isHalfway ? "text-yellow-300" : "text-green-600"}`}>{weightTarget}</p>
+                      <p className={`font-bold text-base ${isHalfway ? "text-yellow-300" : "text-primary-600"}`}>{weightTarget}</p>
                       <p className={isHalfway ? "text-indigo-200 text-xs" : "text-gray-400 text-xs"}>יעד</p>
                     </div>
                   </div>
@@ -781,7 +781,7 @@ export default function ClientPage() {
 
               {/* Add weight */}
               <div className="rounded-3xl bg-white p-6 shadow-card space-y-4">
-                <p className="text-heading-sm font-semibold text-neutral-700">כמה אתה שוקל היום?</p>
+                <p className="text-base font-semibold text-neutral-700">כמה אתה שוקל היום?</p>
                 <div className="flex gap-3">
                   <input type="number" step="0.1" value={newWeight}
                     onChange={(e) => setNewWeight(e.target.value)}
@@ -807,15 +807,15 @@ export default function ClientPage() {
 
               {/* History */}
               <div className="space-y-3">
-                <p className="text-caption font-semibold text-neutral-500 uppercase tracking-wide">היסטוריה</p>
-                {weightLogs.length === 0 && <p className="text-center text-neutral-400 py-6 text-body-sm">עוד לא שקלת — בוא נתחיל 💪</p>}
+                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">היסטוריה</p>
+                {weightLogs.length === 0 && <p className="text-center text-neutral-400 py-6 text-sm">עוד לא שקלת — בוא נתחיל 💪</p>}
                 {weightLogs.map((log, i) => (
                   <motion.div
                     key={log.id}
                     initial={{ opacity: 0, x: 8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-micro hover:shadow-sm transition-shadow"
+                    className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-micro hover:shadow-xs transition-shadow"
                   >
                     <div className="flex items-center gap-3">
                       {log.photo_url
@@ -862,7 +862,7 @@ export default function ClientPage() {
                 </label>
               </div>
               {uploadingSteps && <p className="text-sm text-gray-500 text-center">קורא את הצעדים שלך...</p>}
-              {stepsSuccess && <p className="text-green-600 font-semibold text-center">{stepsSuccess}</p>}
+              {stepsSuccess && <p className="text-primary-600 font-semibold text-center">{stepsSuccess}</p>}
               <p className="text-xs text-gray-400 text-center">עשית היום: <strong>{todaySteps.toLocaleString()} צעדים</strong></p>
             </div>
 
@@ -908,7 +908,7 @@ export default function ClientPage() {
         className="fixed inset-x-0 bottom-0 z-20 pb-[calc(env(safe-area-inset-bottom)+16px)]"
       >
         <div className="mx-auto max-w-lg px-5">
-          <div className="flex items-center justify-around gap-1 rounded-3xl border border-neutral-200/50 bg-white/98 p-2 shadow-floating ring-1 ring-white/50 backdrop-blur-xl">
+          <div className="flex items-center justify-around gap-1 rounded-3xl border border-neutral-200/50 bg-white/98 p-2 shadow-lg ring-1 ring-white/50 backdrop-blur-xl">
             {([
               { id: "home", icon: "🏠", label: "בית" },
               { id: "food", icon: "🍽️", label: "אוכל" },

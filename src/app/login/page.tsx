@@ -82,7 +82,7 @@ export default function LoginPage() {
             transition={{ delay: 0.3, duration: 0.5 }}
             className="mt-3 text-lg text-neutral-200 font-medium"
           >
-            הדרך שלך. בוא נעשה אותה ביחד.
+            הדרך שלך, היא הדרך שלנו.
           </motion.p>
         </motion.div>
 

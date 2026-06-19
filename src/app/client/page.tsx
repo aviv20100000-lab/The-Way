@@ -321,7 +321,7 @@ export default function ClientPage() {
             </div>
             <input ref={foodCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
-            <input ref={foodGalleryRef} type="file" accept="image/*" className="hidden"
+            <input ref={foodGalleryRef} type="file" accept=".jpg,.jpeg,.png,.gif,.webp" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
 
             {analyzing && (
@@ -507,7 +507,7 @@ export default function ClientPage() {
                 </div>
                 <input ref={weightCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
-                <input ref={weightGalleryRef} type="file" accept="image/*" className="hidden"
+                <input ref={weightGalleryRef} type="file" accept=".jpg,.jpeg,.png,.gif,.webp" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
                 <button onClick={saveWeight} disabled={savingWeight || !newWeight}
                   className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
@@ -567,7 +567,7 @@ export default function ClientPage() {
               </div>
               <input ref={stepsCameraRef} type="file" accept="image/*" capture="environment" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
-              <input ref={stepsGalleryRef} type="file" accept="image/*" className="hidden"
+              <input ref={stepsGalleryRef} type="file" accept=".jpg,.jpeg,.png,.gif,.webp" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadStepsScreenshot(f); e.target.value = ""; }} />
               {uploadingSteps && <p className="text-sm text-gray-500 text-center">קורא את הצעדים שלך...</p>}
               {stepsSuccess && <p className="text-green-600 font-semibold text-center">{stepsSuccess}</p>}

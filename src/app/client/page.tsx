@@ -297,36 +297,36 @@ export default function ClientPage() {
       <motion.header
         initial={{ y: -24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-        className="sticky top-0 z-20 bg-neutral-50/80 backdrop-blur-xl border-b border-neutral-200/50"
+        transition={{ duration: 0.5 }}
+        className="sticky top-0 z-20 bg-white/95 backdrop-blur-lg border-b border-neutral-200/40"
       >
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
           <div className="flex items-center gap-2">
-            <h1 className="text-base font-extrabold tracking-tight text-neutral-900">THE WAY</h1>
-            <span className="text-xs font-medium text-neutral-500">by Aviv & Liav</span>
+            <h1 className="text-lg font-black tracking-tight text-neutral-900">THE WAY</h1>
+            <span className="text-xs font-semibold text-neutral-500">by Aviv & Liav</span>
           </div>
           <motion.button
             onClick={logout}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="rounded-full bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-600 shadow-sm ring-1 ring-black/[0.04] transition"
+            className="rounded-xl bg-neutral-100 px-4 py-2 text-xs font-semibold text-neutral-700 shadow-micro ring-1 ring-black/[0.04] hover:bg-neutral-200 transition-all duration-200"
           >
             יציאה
           </motion.button>
         </div>
       </motion.header>
 
-      <main className="mx-auto max-w-lg px-4 pt-1 relative">
+      <main className="mx-auto max-w-lg px-5 pt-2 relative">
 
         {/* ══ HOME TAB ══ */}
         {tab === "home" && (
-          <div className="space-y-3.5">
+          <div className="space-y-6">
             {/* Hero — greeting + quote */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 via-primary-900 to-primary-800 p-7 text-white shadow-floating"
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 via-primary-900 to-primary-800 p-8 text-white shadow-floating"
             >
               <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-primary-400/[0.08] blur-3xl" />
               <div className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-accent-400/[0.06] blur-3xl" />
@@ -334,8 +334,8 @@ export default function ClientPage() {
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className="text-xs font-medium tracking-wide text-white/50"
+                transition={{ delay: 0.15, duration: 0.4 }}
+                className="text-xs font-medium tracking-wider text-white/60 uppercase"
               >
                 {todayStr}
               </motion.p>
@@ -343,8 +343,8 @@ export default function ClientPage() {
               <motion.h2
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.4 }}
-                className="mt-2 text-4xl font-black leading-tight tracking-tight"
+                transition={{ delay: 0.25, duration: 0.5 }}
+                className="text-display-base mt-3 font-black leading-tight"
               >
                 {greeting}, {userName || "אלוף"} 👋
               </motion.h2>
@@ -353,37 +353,37 @@ export default function ClientPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35, duration: 0.4 }}
-                  className="mt-6 border-t border-white/10 pt-4"
+                  transition={{ delay: 0.35, duration: 0.5 }}
+                  className="mt-6 border-t border-white/10 pt-5"
                 >
-                  <p className="text-sm leading-relaxed text-white/70 italic">&ldquo;{quote}&rdquo;</p>
+                  <p className="text-sm leading-relaxed text-white/75 italic font-medium">&ldquo;{quote}&rdquo;</p>
                 </motion.div>
               )}
             </motion.div>
 
             {/* Stats row — steps + weight */}
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-2 gap-4">
               {/* Steps Card — Premium gradient */}
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.5, type: "spring" }}
-                className="flex flex-col items-center rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-lg hover:shadow-xl transition-shadow"
+                transition={{ delay: 0.3, duration: 0.5, type: "spring", stiffness: 100, damping: 15 }}
+                className="flex flex-col items-center rounded-3xl bg-gradient-to-br from-primary-600 to-primary-700 p-6 text-white shadow-lg hover:shadow-floating hover:scale-105 transition-all duration-300"
               >
                 <ProgressRing pct={stepsPct} size={104} stroke={10} color="#ffffff" track="rgba(255,255,255,0.2)">
-                  <span className="text-2xl font-bold text-white">{(todaySteps / 1000).toFixed(todaySteps >= 1000 ? 1 : 0)}K</span>
-                  <span className="mt-0.5 text-[11px] font-medium text-white/70">צעדים</span>
+                  <span className="text-2xl font-black text-white">{(todaySteps / 1000).toFixed(todaySteps >= 1000 ? 1 : 0)}K</span>
+                  <span className="mt-1 text-xs font-semibold text-white/80">צעדים</span>
                 </ProgressRing>
-                <p className="mt-4 text-sm font-bold text-white">👟 צעדים</p>
-                <p className="text-xs text-white/70">מתוך 10,000</p>
+                <p className="mt-5 text-heading-sm font-bold text-white">👟 צעדים</p>
+                <p className="text-xs text-white/70 font-medium">מתוך 10,000</p>
               </motion.div>
 
               {/* Weight Card — Elegant gradient */}
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.5, type: "spring" }}
-                className="flex flex-col justify-between rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 p-5 text-white shadow-lg hover:shadow-xl transition-shadow"
+                transition={{ delay: 0.4, duration: 0.5, type: "spring", stiffness: 100, damping: 15 }}
+                className="flex flex-col justify-between rounded-3xl bg-gradient-to-br from-accent-500 to-accent-600 p-6 text-white shadow-lg hover:shadow-floating hover:scale-105 transition-all duration-300"
               >
                 <p className="text-sm font-bold text-white">⚖️ משקל</p>
                 {latestWeight ? (
@@ -425,25 +425,25 @@ export default function ClientPage() {
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
-              className="rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-500 p-6 text-white shadow-lg hover:shadow-xl transition-shadow"
+              transition={{ delay: 0.5, duration: 0.5, type: "spring", stiffness: 100, damping: 15 }}
+              className="rounded-3xl bg-gradient-to-br from-sky-400 to-cyan-500 p-6 text-white shadow-lg hover:shadow-floating hover:scale-105 transition-all duration-300"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-5">
                 <ProgressRing pct={waterPct} size={88} stroke={9} color="#ffffff" track="rgba(255,255,255,0.25)">
                   <span className="text-lg font-bold text-white">{(waterTotal / 1000).toFixed(1)}</span>
-                  <span className="text-[10px] font-medium text-white/70">ליטר</span>
+                  <span className="text-xs font-semibold text-white/80">ליטר</span>
                 </ProgressRing>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-white">💧 שתייה היום</p>
-                  <p className="text-xs text-white/80">יעד {(waterGoal / 1000).toFixed(1)} ליטר</p>
-                  <div className="mt-3 flex gap-2">
+                  <p className="text-heading-sm font-bold text-white">💧 שתייה היום</p>
+                  <p className="text-xs text-white/80 font-medium mt-1">יעד {(waterGoal / 1000).toFixed(1)} ליטר</p>
+                  <div className="mt-4 flex gap-2">
                     {[150, 250, 500].map((ml) => (
                       <motion.button
                         key={ml}
                         onClick={() => addWater(ml)}
-                        whileTap={{ scale: 0.9 }}
+                        whileTap={{ scale: 0.95 }}
                         whileHover={{ scale: 1.05 }}
-                        className="flex-1 rounded-lg bg-white/20 py-2 text-sm font-semibold text-white hover:bg-white/30 active:scale-95 transition backdrop-blur-sm border border-white/20"
+                        className="flex-1 rounded-xl bg-white/25 py-2.5 text-xs font-semibold text-white hover:bg-white/35 active:scale-95 transition-all backdrop-blur-sm border border-white/30"
                       >
                         +{ml}
                       </motion.button>
@@ -458,19 +458,21 @@ export default function ClientPage() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 p-5 text-white shadow-lg ring-1 ring-emerald-400/50"
+                transition={{ delay: 0.6, duration: 0.4, type: "spring" }}
+                className="flex items-center gap-3 rounded-3xl bg-gradient-to-r from-emerald-500 to-teal-500 p-6 text-white shadow-lg ring-1 ring-emerald-400/50"
               >
                 <span className="text-2xl animate-bounce">✅</span>
-                <p className="font-bold">התראות דלוקות — מעולה!</p>
+                <p className="font-bold text-heading-sm">התראות דלוקות — מעולה!</p>
               </motion.div>
             ) : !isPwa ? (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 p-6 text-white shadow-lg ring-1 ring-amber-300/50"
+                transition={{ delay: 0.6, duration: 0.5 }}
+                className="rounded-3xl bg-gradient-to-r from-amber-400 to-orange-500 p-6 text-white shadow-lg ring-1 ring-amber-300/50"
               >
-                <p className="font-bold mb-3 text-lg">📲 רוצה לקבל הודעות מהמאמן?</p>
-                <ol className="text-sm text-white/90 space-y-2 list-decimal list-inside">
+                <p className="font-bold mb-4 text-heading-sm">📲 רוצה לקבל הודעות מהמאמן?</p>
+                <ol className="text-sm text-white/90 space-y-2 list-decimal list-inside font-medium">
                   <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
                   <li>בחר <strong>"הוסף למסך הבית"</strong></li>
                   <li>פתח מהמסך הבית ולחץ על כפתור ההתראות</li>
@@ -481,15 +483,15 @@ export default function ClientPage() {
                 onClick={enableNotifications}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35, duration: 0.5 }}
+                transition={{ delay: 0.6, duration: 0.5, type: "spring" }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex w-full items-center gap-4 rounded-2xl bg-gradient-to-r from-primary-700 to-primary-800 p-6 text-right text-white shadow-lg hover:shadow-xl transition-shadow"
+                className="flex w-full items-center gap-4 rounded-3xl bg-gradient-to-r from-primary-700 to-primary-800 p-6 text-right text-white shadow-lg hover:shadow-floating transition-all duration-300"
               >
-                <span className="text-3xl">🔔</span>
+                <span className="text-4xl">🔔</span>
                 <div>
-                  <p className="font-bold text-lg">הפעל התראות</p>
-                  <p className="text-xs text-white/70">כדי שהמאמן יוכל לשלוח לך הודעות</p>
+                  <p className="font-bold text-heading-sm">הפעל התראות</p>
+                  <p className="text-xs text-white/70 font-medium">כדי שהמאמן יוכל לשלוח לך הודעות</p>
                 </div>
               </motion.button>
             )}
@@ -498,22 +500,40 @@ export default function ClientPage() {
 
         {/* ══ FOOD TAB ══ */}
         {tab === "food" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">מה אכלת? 🍽️</h2>
+          <div className="space-y-5">
+            <motion.h2
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-heading-base font-bold text-neutral-900"
+            >
+              מה אכלת? 🍽️
+            </motion.h2>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100">
-                <span className="text-3xl">📷</span>
+            <div className="grid grid-cols-2 gap-4">
+              <motion.label
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ scale: 1.02, shadow: "var(--shadow-lg)" }}
+                className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-2 border-primary-200 bg-primary-50 p-6 text-primary-600 hover:bg-primary-100 hover:shadow-lg transition-all duration-300"
+              >
+                <span className="text-4xl">📷</span>
                 <span className="text-sm font-semibold">מצלמה</span>
                 <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
-              </label>
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-5 text-indigo-600 hover:bg-indigo-100">
-                <span className="text-3xl">🖼️</span>
+              </motion.label>
+              <motion.label
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                whileHover={{ scale: 1.02 }}
+                className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-2 border-primary-200 bg-primary-50 p-6 text-primary-600 hover:bg-primary-100 hover:shadow-lg transition-all duration-300"
+              >
+                <span className="text-4xl">🖼️</span>
                 <span className="text-sm font-semibold">גלריה</span>
                 <input type="file" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) analyzeFood(f); e.target.value = ""; }} />
-              </label>
+              </motion.label>
             </div>
             <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-xs text-amber-700 text-center">
               📲 ב-iOS — פתח תמונה ב-Photos, לחץ שתף ← <strong>THE WAY</strong>
@@ -761,55 +781,61 @@ export default function ClientPage() {
               </div>
 
               {/* Add weight */}
-              <div className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
-                <p className="font-medium text-gray-700">כמה אתה שוקל היום?</p>
+              <div className="rounded-3xl bg-white p-6 shadow-card space-y-4">
+                <p className="text-heading-sm font-semibold text-neutral-700">כמה אתה שוקל היום?</p>
                 <div className="flex gap-3">
                   <input type="number" step="0.1" value={newWeight}
                     onChange={(e) => setNewWeight(e.target.value)}
                     placeholder='ק"ג'
-                    className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-center text-xl font-bold" />
-                  <label className="flex cursor-pointer items-center rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="צילום">
+                    className="flex-1 rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 px-4 py-3 text-center text-xl font-bold text-neutral-900 focus:border-transparent focus:ring-3 focus:ring-primary-500 focus:bg-white transition-all" />
+                  <label className="flex cursor-pointer items-center justify-center h-12 w-12 rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 text-2xl hover:bg-primary-50 hover:border-primary-300 transition-all" title="צילום">
                     📷
                     <input type="file" accept="image/*" capture="environment" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
                   </label>
-                  <label className="flex cursor-pointer items-center rounded-xl border border-gray-200 px-4 py-3 text-2xl hover:bg-gray-50" title="גלריה">
+                  <label className="flex cursor-pointer items-center justify-center h-12 w-12 rounded-2xl border-1.5 border-neutral-200 bg-neutral-50 text-2xl hover:bg-primary-50 hover:border-primary-300 transition-all" title="גלריה">
                     🖼️
                     <input type="file" style={{ opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) setWeightPhoto(f); }} />
                   </label>
-                  {weightPhoto && <span className="text-2xl flex items-center">✅</span>}
+                  {weightPhoto && <span className="text-xl flex items-center justify-center h-12 w-12 rounded-2xl bg-success-100 text-success-600">✅</span>}
                 </div>
                 <button onClick={saveWeight} disabled={savingWeight || !newWeight}
-                  className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+                  className="w-full rounded-2xl bg-gradient-to-r from-success-600 to-success-700 py-3 font-semibold text-white hover:shadow-lg active:scale-95 disabled:opacity-50 transition-all duration-300">
                   {savingWeight ? "שומר..." : "עדכן משקל"}
                 </button>
               </div>
 
               {/* History */}
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-500">היסטוריה</p>
-                {weightLogs.length === 0 && <p className="text-center text-gray-400 py-4">עוד לא שקלת — בוא נתחיל 💪</p>}
+              <div className="space-y-3">
+                <p className="text-caption font-semibold text-neutral-500 uppercase tracking-wide">היסטוריה</p>
+                {weightLogs.length === 0 && <p className="text-center text-neutral-400 py-6 text-body-sm">עוד לא שקלת — בוא נתחיל 💪</p>}
                 {weightLogs.map((log, i) => (
-                  <div key={log.id} className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm">
+                  <motion.div
+                    key={log.id}
+                    initial={{ opacity: 0, x: 8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-micro hover:shadow-sm transition-shadow"
+                  >
                     <div className="flex items-center gap-3">
                       {log.photo_url
                         // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={log.photo_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                        : <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">⚖️</div>
+                        ? <img src={log.photo_url} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                        : <div className="h-12 w-12 rounded-xl bg-neutral-100 flex items-center justify-center text-lg">⚖️</div>
                       }
                       <div>
-                        <p className="font-bold text-gray-800">{log.weight_kg} ק"ג</p>
-                        <p className="text-xs text-gray-400">{new Date(log.logged_at).toLocaleDateString("he-IL")}</p>
+                        <p className="font-bold text-neutral-900">{log.weight_kg} ק"ג</p>
+                        <p className="text-xs text-neutral-500 font-medium">{new Date(log.logged_at).toLocaleDateString("he-IL")}</p>
                       </div>
                     </div>
                     {i < weightLogs.length - 1 && (
-                      <span className={`text-sm font-medium ${log.weight_kg < weightLogs[i + 1].weight_kg ? "text-green-500" : "text-red-400"}`}>
+                      <span className={`text-sm font-semibold ${log.weight_kg < weightLogs[i + 1].weight_kg ? "text-success-600" : "text-danger-500"}`}>
                         {log.weight_kg < weightLogs[i + 1].weight_kg ? "▼" : "▲"}
                         {Math.abs(log.weight_kg - weightLogs[i + 1].weight_kg).toFixed(1)}
                       </span>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -879,11 +905,11 @@ export default function ClientPage() {
       <motion.nav
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.6, duration: 0.4, type: "spring" }}
-        className="fixed inset-x-0 bottom-0 z-20 pb-[calc(env(safe-area-inset-bottom)+12px)]"
+        transition={{ delay: 0.7, duration: 0.5, type: "spring" }}
+        className="fixed inset-x-0 bottom-0 z-20 pb-[calc(env(safe-area-inset-bottom)+16px)]"
       >
         <div className="mx-auto max-w-lg px-5">
-          <div className="flex items-center justify-around gap-1 rounded-2xl border border-neutral-200/50 bg-white/95 p-1.5 shadow-floating backdrop-blur-xl">
+          <div className="flex items-center justify-around gap-1 rounded-3xl border border-neutral-200/50 bg-white/98 p-2 shadow-floating ring-1 ring-white/50 backdrop-blur-xl">
             {([
               { id: "home", icon: "🏠", label: "בית" },
               { id: "food", icon: "🍽️", label: "אוכל" },

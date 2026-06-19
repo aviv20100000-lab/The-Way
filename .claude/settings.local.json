@@ -24,7 +24,30 @@
       "Bash(node test-escape.mjs)",
       "Bash(curl -s -I \"https://the-way-app-two.vercel.app/sw.js\")",
       "Bash(curl -s \"https://the-way-app-two.vercel.app/sw.js\")",
-      "Bash(node send-test.mjs)"
+      "Bash(node send-test.mjs)",
+      "PowerShell(npx tsc --noEmit -p . 2>&1)",
+      "PowerShell(if \\($?\\) { \"TSC-OK\" })",
+      "Bash(cd \"/c/Users/owner/OneDrive/שולחן העבודה/The Way\" && cat package.json)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" https://the-way-app-two.vercel.app/)",
+      "Bash(curl -s -I https://the-way-app-two.vercel.app/)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" -X POST https://the-way-app-two.vercel.app/api/share-food)",
+      "Bash(curl -s -X POST https://the-way-app-two.vercel.app/api/analyze-food -w \"\\\\nHTTP %{http_code}\\\\n\")",
+      "Bash(cat .vercel/repo.json)",
+      "Bash(cat .vercel/README.txt)",
+      "Bash(curl -s -o /dev/null -w \"share-food: HTTP %{http_code}\\\\n\" -X POST https://the-way-app.vercel.app/api/share-food)",
+      "Bash(curl -s -o /dev/null -w \"homepage:   HTTP %{http_code}\\\\n\" https://the-way-app.vercel.app/)",
+      "Bash(vercel --version)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(curl -s \"https://the-way-app-two.vercel.app/api/cron/water-reminder?secret=46f078f846ad013d0e61f16f40f921e46e126a9e75f2036e\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(tasklist)",
+      "Bash(findstr node *)",
+      "Bash(taskkill /F /IM node.exe)"
     ]
   }
 }

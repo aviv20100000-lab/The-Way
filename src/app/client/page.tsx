@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import MealHistory from "@/components/MealHistory";
 import ProgressRing from "@/components/ProgressRing";
 
@@ -291,17 +292,26 @@ export default function ClientPage() {
   const todayStr = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="min-h-screen bg-[#F4F4F2] pb-32 text-gray-900" dir="rtl">
+    <div className="min-h-screen bg-neutral-50 pb-32 text-neutral-900" dir="rtl">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-[#F4F4F2]/80 backdrop-blur-xl">
+      <motion.header
+        initial={{ y: -24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="sticky top-0 z-20 bg-neutral-50/80 backdrop-blur-xl border-b border-neutral-200/50"
+      >
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
-          <h1 className="text-base font-extrabold tracking-[-0.02em] text-gray-900">THE WAY</h1>
-          <button onClick={logout}
-            className="rounded-full bg-white/70 px-3.5 py-1.5 text-xs font-medium text-gray-500 shadow-sm ring-1 ring-black/[0.04] active:scale-95 transition">
+          <h1 className="text-base font-extrabold tracking-tight text-neutral-900">THE WAY</h1>
+          <motion.button
+            onClick={logout}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="rounded-full bg-white px-3.5 py-1.5 text-xs font-medium text-neutral-600 shadow-sm ring-1 ring-black/[0.04] transition"
+          >
             יציאה
-          </button>
+          </motion.button>
         </div>
-      </header>
+      </motion.header>
 
       <main className="mx-auto max-w-lg px-4 pt-1">
 
@@ -309,18 +319,44 @@ export default function ClientPage() {
         {tab === "home" && (
           <div className="space-y-3.5">
             {/* Hero — greeting + quote */}
-            <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#17181D] to-[#33363F] p-6 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.55)]">
-              <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/[0.06] blur-2xl" />
-              <p className="text-xs font-medium tracking-wide text-white/45">{todayStr}</p>
-              <h2 className="mt-1.5 text-[26px] font-bold leading-tight tracking-tight">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 via-primary-900 to-primary-800 p-7 text-white shadow-floating"
+            >
+              <div className="pointer-events-none absolute -left-20 -top-20 h-56 w-56 rounded-full bg-primary-400/[0.08] blur-3xl" />
+              <div className="pointer-events-none absolute -right-20 -bottom-20 h-56 w-56 rounded-full bg-accent-400/[0.06] blur-3xl" />
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+                className="text-xs font-medium tracking-wide text-white/50"
+              >
+                {todayStr}
+              </motion.p>
+
+              <motion.h2
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, duration: 0.4 }}
+                className="mt-2 text-4xl font-black leading-tight tracking-tight"
+              >
                 {greeting}, {userName || "אלוף"} 👋
-              </h2>
+              </motion.h2>
+
               {quote && (
-                <div className="mt-5 border-t border-white/10 pt-4">
-                  <p className="text-[15px] leading-relaxed text-white/75">&ldquo;{quote}&rdquo;</p>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35, duration: 0.4 }}
+                  className="mt-6 border-t border-white/10 pt-4"
+                >
+                  <p className="text-sm leading-relaxed text-white/70 italic">&ldquo;{quote}&rdquo;</p>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
 
             {/* Stats row — steps + weight */}
             <div className="grid grid-cols-2 gap-3.5">
@@ -789,24 +825,38 @@ export default function ClientPage() {
       </main>
 
       {/* Bottom Nav — floating pill */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+      <motion.nav
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.6, duration: 0.4, type: "spring" }}
+        className="fixed inset-x-0 bottom-0 z-20 pb-[calc(env(safe-area-inset-bottom)+12px)]"
+      >
         <div className="mx-auto max-w-lg px-5">
-          <div className="flex items-center justify-around gap-1 rounded-[22px] border border-black/[0.04] bg-white/90 p-1.5 shadow-[0_10px_34px_-8px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+          <div className="flex items-center justify-around gap-1 rounded-2xl border border-neutral-200/50 bg-white/95 p-1.5 shadow-floating backdrop-blur-xl">
             {([
               { id: "home", icon: "🏠", label: "בית" },
               { id: "food", icon: "🍽️", label: "אוכל" },
               { id: "weight", icon: "⚖️", label: "משקל" },
               { id: "steps", icon: "👟", label: "תחרות" },
             ] as { id: Tab; icon: string; label: string }[]).map((t) => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 text-[11px] font-medium transition-all duration-200 ${tab === t.id ? "bg-gray-900 text-white" : "text-gray-400 active:scale-95"}`}>
+              <motion.button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                whileTap={{ scale: 0.9 }}
+                whileHover={{ scale: 1.05 }}
+                className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2.5 px-1 text-[11px] font-medium transition-all duration-200 ${
+                  tab === t.id
+                    ? "bg-primary-600 text-white shadow-md"
+                    : "text-neutral-500 hover:text-neutral-700"
+                }`}
+              >
                 <span className="text-xl">{t.icon}</span>
                 <span>{t.label}</span>
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
-      </nav>
+      </motion.nav>
     </div>
   );
 }

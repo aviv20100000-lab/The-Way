@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { motion } from "framer-motion";
 
 export default function ProgressRing({
   pct,
@@ -21,10 +22,24 @@ export default function ProgressRing({
   const dash = (clamped / 100) * circ;
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <motion.div
+      className="relative"
+      style={{ width: size, height: size }}
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, type: "spring" }}
+    >
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={track}
+          strokeWidth={stroke}
+          opacity="0.5"
+        />
+        <motion.circle
           cx={size / 2}
           cy={size / 2}
           r={r}
@@ -33,12 +48,19 @@ export default function ProgressRing({
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${circ}`}
-          style={{ transition: "stroke-dasharray 0.7s cubic-bezier(0.22,1,0.36,1)" }}
+          initial={{ strokeDasharray: `0 ${circ}` }}
+          animate={{ strokeDasharray: `${dash} ${circ}` }}
+          transition={{
+            duration: 1.2,
+            ease: "easeInOut",
+            type: "spring",
+            stiffness: 50,
+          }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
         {children}
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -4,7 +4,7 @@ import PwaRegister from "./pwa-register";
 
 export const metadata: Metadata = {
   title: "THE WAY",
-  description: "מעקב תזונה וכושר",
+  description: "מעקב תזונה וכושר בגובה העיניים",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -18,6 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   themeColor: "#4f46e5",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

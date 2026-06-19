@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
     }),
     db.execute({
       sql: `SELECT id, total_calories, ai_response, logged_at FROM ai_meal_logs
-            WHERE user_id = ? AND logged_at >= datetime('now', '-7 days')
-            ORDER BY logged_at DESC LIMIT 20`,
+            WHERE user_id = ? AND logged_at >= datetime('now', '-35 days')
+            ORDER BY logged_at DESC LIMIT 300`,
       args: [userId],
     }),
     db.execute({

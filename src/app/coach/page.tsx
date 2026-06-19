@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import MealHistory from "@/components/MealHistory";
 
 type CoachTab = "clients" | "food" | "quotes" | "leaderboard";
 
@@ -420,32 +421,10 @@ export default function CoachPage() {
                         </div>
                       </div>
 
-                      {/* Meals */}
+                      {/* Meals — day / week / month */}
                       <div className="rounded-2xl bg-white p-4 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500 mb-2">🍽️ ארוחות (7 ימים)</p>
-                        {clientData.meals.length === 0 ? (
-                          <p className="text-sm text-gray-400">אין ארוחות שמורות</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {clientData.meals.map((m) => (
-                              <div key={m.id} className="rounded-xl bg-gray-50 px-3 py-2">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xs text-gray-400">
-                                    {new Date(m.logged_at).toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" })}
-                                    {" • "}
-                                    {new Date(m.logged_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
-                                  </span>
-                                  <span className="font-bold text-orange-500">{m.total_calories} קל'</span>
-                                </div>
-                                {m.items.length > 0 && (
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {m.items.map((it) => `${it.name} (${it.estimated_weight_g}g)`).join(" · ")}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <p className="text-sm font-medium text-gray-500 mb-3">🍽️ תזונה</p>
+                        <MealHistory meals={clientData.meals} title="" />
                       </div>
                     </>
                   )}

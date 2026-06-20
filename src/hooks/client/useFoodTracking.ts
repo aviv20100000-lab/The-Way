@@ -71,6 +71,19 @@ export function useFoodTracking() {
     setAnalyzing(false);
   }, []);
 
+  const loadMyMeals = useCallback(async () => {
+    try {
+      const res = await fetch("/api/foods/meals");
+      if (!res.ok) return;
+      const d = await res.json();
+      setMyMeals(d.meals ?? []);
+      setTodayCalories(d.today_calories ?? 0);
+      setCalorieGoal(d.goal_calories ?? null);
+    } catch (e) {
+      console.error("Error loading meals:", e);
+    }
+  }, []);
+
   const logMeal = useCallback(
     async (items: { name: string; calories: number; estimated_weight_g: number }[], total: number) => {
       setMealSaved("saving");
@@ -98,19 +111,6 @@ export function useFoodTracking() {
     },
     [loadMyMeals]
   );
-
-  const loadMyMeals = useCallback(async () => {
-    try {
-      const res = await fetch("/api/foods/meals");
-      if (!res.ok) return;
-      const d = await res.json();
-      setMyMeals(d.meals ?? []);
-      setTodayCalories(d.today_calories ?? 0);
-      setCalorieGoal(d.goal_calories ?? null);
-    } catch (e) {
-      console.error("Error loading meals:", e);
-    }
-  }, []);
 
   const resetAiResult = useCallback(() => {
     setAiResult(null);

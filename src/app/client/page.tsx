@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import MealHistory from "@/components/MealHistory";
 import ProgressRing from "@/components/ProgressRing";
+import { PhotoUpload } from "@/components/PhotoUpload";
 import {
   useAuth,
   useClientHome,
@@ -216,53 +217,7 @@ export default function ClientPage() {
               מה אכלת? 🍽️
             </motion.h2>
 
-            <div className="grid grid-cols-2 gap-4">
-              <motion.label
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-neutral-200 bg-white p-6 hover:shadow-card transition-all"
-              >
-                <span className="text-4xl">📷</span>
-                <span className="text-sm font-semibold text-black-matte">מצלמה</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) analyzeFood(f);
-                  }}
-                />
-              </motion.label>
-              <motion.label
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-neutral-200 bg-white p-6 hover:shadow-card transition-all"
-              >
-                <span className="text-4xl">🖼️</span>
-                <span className="text-sm font-semibold text-black-matte">גלריה</span>
-                <input
-                  type="file"
-                  style={{ opacity: 0, width: 0, height: 0 }}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) analyzeFood(f);
-                  }}
-                />
-              </motion.label>
-            </div>
-
-            {analyzing && (
-              <div className="rounded-2xl bg-white p-6 text-center shadow-xs">
-                <div className="text-4xl mb-2 animate-spin">🔍</div>
-                <p className="text-gray-600">מנתח...</p>
-              </div>
-            )}
-
-            {foodError && <div className="rounded-xl bg-red-50 p-4 text-sm text-red-600">{foodError}</div>}
+            <PhotoUpload onFile={analyzeFood} isLoading={analyzing} error={foodError} />
 
             {aiResult && (() => {
               const grams = aiResult.items.map((it, i) => itemGrams[i] ?? it.estimated_weight_g);

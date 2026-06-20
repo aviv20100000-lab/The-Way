@@ -7,6 +7,14 @@ interface WeightLog {
   logged_at: string;
 }
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
+}
+
 export function useWeightTracking() {
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [weightTarget, setWeightTarget] = useState<number | null>(null);
@@ -33,7 +41,24 @@ export function useWeightTracking() {
       const fd = new FormData();
       fd.append("weight", String(w));
       if (weightPhoto) fd.append("photo", weightPhoto);
-      await fetch("/api/users/weight", { method: "POST", body: fd });
+
+      const headers: HeadersInit = {};
+      const csrfToken = getCookie("csrf-token");
+      if (csrfToken) {
+        headers["x-csrf-token"] = csrfToken;
+      }
+
+      const res = await fetch("/api/users/weight", {
+        method: "POST",
+        body: fd,
+        headers,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "שגיאה בשמירת משקל");
+      }
+
       setNewWeight("");
       setWeightPhoto(null);
       await loadWeight();

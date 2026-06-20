@@ -14,15 +14,23 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com https://*.anthropic.com;"
   );
 
-  // Skip CSRF check for login endpoint
-  if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/") && !request.nextUrl.pathname.includes("/auth/login")) {
-    const csrfToken = request.headers.get("x-csrf-token");
+  // CSRF check for all POST/PUT/DELETE to /api/
+  // Exceptions: GET requests, cron endpoints, CSRF token generation
+  if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/")) {
+    const pathname = request.nextUrl.pathname;
 
-    if (!csrfToken || !(await verifyCSRFToken(csrfToken))) {
-      return NextResponse.json(
-        { error: "בקשה לא תקינה (CSRF token missing)" },
-        { status: 403 }
-      );
+    // Skip CSRF for cron endpoints (they have their own auth via secret)
+    const isCronEndpoint = pathname.includes("/cron/");
+
+    if (!isCronEndpoint) {
+      const csrfToken = request.headers.get("x-csrf-token");
+
+      if (!csrfToken || !(await verifyCSRFToken(csrfToken))) {
+        return NextResponse.json(
+          { error: "בקשה לא תקינה (CSRF token missing)" },
+          { status: 403 }
+        );
+      }
     }
   }
 

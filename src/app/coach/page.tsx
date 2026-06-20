@@ -106,7 +106,7 @@ export default function CoachPage() {
   const loadFoodLogs = useCallback(async () => {
     setFoodLoading(true);
     try {
-      const res = await fetch("/api/foods/meals");
+      const res = await fetch("/api/coach/meals");
       const data = await res.json();
       setFoodLogs(data || []);
     } catch (e) {

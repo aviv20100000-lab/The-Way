@@ -112,7 +112,12 @@
       "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
       "PowerShell(Stop-Process -Force)",
       "Bash(curl -s -I http://localhost:3000)",
-      "Bash(npx vercel *)"
+      "Bash(npx vercel *)",
+      "Bash(curl -s -X POST https://the-way-app-two.vercel.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@example.com\",\"password\":\"test123\"}' -w '\\\\nStatus: %{http_code}\\\\n')",
+      "Bash(curl -s -X POST https://the-way-app-two.vercel.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"aviv20100000@gmail.com\",\"password\":\"test123\"}' -w '\\\\nStatus: %{http_code}\\\\n')",
+      "Bash(curl -s -X POST https://the-way-app-two.vercel.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"coach@theway.com\",\"password\":\"123456\"}')",
+      "Bash(curl -s -b .cookies.txt -c .cookies.txt -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"coach@theway.com\",\"password\":\"123456\"}')",
+      "Bash(curl -s http://localhost:3001/)"
     ]
   }
 }

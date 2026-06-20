@@ -15,10 +15,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "צריך להעלות סקרינשוט" }, { status: 400 });
   }
 
+  const validMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!validMimeTypes.includes(screenshot.type)) {
+    return NextResponse.json({ error: "רק קבצי תמונה מותרים (JPEG, PNG, WebP, GIF)" }, { status: 400 });
+  }
+
   try {
     const buffer = Buffer.from(await screenshot.arrayBuffer());
+
+    if (buffer.length > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "הסקרינשוט גדול מדי (מקסימום 10MB)" }, { status: 413 });
+    }
+
     const base64 = buffer.toString("base64");
-    const steps = await extractStepsFromScreenshotBase64(base64, screenshot.type || "image/jpeg");
+    const steps = await extractStepsFromScreenshotBase64(base64, screenshot.type);
 
     if (steps === 0) {
       return NextResponse.json(

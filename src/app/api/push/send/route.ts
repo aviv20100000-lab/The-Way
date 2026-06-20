@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
   // Get subscriptions — either specific user or all clients
   let subs;
   if (userId) {
+    const ownerRes = await db.execute({ sql: "SELECT coach_id FROM users WHERE id = ?", args: [userId] });
+    const owner = ownerRes.rows[0];
+    if (!owner || owner.coach_id !== session.id) {
+      return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
+    }
     subs = (await db.execute({ sql: "SELECT * FROM push_subscriptions WHERE user_id=?", args: [userId] })).rows;
   } else {
     subs = (await db.execute({

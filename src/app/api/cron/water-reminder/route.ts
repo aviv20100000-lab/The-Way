@@ -54,8 +54,10 @@ async function handle(req: NextRequest) {
     temp = Number(w?.current?.temperature_2m);
     if (!Number.isFinite(temp)) throw new Error("no temperature");
   } catch (e) {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    console.error("weather fetch error:", errMsg);
     return NextResponse.json(
-      { error: "weather fetch failed", detail: e instanceof Error ? e.message : String(e) },
+      { error: "weather fetch failed" },
       { status: 502 }
     );
   }

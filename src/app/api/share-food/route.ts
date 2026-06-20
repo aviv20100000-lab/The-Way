@@ -10,10 +10,20 @@ export async function POST(req: NextRequest) {
   const photo = formData.get("photo") as File | null;
   if (!photo) return NextResponse.redirect(new URL("/?tab=food", req.url));
 
+  const validMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!validMimeTypes.includes(photo.type)) {
+    return NextResponse.redirect(new URL("/?tab=food&error=invalid_image", req.url));
+  }
+
   try {
     const buffer = Buffer.from(await photo.arrayBuffer());
+
+    if (buffer.length > 10 * 1024 * 1024) {
+      return NextResponse.redirect(new URL("/?tab=food&error=file_too_large", req.url));
+    }
+
     const base64 = buffer.toString("base64");
-    const analysis = await analyzeFoodPhotoBase64(base64, photo.type || "image/jpeg");
+    const analysis = await analyzeFoodPhotoBase64(base64, photo.type);
 
     const items = Array.isArray(analysis) ? analysis : (analysis.items ?? []);
     const totalCalories = items.reduce(

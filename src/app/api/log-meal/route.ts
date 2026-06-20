@@ -73,6 +73,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("log-meal error:", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "אירעה שגיאה בשמירת הארוחה. נסה שוב מאוחר יותר." }, { status: 500 });
   }
 }

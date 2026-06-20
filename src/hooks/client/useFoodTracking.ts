@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { compressImageToJpeg } from "@/lib/image-compression";
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
+}
+
 interface AiItem {
   name: string;
   estimated_weight_g: number;
@@ -42,7 +50,18 @@ export function useFoodTracking() {
       const jpeg = await compressImageToJpeg(file);
       const fd = new FormData();
       fd.append("photo", jpeg);
-      const res = await fetch("/api/foods/analyze", { method: "POST", body: fd });
+
+      const headers: HeadersInit = {};
+      const csrfToken = getCookie("csrf-token");
+      if (csrfToken) {
+        headers["x-csrf-token"] = csrfToken;
+      }
+
+      const res = await fetch("/api/foods/analyze", {
+        method: "POST",
+        body: fd,
+        headers,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setAiResult(data);
@@ -56,9 +75,15 @@ export function useFoodTracking() {
     async (items: { name: string; calories: number; estimated_weight_g: number }[], total: number) => {
       setMealSaved("saving");
       try {
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        const csrfToken = getCookie("csrf-token");
+        if (csrfToken) {
+          headers["x-csrf-token"] = csrfToken;
+        }
+
         const res = await fetch("/api/foods/meals", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ items, total_calories: total }),
         });
         if (res.ok) {
@@ -71,7 +96,7 @@ export function useFoodTracking() {
         setMealSaved("error");
       }
     },
-    []
+    [loadMyMeals]
   );
 
   const loadMyMeals = useCallback(async () => {

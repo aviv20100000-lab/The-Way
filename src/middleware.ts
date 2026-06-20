@@ -14,7 +14,8 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com https://*.anthropic.com;"
   );
 
-  if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/")) {
+  // Skip CSRF check for login endpoint
+  if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/") && !request.nextUrl.pathname.includes("/auth/login")) {
     const csrfToken = request.headers.get("x-csrf-token");
 
     if (!csrfToken || !(await verifyCSRFToken(csrfToken))) {

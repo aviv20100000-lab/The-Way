@@ -42,15 +42,27 @@ export async function POST(req: NextRequest) {
   }
 
   const { text, author } = await req.json();
-  if (!text || text.trim().length === 0) {
+  if (!text || typeof text !== "string" || text.trim().length === 0) {
     return NextResponse.json({ error: "ציטוט לא יכול להיות ריק" }, { status: 400 });
+  }
+
+  if (text.length > 1000) {
+    return NextResponse.json({ error: "ציטוט ארוך מדי (מקסימום 1000 תווים)" }, { status: 400 });
+  }
+
+  if (author && typeof author !== "string") {
+    return NextResponse.json({ error: "שם מחבר לא תקין" }, { status: 400 });
+  }
+
+  if (author && author.length > 100) {
+    return NextResponse.json({ error: "שם מחבר ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
   }
 
   const id = uuid();
   await db.execute({
     sql: `INSERT INTO quotes (id, text, author, active)
           VALUES (?, ?, ?, 1)`,
-    args: [id, text, author || null],
+    args: [id, text.trim(), author?.trim() || null],
   });
 
   return NextResponse.json({ id, text, author });

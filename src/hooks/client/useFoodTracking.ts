@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { compressImageToJpeg } from "@/lib/image-compression";
 
 interface AiItem {
   name: string;
@@ -33,56 +34,23 @@ export function useFoodTracking() {
   const [todayCalories, setTodayCalories] = useState(0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
 
-  const compressToJpeg = useCallback((file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX = 1200;
-        let { width, height } = img;
-        if (width > MAX || height > MAX) {
-          if (width > height) {
-            height = Math.round((height / width) * MAX);
-            width = MAX;
-          } else {
-            width = Math.round((width / height) * MAX);
-            height = MAX;
-          }
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => resolve(blob ? new File([blob], "photo.jpg", { type: "image/jpeg" }) : file),
-          "image/jpeg",
-          0.82
-        );
-      };
-      img.onerror = () => resolve(file);
-      img.src = URL.createObjectURL(file);
-    });
+  const analyzeFood = useCallback(async (file: File) => {
+    setAnalyzing(true);
+    setFoodError("");
+    setAiResult(null);
+    try {
+      const jpeg = await compressImageToJpeg(file);
+      const fd = new FormData();
+      fd.append("photo", jpeg);
+      const res = await fetch("/api/foods/analyze", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      setAiResult(data);
+    } catch (e: unknown) {
+      setFoodError(e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
+    }
+    setAnalyzing(false);
   }, []);
-
-  const analyzeFood = useCallback(
-    async (file: File) => {
-      setAnalyzing(true);
-      setFoodError("");
-      setAiResult(null);
-      try {
-        const jpeg = await compressToJpeg(file);
-        const fd = new FormData();
-        fd.append("photo", jpeg);
-        const res = await fetch("/api/foods/analyze", { method: "POST", body: fd });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "שגיאה");
-        setAiResult(data);
-      } catch (e: unknown) {
-        setFoodError(e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
-      }
-      setAnalyzing(false);
-    },
-    [compressToJpeg]
-  );
 
   const logMeal = useCallback(
     async (items: { name: string; calories: number; estimated_weight_g: number }[], total: number) => {

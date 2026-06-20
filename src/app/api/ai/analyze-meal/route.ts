@@ -17,13 +17,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "צריך להעלות תמונה" }, { status: 400 });
   }
 
-  // Save photo
+  const validMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!validMimeTypes.includes(photo.type)) {
+    return NextResponse.json({ error: "רק קבצי תמונה מותרים (JPEG, PNG, WebP, GIF)" }, { status: 400 });
+  }
+
+  const buffer = Buffer.from(await photo.arrayBuffer());
+
+  if (buffer.length > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: "התמונה גדולה מדי (מקסימום 10MB)" }, { status: 413 });
+  }
+
+  // Save photo with safe filename
   const uploadsDir = join(process.cwd(), "public", "uploads");
   await mkdir(uploadsDir, { recursive: true });
-  const ext = photo.name.split(".").pop() || "jpg";
+  const mimeExtMap: { [key: string]: string } = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const ext = mimeExtMap[photo.type] || "jpg";
   const filename = `${uuid()}.${ext}`;
-  const buffer = Buffer.from(await photo.arrayBuffer());
-  await writeFile(join(uploadsDir, filename), buffer);
+
+  try {
+    await writeFile(join(uploadsDir, filename), buffer);
+  } catch (error) {
+    console.error("File write error:", error);
+    return NextResponse.json({ error: "שגיאה בשמירת הקובץ" }, { status: 500 });
+  }
+
   const photoUrl = `/uploads/${filename}`;
 
   // Analyze with Claude

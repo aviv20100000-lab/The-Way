@@ -17,12 +17,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "צריך להעלות סקרינשוט" }, { status: 400 });
   }
 
-  // Save screenshot
+  const validMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (!validMimeTypes.includes(screenshot.type)) {
+    return NextResponse.json({ error: "רק קבצי תמונה מותרים (JPEG, PNG, WebP, GIF)" }, { status: 400 });
+  }
+
+  const buffer = Buffer.from(await screenshot.arrayBuffer());
+
+  if (buffer.length > 10 * 1024 * 1024) {
+    return NextResponse.json({ error: "הסקרינשוט גדול מדי (מקסימום 10MB)" }, { status: 413 });
+  }
+
+  // Save screenshot with validated filename
   const uploadsDir = join(process.cwd(), "public", "uploads");
   await mkdir(uploadsDir, { recursive: true });
-  const filename = `${uuid()}.jpg`;
-  const buffer = Buffer.from(await screenshot.arrayBuffer());
-  await writeFile(join(uploadsDir, filename), buffer);
+  const mimeExtMap: { [key: string]: string } = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const ext = mimeExtMap[screenshot.type] || "jpg";
+  const filename = `${uuid()}.${ext}`;
+
+  try {
+    await writeFile(join(uploadsDir, filename), buffer);
+  } catch (error) {
+    console.error("File write error:", error);
+    return NextResponse.json({ error: "שגיאה בשמירת הקובץ" }, { status: 500 });
+  }
+
   const screenshotUrl = `/uploads/${filename}`;
 
   try {

@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { compressImageToJpeg } from "@/lib/image-compression";
 
 interface LeaderboardEntry {
   id: string;
@@ -13,36 +14,6 @@ export function useStepsTracking() {
   const [stepsSuccess, setStepsSuccess] = useState("");
   const [lbView, setLbView] = useState<"today" | "week">("today");
   const [todaySteps, setTodaySteps] = useState(0);
-
-  const compressToJpeg = useCallback((file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX = 1200;
-        let { width, height } = img;
-        if (width > MAX || height > MAX) {
-          if (width > height) {
-            height = Math.round((height / width) * MAX);
-            width = MAX;
-          } else {
-            width = Math.round((width / height) * MAX);
-            height = MAX;
-          }
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => resolve(blob ? new File([blob], "screenshot.jpg", { type: "image/jpeg" }) : file),
-          "image/jpeg",
-          0.82
-        );
-      };
-      img.onerror = () => resolve(file);
-      img.src = URL.createObjectURL(file);
-    });
-  }, []);
 
   const loadLeaderboard = useCallback(async () => {
     try {
@@ -59,7 +30,7 @@ export function useStepsTracking() {
       setUploadingSteps(true);
       setStepsSuccess("");
       try {
-        const jpeg = await compressToJpeg(file);
+        const jpeg = await compressImageToJpeg(file);
         const fd = new FormData();
         fd.append("screenshot", jpeg);
         const res = await fetch("/api/health/steps", { method: "POST", body: fd });
@@ -75,7 +46,7 @@ export function useStepsTracking() {
         setUploadingSteps(false);
       }
     },
-    [compressToJpeg, loadLeaderboard]
+    [loadLeaderboard]
   );
 
   return {

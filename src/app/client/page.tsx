@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import MealHistory from "@/components/MealHistory";
 import ProgressRing from "@/components/ProgressRing";
 import { PhotoUpload } from "@/components/PhotoUpload";
+import { FoodItemGramAdjuster } from "@/components/FoodItemGramAdjuster";
+import { scaleFoodMacros } from "@/lib/nutrition-calculations";
 import {
   useAuth,
   useClientHome,

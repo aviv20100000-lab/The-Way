@@ -8,7 +8,18 @@ export async function GET(req: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
-  const userId = new URL(req.url).searchParams.get("userId") || session.id;
+  let userId = new URL(req.url).searchParams.get("userId") || session.id;
+
+  if (userId !== session.id) {
+    if (session.role !== "coach") {
+      return NextResponse.json({ error: "גישה נדחתה" }, { status: 403 });
+    }
+    const owner = (await db.execute({ sql: "SELECT coach_id FROM users WHERE id = ?", args: [userId] })).rows[0];
+    if (!owner || owner.coach_id !== session.id) {
+      return NextResponse.json({ error: "גישה נדחתה" }, { status: 403 });
+    }
+  }
+
   const goal = (await db.execute({ sql: "SELECT * FROM goals WHERE user_id=?", args: [userId] })).rows[0];
   return NextResponse.json(goal ?? { user_id: userId, target_weight_kg: null, daily_calories: null, daily_water_ml: 2000 });
 }

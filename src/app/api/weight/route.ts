@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const logsRes = await db.execute({
     sql: `SELECT * FROM weight_logs
           WHERE user_id = ?
-          AND logged_at >= datetime('now', '-' || ? || ' days')
+          AND logged_at >= datetime('now', '-' || CAST(? AS TEXT) || ' days')
           ORDER BY logged_at DESC`,
     args: [user.id, daysNum],
   });

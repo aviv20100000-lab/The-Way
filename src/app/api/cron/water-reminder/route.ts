@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
 import webpush from "web-push";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,14 @@ function buildMessage(temp: number): { title: string; body: string } {
   return { title: "🌡️ חם היום", body: `${t}° בחוץ — זמן טוב לכוס מים 💧` };
 }
 
+function timingSafeCompare(a: string, b: string): boolean {
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
 async function handle(req: NextRequest) {
   // Auth: Vercel Cron sends "Authorization: Bearer <CRON_SECRET>".
   // External cron can pass ?secret=<CRON_SECRET> instead.
@@ -27,7 +36,9 @@ async function handle(req: NextRequest) {
   if (secret) {
     const auth = req.headers.get("authorization");
     const qs = req.nextUrl.searchParams.get("secret");
-    if (auth !== `Bearer ${secret}` && qs !== secret) {
+    const authValid = auth ? timingSafeCompare(auth, `Bearer ${secret}`) : false;
+    const qsValid = qs ? timingSafeCompare(qs, secret) : false;
+    if (!authValid && !qsValid) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
   }

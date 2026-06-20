@@ -6,7 +6,8 @@ export async function GET(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
-  const period = req.nextUrl.searchParams.get("period") || "daily";
+  const periodParam = req.nextUrl.searchParams.get("period") || "daily";
+  const period = periodParam === "weekly" ? "weekly" : "daily";
   const coachId = user.role === "coach" ? user.id : user.coach_id;
 
   const sql = period === "weekly"

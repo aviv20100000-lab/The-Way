@@ -43,7 +43,7 @@ export function WeightJourney({
         className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 p-6 border border-emerald-200 dark:border-emerald-800"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">מסע ההשנות</h3>
+          <h3 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">📉 גרף ירידה במשקל</h3>
           <span className="text-2xl">{milestone}</span>
         </div>
 

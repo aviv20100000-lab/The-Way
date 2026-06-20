@@ -15,11 +15,11 @@ export async function middleware(request: NextRequest) {
   );
 
   // CSRF check for all POST/PUT/DELETE to /api/
-  // Exceptions: GET requests, cron endpoints, CSRF token generation
+  // Exceptions: GET requests, cron endpoints (they have their own secret-based auth)
   if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/")) {
     const pathname = request.nextUrl.pathname;
 
-    // Skip CSRF for cron endpoints (they have their own auth via secret)
+    // Skip CSRF only for cron endpoints (they have their own secret-based auth)
     const isCronEndpoint = pathname.includes("/cron/");
 
     if (!isCronEndpoint) {

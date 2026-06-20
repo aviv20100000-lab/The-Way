@@ -44,7 +44,7 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 p-8 text-center"
+        className="rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 p-8 text-center"
       >
         <motion.div
           animate={{ rotate: 360 }}
@@ -53,8 +53,8 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
         >
           🔍
         </motion.div>
-        <p className="text-sm font-semibold text-primary-700">מנתח תמונה...</p>
-        <p className="mt-2 text-xs text-primary-600">זה יכול לקחת כמה שניות</p>
+        <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">מנתח תמונה...</p>
+        <p className="mt-2 text-xs text-primary-600 dark:text-primary-400">זה יכול לקחת כמה שניות</p>
       </motion.div>
     );
   }
@@ -75,8 +75,8 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
           relative rounded-2xl border-2 border-dashed transition-all duration-200 p-8
           ${
             isDragActive
-              ? 'border-primary-500 bg-primary-50 scale-105'
-              : 'border-neutral-200 bg-white hover:border-primary-300 hover:bg-primary-50'
+              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900 scale-105'
+              : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900'
           }
         `}
       >
@@ -88,8 +88,8 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
             📸
           </motion.div>
           <div className="text-center">
-            <p className="text-sm font-semibold text-black-matte">גרור תמונה לכאן</p>
-            <p className="text-xs text-neutral-500 mt-1">או לחץ לבחירה מהגלריה</p>
+            <p className="text-sm font-semibold text-black-matte dark:text-neutral-100">גרור תמונה לכאן</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">או לחץ לבחירה מהגלריה</p>
           </div>
         </div>
 
@@ -115,7 +115,7 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 p-4 text-white shadow-lg hover:shadow-xl transition-shadow"
+          className="flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 dark:from-sky-600 dark:to-cyan-600 p-4 text-white shadow-lg hover:shadow-xl transition-shadow"
         >
           <span className="text-2xl">📷</span>
           <span className="text-xs font-semibold">מצלמה</span>
@@ -128,7 +128,7 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 p-4 text-white shadow-lg hover:shadow-xl transition-shadow"
+          className="flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 dark:from-primary-700 dark:to-primary-800 p-4 text-white shadow-lg hover:shadow-xl transition-shadow"
         >
           <span className="text-2xl">🖼️</span>
           <span className="text-xs font-semibold">גלריה</span>
@@ -153,7 +153,7 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-rose-50 p-4 text-sm text-rose-600"
+          className="rounded-xl bg-rose-50 dark:bg-rose-950 p-4 text-sm text-rose-600 dark:text-rose-400"
         >
           {error}
         </motion.div>

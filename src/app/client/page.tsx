@@ -6,6 +6,7 @@ import MealHistory from "@/components/MealHistory";
 import ProgressRing from "@/components/ProgressRing";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { FoodItemGramAdjuster } from "@/components/FoodItemGramAdjuster";
+import { WeightJourney } from "@/components/WeightJourney";
 import { scaleFoodMacros } from "@/lib/nutrition-calculations";
 import {
   useAuth,
@@ -41,24 +42,24 @@ export default function ClientPage() {
   const greeting = hour < 12 ? "בוקר טוב" : hour < 17 ? "צהריים טובים" : hour < 21 ? "ערב טוב" : "לילה טוב";
 
   return (
-    <div className="min-h-screen pb-32 text-black-matte bg-white" dir="rtl">
+    <div className="min-h-screen pb-32 text-black-matte bg-white dark:bg-neutral-950 dark:text-neutral-50" dir="rtl">
       {/* Header */}
       <motion.header
         initial={{ y: -24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="sticky top-0 z-20 bg-white border-b border-neutral-100"
+        className="sticky top-0 z-20 bg-white dark:bg-neutral-950 border-b border-neutral-100 dark:border-neutral-800"
       >
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold tracking-tight text-black-matte">THE WAY</h1>
-            <span className="text-xs font-normal text-neutral-500">by Aviv & Liav</span>
+            <h1 className="text-lg font-bold tracking-tight text-black-matte dark:text-neutral-50">THE WAY</h1>
+            <span className="text-xs font-normal text-neutral-500 dark:text-neutral-400">by Aviv & Liav</span>
           </div>
           <motion.button
             onClick={logout}
             whileHover={{ opacity: 0.8 }}
             whileTap={{ scale: 0.98 }}
-            className="rounded-lg bg-neutral-100 px-4 py-2 text-xs font-semibold text-black-matte hover:bg-neutral-200 transition-all duration-200"
+            className="rounded-lg bg-neutral-100 dark:bg-neutral-800 px-4 py-2 text-xs font-semibold text-black-matte dark:text-neutral-50 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all duration-200"
           >
             יציאה
           </motion.button>
@@ -227,17 +228,17 @@ export default function ClientPage() {
               const total = scaled.reduce((s, x) => s + x.calories, 0);
 
               return (
-                <div className="rounded-2xl bg-white p-5 shadow-xs space-y-4">
+                <div className="rounded-2xl bg-white dark:bg-neutral-800 p-5 shadow-xs space-y-4">
                   {aiResult.photo_url && <img src={aiResult.photo_url} alt="ארוחה" className="w-full rounded-xl object-cover max-h-48" />}
                   <div className="text-center">
                     <div className="text-4xl font-bold text-orange-500">{total}</div>
-                    <div className="text-sm text-gray-400">קלוריות</div>
+                    <div className="text-sm text-gray-400 dark:text-gray-500">קלוריות</div>
                   </div>
                   <div className="space-y-3">
                     {aiResult.items.map((item, i) => (
-                      <div key={i} className="rounded-xl bg-gray-50 px-4 py-3 space-y-2">
+                      <div key={i} className="rounded-xl bg-gray-50 dark:bg-neutral-700 px-4 py-3 space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="font-medium text-gray-800">{item.name}</p>
+                          <p className="font-medium text-gray-800 dark:text-neutral-100">{item.name}</p>
                           <p className="font-bold text-orange-500">{scaled[i].calories} קל'</p>
                         </div>
                         <FoodItemGramAdjuster
@@ -256,9 +257,9 @@ export default function ClientPage() {
                     ))}
                   </div>
                   {mealSaved === "saved" ? (
-                    <div className="rounded-xl bg-green-50 py-3 text-center font-semibold text-primary-600">✅ נשמר!</div>
+                    <div className="rounded-xl bg-green-50 dark:bg-green-950 py-3 text-center font-semibold text-primary-600 dark:text-primary-400">✅ נשמר!</div>
                   ) : (
-                    <button
+                    <motion.button
                       onClick={() =>
                         logMeal(
                           aiResult.items.map((it, i) => ({
@@ -270,14 +271,21 @@ export default function ClientPage() {
                         )
                       }
                       disabled={mealSaved === "saving"}
-                      className="w-full rounded-xl bg-green-600 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full rounded-xl bg-green-600 dark:bg-green-700 py-3 font-semibold text-white hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 transition-all"
                     >
                       {mealSaved === "saving" ? "שומר..." : "✅ שמור"}
-                    </button>
+                    </motion.button>
                   )}
-                  <button onClick={resetAiResult} className="w-full rounded-xl bg-indigo-100 py-3 font-semibold text-indigo-700">
+                  <motion.button
+                    onClick={resetAiResult}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full rounded-xl bg-indigo-100 dark:bg-indigo-950 py-3 font-semibold text-indigo-700 dark:text-indigo-300"
+                  >
                     צלם עוד
-                  </button>
+                  </motion.button>
                 </div>
               );
             })()}
@@ -288,10 +296,33 @@ export default function ClientPage() {
 
         {/* WEIGHT TAB */}
         {tab === "weight" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">משקל</h2>
-            <div className="rounded-2xl bg-white p-6 shadow-card space-y-4">
-              <p className="text-base font-semibold">כמה אתה שוקל היום?</p>
+          <div className="space-y-6">
+            <motion.h2
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-lg font-semibold text-black-matte"
+            >
+              משקל 📊
+            </motion.h2>
+
+            {/* Weight Journey Visualization */}
+            {weightTarget && weightLogs.length > 0 && (
+              <WeightJourney
+                currentWeight={weightLogs[0]?.weight_kg ?? null}
+                targetWeight={weightTarget}
+                weightLogs={weightLogs}
+                startingWeight={weightLogs[weightLogs.length - 1]?.weight_kg ?? weightLogs[0]?.weight_kg ?? 0}
+              />
+            )}
+
+            {/* Input Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 p-6 border border-blue-200 dark:border-blue-800"
+            >
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-4">כמה אתה שוקל היום?</p>
               <div className="flex gap-3">
                 <input
                   type="number"
@@ -299,99 +330,136 @@ export default function ClientPage() {
                   value={newWeight}
                   onChange={(e) => setNewWeight(e.target.value)}
                   placeholder="ק״ג"
-                  className="flex-1 rounded-lg border border-neutral-200 px-4 py-3 text-center text-xl font-bold focus:ring-2 focus:ring-primary-600"
+                  className="flex-1 rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-50 px-4 py-3 text-center text-xl font-bold focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 />
               </div>
-              <button
+              <motion.button
                 onClick={saveWeight}
                 disabled={savingWeight || !newWeight}
-                className="w-full rounded-2xl bg-success-600 py-3 font-semibold text-white hover:shadow-lg disabled:opacity-50"
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full mt-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 py-3 font-semibold text-white hover:shadow-lg disabled:opacity-50 transition-all"
               >
-                {savingWeight ? "שומר..." : "עדכן"}
-              </button>
-            </div>
-            {weightLogs.length > 0 && (
-              <div className="space-y-2">
-                {weightLogs.map((log) => (
-                  <div key={log.id} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-xs">
-                    <p className="font-bold">{log.weight_kg} ק"ג</p>
-                    <p className="text-xs text-neutral-500">{new Date(log.logged_at).toLocaleDateString("he-IL")}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+                {savingWeight ? "שומר..." : "✅ עדכן"}
+              </motion.button>
+            </motion.div>
           </div>
         )}
 
         {/* STEPS TAB */}
         {tab === "steps" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold">צעדים</h2>
-            <div className="rounded-2xl bg-white p-5 shadow-xs space-y-3">
-              <p className="text-sm text-center text-gray-500">צלם סקרינשוט מהבריאות</p>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="rounded-xl bg-indigo-600 py-3 text-center font-semibold text-white cursor-pointer hover:bg-indigo-700">
-                  📷 מצלמה
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    style={{ opacity: 0, width: 0, height: 0 }}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) uploadStepsScreenshot(f);
-                    }}
-                  />
-                </label>
-                <label className="rounded-xl bg-indigo-600 py-3 text-center font-semibold text-white cursor-pointer hover:bg-indigo-700">
-                  🖼️ גלריה
-                  <input
-                    type="file"
-                    style={{ opacity: 0, width: 0, height: 0 }}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) uploadStepsScreenshot(f);
-                    }}
-                  />
-                </label>
-              </div>
-              {uploadingSteps && <p className="text-sm text-center text-gray-500">קוראקורא...</p>}
-              {stepsSuccess && <p className="text-center font-semibold text-primary-600">{stepsSuccess}</p>}
-            </div>
+          <div className="space-y-6">
+            <motion.h2
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-lg font-semibold text-black-matte"
+            >
+              צעדים 👟
+            </motion.h2>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="rounded-2xl bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-4"
+            >
+              <p className="text-sm text-blue-900 dark:text-blue-100">
+                📱 צלם סקרינשוט מ<strong>בדיקת בריאות</strong> כדי לעדכן את צעדיך
+              </p>
+            </motion.div>
+
+            <PhotoUpload
+              onFile={uploadStepsScreenshot}
+              isLoading={uploadingSteps}
+              error={undefined}
+            />
+
+            {stepsSuccess && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-600 dark:to-teal-600 p-5 text-center text-white"
+              >
+                <p className="font-semibold text-lg">✅ {stepsSuccess}</p>
+              </motion.div>
+            )}
 
             {leaderboard.length > 0 && (
-              <div className="rounded-2xl bg-white shadow-xs overflow-hidden">
-                <div className="flex border-b">
-                  <button
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="rounded-2xl bg-white dark:bg-neutral-800 shadow-card overflow-hidden"
+              >
+                {/* Tab Toggle */}
+                <div className="flex border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700">
+                  <motion.button
                     onClick={() => setLbView("today")}
-                    className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-400"}`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`flex-1 py-4 text-sm font-semibold transition-all ${
+                      lbView === "today"
+                        ? "border-b-2 border-primary-600 text-primary-600 bg-white dark:bg-neutral-800"
+                        : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                    }`}
                   >
-                    יומי
-                  </button>
-                  <button
+                    📅 היומי
+                  </motion.button>
+                  <motion.button
                     onClick={() => setLbView("week")}
-                    className={`flex-1 py-3 text-sm font-medium ${lbView === "week" ? "border-b-2 border-indigo-600 text-indigo-600" : "text-gray-400"}`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`flex-1 py-4 text-sm font-semibold transition-all ${
+                      lbView === "week"
+                        ? "border-b-2 border-primary-600 text-primary-600 bg-white dark:bg-neutral-800"
+                        : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                    }`}
                   >
-                    שבועי
-                  </button>
+                    📊 השבועי
+                  </motion.button>
                 </div>
-                <div className="p-4 space-y-2">
+
+                {/* Leaderboard List */}
+                <div className="p-5 space-y-3">
                   {leaderboard
                     .slice()
                     .sort((a, b) => (lbView === "today" ? b.today - a.today : b.week - a.week))
                     .map((entry, i) => (
-                      <div key={entry.id} className="flex items-center gap-3 rounded-xl px-4 py-3 bg-gray-50">
-                        <span className="text-lg font-bold w-6 text-center">
-                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                      <motion.div
+                        key={entry.id}
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className={`flex items-center gap-4 rounded-xl px-4 py-3 transition-all ${
+                          i === 0
+                            ? "bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900 dark:to-orange-900 border border-amber-300 dark:border-amber-700"
+                            : i === 1
+                            ? "bg-gradient-to-r from-gray-100 to-blue-50 dark:from-gray-700 dark:to-blue-900 border border-gray-300 dark:border-gray-600"
+                            : i === 2
+                            ? "bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900 dark:to-amber-900 border border-orange-200 dark:border-orange-700"
+                            : "bg-neutral-50 dark:bg-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-600"
+                        }`}
+                      >
+                        <span className="text-2xl font-bold w-8 text-center">
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}
                         </span>
-                        <span className="flex-1 font-medium">{entry.name}</span>
-                        <span className="font-bold text-indigo-600">
-                          {(lbView === "today" ? entry.today : entry.week).toLocaleString()} 👟
-                        </span>
-                      </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-neutral-900 dark:text-neutral-100">{entry.name}</p>
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                            {(lbView === "today" ? entry.today : entry.week).toLocaleString()} צעדים
+                          </p>
+                        </div>
+                        <motion.div
+                          animate={{ scale: i === 0 ? [1, 1.1, 1] : 1 }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className="text-2xl"
+                        >
+                          👟
+                        </motion.div>
+                      </motion.div>
                     ))}
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
         )}
@@ -405,7 +473,7 @@ export default function ClientPage() {
         className="fixed inset-x-0 bottom-0 z-20 pb-[calc(env(safe-area-inset-bottom)+16px)]"
       >
         <div className="mx-auto max-w-lg px-5">
-          <div className="flex items-center justify-around gap-1 rounded-3xl border border-neutral-200/50 bg-white/98 p-2 shadow-lg backdrop-blur-xl">
+          <div className="flex items-center justify-around gap-1 rounded-3xl border border-neutral-200/50 dark:border-neutral-700/50 bg-white/98 dark:bg-neutral-900/98 p-2 shadow-lg backdrop-blur-xl">
             {[
               { id: "home" as Tab, icon: "🏠", label: "בית" },
               { id: "food" as Tab, icon: "🍽️", label: "אוכל" },
@@ -418,7 +486,7 @@ export default function ClientPage() {
                 whileTap={{ scale: 0.9 }}
                 whileHover={{ scale: 1.05 }}
                 className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2.5 px-1 text-[11px] font-medium transition-all ${
-                  tab === t.id ? "bg-primary-600 text-white shadow-md" : "text-neutral-500 hover:text-neutral-700"
+                  tab === t.id ? "bg-primary-600 text-white shadow-md" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
                 }`}
               >
                 <span className="text-xl">{t.icon}</span>

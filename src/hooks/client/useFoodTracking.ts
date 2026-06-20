@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { compressImageToJpeg } from "@/lib/image-compression";
-
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
-  return null;
-}
+import { getCsrfToken } from "@/lib/csrf-client";
 
 interface AiItem {
   name: string;
@@ -52,7 +45,7 @@ export function useFoodTracking() {
       fd.append("photo", jpeg);
 
       const headers: HeadersInit = {};
-      const csrfToken = getCookie("csrf-token");
+      const csrfToken = await getCsrfToken();
       if (csrfToken) {
         headers["x-csrf-token"] = csrfToken;
       }
@@ -89,7 +82,7 @@ export function useFoodTracking() {
       setMealSaved("saving");
       try {
         const headers: HeadersInit = { "Content-Type": "application/json" };
-        const csrfToken = getCookie("csrf-token");
+        const csrfToken = await getCsrfToken();
         if (csrfToken) {
           headers["x-csrf-token"] = csrfToken;
         }

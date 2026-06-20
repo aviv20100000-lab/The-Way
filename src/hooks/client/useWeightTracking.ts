@@ -1,18 +1,11 @@
 import { useCallback, useState } from "react";
+import { getCsrfToken } from "@/lib/csrf-client";
 
 interface WeightLog {
   id: string;
   weight_kg: number;
   photo_url: string | null;
   logged_at: string;
-}
-
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
-  return null;
 }
 
 export function useWeightTracking() {
@@ -43,7 +36,7 @@ export function useWeightTracking() {
       if (weightPhoto) fd.append("photo", weightPhoto);
 
       const headers: HeadersInit = {};
-      const csrfToken = getCookie("csrf-token");
+      const csrfToken = await getCsrfToken();
       if (csrfToken) {
         headers["x-csrf-token"] = csrfToken;
       }

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyCSRFToken } from "@/lib/csrf";
 
@@ -15,14 +15,15 @@ export async function middleware(request: NextRequest) {
   );
 
   // CSRF check for all POST/PUT/DELETE to /api/
-  // Exceptions: GET requests, cron endpoints (they have their own secret-based auth)
+  // Exceptions: GET requests, cron endpoints, login (unauthenticated endpoints)
   if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/")) {
     const pathname = request.nextUrl.pathname;
 
-    // Skip CSRF only for cron endpoints (they have their own secret-based auth)
+    // Skip CSRF for cron endpoints and login (unauthenticated endpoints don't need CSRF)
     const isCronEndpoint = pathname.includes("/cron/");
+    const isLoginEndpoint = pathname.includes("/auth/login");
 
-    if (!isCronEndpoint) {
+    if (!isCronEndpoint && !isLoginEndpoint) {
       const csrfToken = request.headers.get("x-csrf-token");
 
       if (!csrfToken || !(await verifyCSRFToken(csrfToken))) {

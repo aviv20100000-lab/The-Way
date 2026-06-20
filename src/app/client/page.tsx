@@ -223,15 +223,7 @@ export default function ClientPage() {
 
             {aiResult && (() => {
               const grams = aiResult.items.map((it, i) => itemGrams[i] ?? it.estimated_weight_g);
-              const scaled = aiResult.items.map((it, i) => {
-                const r = it.estimated_weight_g > 0 ? grams[i] / it.estimated_weight_g : 1;
-                return {
-                  calories: Math.round(it.calories * r),
-                  carbs: Math.round(it.carbs_g * r),
-                  protein: Math.round(it.protein_g * r),
-                  fat: Math.round(it.fat_g * r),
-                };
-              });
+              const scaled = scaleFoodMacros(aiResult.items, grams);
               const total = scaled.reduce((s, x) => s + x.calories, 0);
 
               return (
@@ -248,46 +240,18 @@ export default function ClientPage() {
                           <p className="font-medium text-gray-800">{item.name}</p>
                           <p className="font-bold text-orange-500">{scaled[i].calories} קל'</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() =>
-                              setItemGrams((prev) => {
-                                const base = aiResult.items.map((it, idx) => prev[idx] ?? it.estimated_weight_g);
-                                base[i] = Math.max(5, base[i] - 10);
-                                return base;
-                              })
-                            }
-                            className="h-9 w-9 rounded-lg bg-white border border-gray-200 text-lg font-bold"
-                          >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            value={grams[i]}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value, 10) || 5;
-                              setItemGrams((prev) => {
-                                const base = aiResult.items.map((it, idx) => prev[idx] ?? it.estimated_weight_g);
-                                base[i] = Math.max(5, val);
-                                return base;
-                              });
-                            }}
-                            className="w-16 rounded-lg border border-gray-200 bg-white py-1 text-center font-semibold"
-                          />
-                          <span className="text-sm text-gray-400">גרם</span>
-                          <button
-                            onClick={() =>
-                              setItemGrams((prev) => {
-                                const base = aiResult.items.map((it, idx) => prev[idx] ?? it.estimated_weight_g);
-                                base[i] = Math.max(5, base[i] + 10);
-                                return base;
-                              })
-                            }
-                            className="h-9 w-9 rounded-lg bg-white border border-gray-200 text-lg font-bold"
-                          >
-                            ＋
-                          </button>
-                        </div>
+                        <FoodItemGramAdjuster
+                          itemIndex={i}
+                          currentGrams={grams[i]}
+                          estimatedGrams={item.estimated_weight_g}
+                          onChangeGrams={(idx, newGrams) => {
+                            setItemGrams((prev) => {
+                              const base = aiResult.items.map((it, idx) => prev[idx] ?? it.estimated_weight_g);
+                              base[idx] = newGrams;
+                              return base;
+                            });
+                          }}
+                        />
                       </div>
                     ))}
                   </div>

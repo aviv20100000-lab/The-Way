@@ -106,7 +106,12 @@
       "Bash(sed -i '/initial=/d; /animate=/d; /transition=/d; /whileHover=/d; /whileTap=/d' src/app/login/page.tsx)",
       "Bash(grep -E \"\\\\.\\(tsx?|json\\)$\")",
       "Bash(npm test *)",
-      "Bash(cd \"/c/Users/owner/OneDrive/שולחן העבודה/The Way\" && find . -name \".gitignore\" -type f | head -5)"
+      "Bash(cd \"/c/Users/owner/OneDrive/שולחן העבודה/The Way\" && find . -name \".gitignore\" -type f | head -5)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(pkill -f \"next dev\")",
+      "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "Bash(curl -s -I http://localhost:3000)"
     ]
   }
 }

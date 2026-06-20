@@ -52,13 +52,32 @@
   --line-height-relaxed: 1.75;
 }
 
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+.dark {
+  color-scheme: dark;
+}
+
 * {
   @apply border-neutral-200;
+}
+
+.dark * {
+  @apply border-neutral-700;
 }
 
 html {
   @apply bg-white text-black-matte;
   scroll-behavior: smooth;
+}
+
+.dark {
+  @apply bg-neutral-900 text-neutral-50;
 }
 
 body {
@@ -84,6 +103,10 @@ img {
   @apply outline-none ring-3 ring-white ring-offset-2 ring-offset-primary-600 shadow-lg;
 }
 
+.dark :focus-visible {
+  @apply ring-offset-neutral-900;
+}
+
 button:focus-visible {
   @apply ring-3 ring-white ring-offset-2 ring-offset-primary-600 shadow-lg scale-105 transition-transform duration-200;
 }
@@ -92,6 +115,12 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   @apply ring-2 ring-primary-600 ring-offset-2 border-transparent bg-white transition-all duration-200;
+}
+
+.dark input:focus-visible,
+.dark textarea:focus-visible,
+.dark select:focus-visible {
+  @apply bg-neutral-800 text-neutral-50;
 }
 
 /* Reduce motion for users who prefer it */
@@ -104,47 +133,47 @@ select:focus-visible {
 /* Typography hierarchy — clean, elegant, minimal */
 @layer utilities {
   .text-display-lg {
-    @apply text-4xl font-bold leading-tight text-black-matte;
+    @apply text-4xl font-bold leading-tight text-black-matte dark:text-neutral-50;
   }
 
   .text-display-base {
-    @apply text-3xl font-bold leading-tight text-black-matte;
+    @apply text-3xl font-bold leading-tight text-black-matte dark:text-neutral-50;
   }
 
   .text-display-sm {
-    @apply text-2xl font-semibold leading-snug text-black-matte;
+    @apply text-2xl font-semibold leading-snug text-black-matte dark:text-neutral-50;
   }
 
   .text-heading-lg {
-    @apply text-2xl font-semibold leading-snug text-black-matte;
+    @apply text-2xl font-semibold leading-snug text-black-matte dark:text-neutral-50;
   }
 
   .text-heading-base {
-    @apply text-lg font-semibold leading-relaxed text-black-matte;
+    @apply text-lg font-semibold leading-relaxed text-black-matte dark:text-neutral-50;
   }
 
   .text-heading-sm {
-    @apply text-base font-semibold leading-relaxed text-black-matte;
+    @apply text-base font-semibold leading-relaxed text-black-matte dark:text-neutral-100;
   }
 
   .text-body-lg {
-    @apply text-base font-normal leading-relaxed text-neutral-700;
+    @apply text-base font-normal leading-relaxed text-neutral-700 dark:text-neutral-200;
   }
 
   .text-body-base {
-    @apply text-sm font-normal leading-normal text-neutral-600;
+    @apply text-sm font-normal leading-normal text-neutral-600 dark:text-neutral-300;
   }
 
   .text-body-sm {
-    @apply text-xs font-normal leading-normal text-neutral-500;
+    @apply text-xs font-normal leading-normal text-neutral-500 dark:text-neutral-400;
   }
 
   .text-caption {
-    @apply text-xs font-normal leading-snug text-neutral-500;
+    @apply text-xs font-normal leading-snug text-neutral-500 dark:text-neutral-400;
   }
 
   .text-caption-muted {
-    @apply text-xs font-normal leading-snug text-neutral-400;
+    @apply text-xs font-normal leading-snug text-neutral-400 dark:text-neutral-500;
   }
 }
 
@@ -163,7 +192,7 @@ select:focus-visible {
 
 /* Premium card containers */
 .premium-card {
-  @apply rounded-2xl bg-white shadow-card overflow-hidden transition-all duration-300 hover:shadow-lg;
+  @apply rounded-2xl bg-white dark:bg-neutral-800 shadow-card overflow-hidden transition-all duration-300 hover:shadow-lg;
 }
 
 /* RTL-safe button elevations */
@@ -172,7 +201,7 @@ select:focus-visible {
 }
 
 .btn-primary:focus-visible {
-  @apply ring-2 ring-primary-600 ring-offset-2;
+  @apply ring-2 ring-primary-600 ring-offset-2 dark:ring-offset-neutral-900;
 }
 
 /* Micro-interactions */

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { verifyCSRFToken } from "@/lib/csrf";
 
-export async function middleware(request: NextRequest) {
+export function middleware() {
   const response = NextResponse.next();
 
   // Security headers applied to every response.
@@ -15,26 +13,12 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com https://*.anthropic.com;"
   );
 
-  // CSRF protection for state-changing requests (double-submit cookie token pattern)
-  // SameSite cookie alone is not sufficient for modern CSRF attacks
-  // Exceptions: cron endpoints (secret-based auth), GET requests
-  if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/")) {
-    const pathname = request.nextUrl.pathname;
-
-    // Skip CSRF only for cron endpoints (they have their own secret-based auth)
-    const isCronEndpoint = pathname.includes("/cron/");
-
-    if (!isCronEndpoint) {
-      const csrfToken = request.headers.get("x-csrf-token");
-
-      if (!csrfToken || !(await verifyCSRFToken(csrfToken))) {
-        return NextResponse.json(
-          { error: "בקשה לא תקינה (CSRF token missing)" },
-          { status: 403 }
-        );
-      }
-    }
-  }
+  // NOTE: No CSRF-token check here. The session cookie is set with
+  // `sameSite: "lax"` + `httpOnly` (see src/lib/auth.ts), which already prevents
+  // cross-site requests from carrying the user's session — that is the actual
+  // CSRF protection. The previous custom double-submit token layer was redundant,
+  // crashed in the Edge runtime (Node `crypto` is unsupported there), and
+  // repeatedly broke legitimate requests (login, weight, food logging).
 
   return response;
 }

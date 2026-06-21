@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
     args: [user.id],
   });
 
-  const logs = logsRes.rows.reverse();
+  // Keep newest-first (matches the client, which treats logs[0] as the current weight)
+  const logs = logsRes.rows;
   const target = goalRes.rows[0]?.target_weight_kg || null;
 
   return NextResponse.json({ logs, target });

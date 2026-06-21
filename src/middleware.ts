@@ -32,8 +32,9 @@ export async function middleware(request: NextRequest) {
   if (request.method === "POST" && request.nextUrl.pathname.startsWith("/api/")) {
     const pathname = request.nextUrl.pathname;
     const isCronEndpoint = pathname.includes("/cron/");
+    const isGenerateImageEndpoint = pathname.includes("/generate-water-image");
 
-    if (!isCronEndpoint) {
+    if (!isCronEndpoint && !isGenerateImageEndpoint) {
       const csrfToken = request.headers.get("x-csrf-token");
       const cookieToken = request.cookies.get("csrf-token")?.value;
       if (!csrfToken || !cookieToken || !timingSafeEqual(csrfToken, cookieToken)) {

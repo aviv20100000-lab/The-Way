@@ -126,6 +126,14 @@ export async function initDb() {
       total_calories INTEGER,
       logged_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS water_streak (
+      user_id TEXT PRIMARY KEY REFERENCES users(id),
+      current_streak INTEGER NOT NULL DEFAULT 0,
+      last_completed_date TEXT,
+      best_streak INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 

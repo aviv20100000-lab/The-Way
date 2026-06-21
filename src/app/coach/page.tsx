@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import MealHistory from "@/components/MealHistory";
+import { withCsrf } from "@/lib/csrf-client";
 
 type CoachTab = "clients" | "food" | "quotes" | "leaderboard";
 
@@ -153,7 +154,7 @@ export default function CoachPage() {
     });
     await fetch("/api/push/subscribe", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await withCsrf({ "Content-Type": "application/json" }),
       body: JSON.stringify(sub),
     });
   }
@@ -165,7 +166,7 @@ export default function CoachPage() {
   }, [tab, loadQuotes, loadFoodLogs, loadLeaderboard]);
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch("/api/auth/logout", { method: "POST", headers: await withCsrf() });
     router.push("/login");
   }
 
@@ -173,7 +174,7 @@ export default function CoachPage() {
     setAddError("");
     const res = await fetch("/api/users/clients", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await withCsrf({ "Content-Type": "application/json" }),
       body: JSON.stringify(newClient),
     });
     const data = await res.json();
@@ -206,7 +207,7 @@ export default function CoachPage() {
     setSavingGoals(true);
     await fetch("/api/users/goals", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await withCsrf({ "Content-Type": "application/json" }),
       body: JSON.stringify({ userId: selectedClient.id, ...clientGoals }),
     });
     setSavingGoals(false);
@@ -218,7 +219,7 @@ export default function CoachPage() {
     setAddingQuote(true);
     await fetch("/api/motivation/quotes", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await withCsrf({ "Content-Type": "application/json" }),
       body: JSON.stringify(newQuote),
     });
     setNewQuote({ text: "", author: "" });
@@ -232,7 +233,7 @@ export default function CoachPage() {
     setPushResult("");
     const res = await fetch("/api/push/send", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await withCsrf({ "Content-Type": "application/json" }),
       body: JSON.stringify({ title: pushTitle, body: pushBody }),
     });
     const data = await res.json();

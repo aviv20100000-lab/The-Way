@@ -103,6 +103,36 @@ export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) 
   return parseFoodResponse(content.text);
 }
 
+export async function estimateNutritionByName(name: string, grams: number) {
+  const prompt = `A user is logging a food item by name. Estimate its nutrition for the given portion.
+Food name (may be in Hebrew): "${name}"
+Portion weight: ${grams} grams
+
+Return ONLY a raw JSON object (no markdown, no explanation) with realistic estimates for that exact weight:
+{"calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>}
+All values are for the full ${grams}g portion. Round to whole numbers. Never return zeros for a real food — give your best estimate.`;
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 256,
+    messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+  });
+
+  const content = response.content[0];
+  if (content.type !== "text") throw new Error("Unexpected response type");
+
+  const parsed = parseFoodResponse(content.text) as {
+    calories?: number; protein?: number; carbs?: number; fat?: number; raw?: string;
+  };
+
+  return {
+    calories: Math.max(0, Math.round(Number(parsed.calories) || 0)),
+    protein_g: Math.max(0, Math.round(Number(parsed.protein) || 0)),
+    carbs_g: Math.max(0, Math.round(Number(parsed.carbs) || 0)),
+    fat_g: Math.max(0, Math.round(Number(parsed.fat) || 0)),
+  };
+}
+
 const STEPS_PROMPT = `This is a screenshot from iPhone Health app or similar. Extract the number of steps shown.
 Return ONLY a JSON object: {"steps": <number>}
 If you cannot find a step count, return {"steps": 0}`;

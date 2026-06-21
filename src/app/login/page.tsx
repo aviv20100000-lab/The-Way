@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getCsrfToken } from "@/lib/csrf-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,9 +16,13 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    const csrfToken = await getCsrfToken();
+    if (csrfToken) headers["x-csrf-token"] = csrfToken;
+
     const res = await fetch("/api/auth/login", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ email, password }),
     });
 

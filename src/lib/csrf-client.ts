@@ -26,3 +26,9 @@ export async function getCsrfToken(): Promise<string | null> {
   }
   return getCookie("csrf-token");
 }
+
+// Convenience: merge the CSRF token into a headers object for a state-changing fetch.
+export async function withCsrf(headers: HeadersInit = {}): Promise<HeadersInit> {
+  const token = await getCsrfToken();
+  return token ? { ...headers, "x-csrf-token": token } : headers;
+}

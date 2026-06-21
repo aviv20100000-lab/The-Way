@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getCsrfToken } from "@/lib/csrf-client";
 
 interface User {
   id: string;
@@ -35,7 +36,10 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      const headers: HeadersInit = {};
+      const csrfToken = await getCsrfToken();
+      if (csrfToken) headers["x-csrf-token"] = csrfToken;
+      await fetch("/api/auth/logout", { method: "POST", headers });
       router.push("/login");
     } catch (e) {
       console.error("Logout failed:", e);

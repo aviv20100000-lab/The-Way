@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { compressImageToJpeg } from "@/lib/image-compression";
+import { getCsrfToken } from "@/lib/csrf-client";
 
 interface LeaderboardEntry {
   id: string;
@@ -33,7 +34,10 @@ export function useStepsTracking() {
         const jpeg = await compressImageToJpeg(file);
         const fd = new FormData();
         fd.append("screenshot", jpeg);
-        const res = await fetch("/api/health/steps", { method: "POST", body: fd });
+        const headers: HeadersInit = {};
+        const csrfToken = await getCsrfToken();
+        if (csrfToken) headers["x-csrf-token"] = csrfToken;
+        const res = await fetch("/api/health/steps", { method: "POST", body: fd, headers });
         const data = await res.json();
         if (res.ok) {
           setTodaySteps(data.steps);

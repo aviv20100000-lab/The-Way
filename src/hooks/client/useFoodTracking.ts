@@ -33,6 +33,7 @@ export function useFoodTracking() {
   const [myMeals, setMyMeals] = useState<MyMeal[]>([]);
   const [todayCalories, setTodayCalories] = useState(0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
+  const [estimatingIndex, setEstimatingIndex] = useState<number | null>(null);
 
   const analyzeFood = useCallback(async (file: File) => {
     setAnalyzing(true);
@@ -102,6 +103,55 @@ export function useFoodTracking() {
       });
       return { ...prev, items };
     });
+  }, []);
+
+  // Ask the AI to identify calories/macros for a (manually edited) item by its name + grams.
+  const estimateItemNutrition = useCallback(async (index: number) => {
+    let target: { name: string; grams: number } | null = null;
+    setAiResult((prev) => {
+      const it = prev?.items[index];
+      if (it) target = { name: it.name.trim(), grams: it.estimated_weight_g };
+      return prev;
+    });
+    if (!target || !target.name) return;
+
+    setEstimatingIndex(index);
+    setMealSaved("idle");
+    try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      const csrfToken = await getCsrfToken();
+      if (csrfToken) headers["x-csrf-token"] = csrfToken;
+
+      const res = await fetch("/api/foods/estimate", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ name: target.name, grams: target.grams }),
+      });
+      if (!res.ok) return;
+      const n = await res.json();
+      setAiResult((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((it, i) =>
+                i === index
+                  ? {
+                      ...it,
+                      calories: n.calories ?? it.calories,
+                      protein_g: n.protein_g ?? it.protein_g,
+                      carbs_g: n.carbs_g ?? it.carbs_g,
+                      fat_g: n.fat_g ?? it.fat_g,
+                    }
+                  : it
+              ),
+            }
+          : prev
+      );
+    } catch (e) {
+      console.error("Error estimating nutrition:", e);
+    } finally {
+      setEstimatingIndex(null);
+    }
   }, []);
 
   const deleteItem = useCallback((index: number) => {
@@ -179,6 +229,7 @@ export function useFoodTracking() {
     myMeals,
     todayCalories,
     calorieGoal,
+    estimatingIndex,
     analyzeFood,
     logMeal,
     loadMyMeals,
@@ -186,6 +237,7 @@ export function useFoodTracking() {
     updateItemName,
     updateItemCalories,
     updateItemGrams,
+    estimateItemNutrition,
     deleteItem,
     addItem,
   };

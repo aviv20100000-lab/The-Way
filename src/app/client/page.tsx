@@ -23,7 +23,7 @@ export default function ClientPage() {
   // Hooks
   const { user, logout } = useAuth();
   const { quote, waterTotal, waterGoal, todaySteps, notifStatus, isPwa, addWater, enableNotifications } = useClientHome();
-  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, analyzeFood, logMeal, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, deleteItem, addItem } = useFoodTracking();
+  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, analyzeFood, logMeal, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, uploadingSteps, stepsSuccess, lbView, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
@@ -233,13 +233,13 @@ export default function ClientPage() {
                   </div>
 
                   <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
-                    זיהה לא נכון? אפשר לתקן שם, כמות וקלוריות 👇
+                    זיהה לא נכון? תקן את השם ולחץ 🤖 שה-AI יחשב קלוריות מחדש 👇
                   </p>
 
                   <div className="space-y-3">
                     {aiResult.items.map((item, i) => (
                       <div key={i} className="rounded-xl bg-gray-50 dark:bg-neutral-700 px-4 py-3 space-y-3">
-                        {/* Editable name + delete */}
+                        {/* Editable name + AI identify + delete */}
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
@@ -248,6 +248,15 @@ export default function ClientPage() {
                             placeholder="שם המאכל"
                             className="flex-1 rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 font-medium text-gray-800 dark:text-neutral-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                           />
+                          <button
+                            onClick={() => estimateItemNutrition(i)}
+                            disabled={estimatingIndex === i || !item.name.trim()}
+                            title="זהה קלוריות עם AI"
+                            aria-label="זהה קלוריות עם AI"
+                            className="h-9 w-9 shrink-0 rounded-lg bg-primary-100 dark:bg-primary-950 text-lg text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900 disabled:opacity-40 transition-colors"
+                          >
+                            {estimatingIndex === i ? "⏳" : "🤖"}
+                          </button>
                           <button
                             onClick={() => deleteItem(i)}
                             title="מחק פריט"

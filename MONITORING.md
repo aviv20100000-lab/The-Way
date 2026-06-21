@@ -33,16 +33,22 @@ TELEGRAM_CHAT_ID   = <ה-chat id שלך>
 
 זהו. ה-cron של Vercel כבר מריץ בדיקה יומית (07:00). אם תרצה בדיקות תכופות יותר — ראה למטה.
 
-## בדיקות תכופות (אופציונלי, מומלץ)
-תוכנית Hobby של Vercel מריצה cron רק פעם ביום. כדי לבדוק כל 5 דקות (ולתפוס גם
-מצב של "כל האתר נפל"), חבר מוניטור חיצוני **חינמי** כמו
-[UptimeRobot](https://uptimerobot.com) או [cron-job.org](https://cron-job.org)
-לכתובת:
-```
-https://the-way-app-two.vercel.app/api/cron/health-check?secret=<CRON_SECRET>
-```
-(ה-`CRON_SECRET` כבר מוגדר אצלכם ב-Vercel.) המוניטור גם יתריע בעצמו אם הנתיב
-מחזיר 503 או לא מגיב כלל.
+## בדיקות כל 5 דקות — GitHub Actions ✅ (מוגדר ופעיל)
+תוכנית Hobby של Vercel מריצה cron רק פעם ביום, אז יש workflow ב-GitHub Actions
+שבודק **כל 5 דקות**: [`.github/workflows/health-check.yml`](.github/workflows/health-check.yml).
+הוא קורא לנקודה עם `Authorization: Bearer <CRON_SECRET>`, ואם האתר לא מגיב כלל
+(שזה ה-cron של Vercel לא יכול לתפוס) — הוא שולח התראת טלגרם בעצמו וגם נכשל
+(מה ש-GitHub שולח עליו מייל לבעל הריפו).
+
+הסודות מוגדרים ב-GitHub → Settings → Secrets → Actions:
+`CRON_SECRET`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+
+הרצה ידנית: Actions → health-check → **Run workflow**. או דרך ה-API:
+`POST /repos/<owner>/<repo>/actions/workflows/health-check.yml/dispatches`.
+
+> הערה: תזמון של GitHub Actions הוא "מאמץ מיטבי" — לפעמים יש עיכוב של כמה דקות
+> בשעות עומס. לניטור uptime קפדני יותר אפשר להוסיף גם
+> [UptimeRobot](https://uptimerobot.com) מול אותה כתובת.
 
 ## בדיקה ידנית
 ```

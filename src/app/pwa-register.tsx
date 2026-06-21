@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { getCsrfToken } from "@/lib/csrf-client";
 
 const SW_VERSION = "v6";
 
@@ -55,9 +56,12 @@ export default function PwaRegister() {
                 applicationServerKey: urlBase64ToUint8Array(vapid),
               });
             }
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            const csrfToken = await getCsrfToken();
+            if (csrfToken) headers["x-csrf-token"] = csrfToken;
             await fetch("/api/push/subscribe", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers,
               body: JSON.stringify(sub),
             });
           }

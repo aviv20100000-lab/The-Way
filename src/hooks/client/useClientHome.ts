@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { getCsrfToken } from "@/lib/csrf-client";
 
 export function useClientHome() {
   const [quote, setQuote] = useState("");
@@ -40,10 +41,13 @@ export function useClientHome() {
 
   const addWater = useCallback(async (ml: number) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const csrfToken = await getCsrfToken();
+      if (csrfToken) headers["x-csrf-token"] = csrfToken;
       await fetch("/api/health/water", {
         method: "POST",
         body: JSON.stringify({ amount_ml: ml }),
-        headers: { "Content-Type": "application/json" },
+        headers,
       });
       setWaterTotal((p) => p + ml);
     } catch (e) {
@@ -75,9 +79,12 @@ export function useClientHome() {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapid),
       });
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const csrfToken = await getCsrfToken();
+      if (csrfToken) headers["x-csrf-token"] = csrfToken;
       await fetch("/api/push/subscribe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(sub),
       });
     } catch (e) {

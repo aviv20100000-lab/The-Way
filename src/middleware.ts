@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifyCSRFToken } from "@/lib/csrf";
+
+// Edge-safe constant-time string comparison.
+// NOTE: This must NOT import @/lib/csrf — that module uses next/headers cookies()
+// and Node's crypto, which crash in the Edge Runtime middleware runs in
+// (MIDDLEWARE_INVOCATION_FAILED). We do the double-submit-cookie check inline here.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
@@ -23,7 +35,8 @@ export async function middleware(request: NextRequest) {
 
     if (!isCronEndpoint) {
       const csrfToken = request.headers.get("x-csrf-token");
-      if (!csrfToken || !(await verifyCSRFToken(csrfToken))) {
+      const cookieToken = request.cookies.get("csrf-token")?.value;
+      if (!csrfToken || !cookieToken || !timingSafeEqual(csrfToken, cookieToken)) {
         return NextResponse.json(
           { error: "בקשה לא תקינה (CSRF token missing)" },
           { status: 403 }

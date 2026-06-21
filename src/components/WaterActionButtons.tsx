@@ -105,7 +105,7 @@ export function WaterActionButtons({ onAddWater, loading = false }: WaterActionB
             type="number"
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
-            placeholder="כמות במ"ל"
+            placeholder={'כמות במ״ל'}
             min="1"
             max="5000"
             className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"

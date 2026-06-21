@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWaterTracker } from '@/hooks/useWaterTracker';
 import { WaterHeroImage } from '@/components/WaterHeroImage';
@@ -22,10 +22,14 @@ export default function WaterTrackerPage() {
     deleteWater,
     undoDelete,
     getMotivationText,
+    loadWaterData,
   } = useWaterTracker();
 
   const [celebrating, setCelebrating] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartY = useRef(0);
 
   // Celebration effect when goal reached
   useEffect(() => {
@@ -38,10 +42,59 @@ export default function WaterTrackerPage() {
     }
   }, [progressPercent, celebrating]);
 
+  // Pull-to-refresh handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    setPullDistance(0);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const currentY = e.touches[0].clientY;
+    const distance = currentY - touchStartY.current;
+
+    if (distance > 0 && window.scrollY === 0) {
+      setPullDistance(distance);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 80) {
+      setRefreshing(true);
+      await loadWaterData();
+      setRefreshing(false);
+    }
+    setPullDistance(0);
+  };
+
   const motivationText = getMotivationText();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800">
+    <div
+      className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-Refresh Indicator */}
+      {pullDistance > 0 && (
+        <motion.div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center"
+          style={{ height: pullDistance }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <motion.div
+            className="text-4xl"
+            animate={{
+              rotate: refreshing ? 360 : (pullDistance / 80) * 360,
+            }}
+            transition={{ duration: refreshing ? 1 : 0, repeat: refreshing ? Infinity : 0 }}
+          >
+            {refreshing ? '⚙️' : '⬇️'}
+          </motion.div>
+        </motion.div>
+      )}
+
       {/* Confetti Animation */}
       <AnimatePresence>
         {showConfetti &&

@@ -1,0 +1,53 @@
+name: health-check
+
+# Pings the production health-check endpoint every 5 minutes. The endpoint
+# itself sends a detailed Telegram alert on a state change (ok<->fail). If the
+# site is completely unreachable the endpoint can't self-alert, so this workflow
+# sends the Telegram alert instead. A failed run also emails the repo owner.
+#
+# Secrets required (already configured): CRON_SECRET, TELEGRAM_BOT_TOKEN,
+# TELEGRAM_CHAT_ID.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: health-check
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping health-check endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          code=$(curl -s -o body.json -w "%{http_code}" --max-time 30 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://the-way-app-two.vercel.app/api/cron/health-check" || echo "000")
+          echo "HTTP status: $code"
+          cat body.json 2>/dev/null || true
+          echo
+
+          if [ "$code" = "200" ]; then
+            echo "✅ healthy"
+            exit 0
+          fi
+
+          if [ "$code" = "000" ]; then
+            # Total outage: the endpoint couldn't alert, so we do it from here.
+            curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+              -H "Content-Type: application/json" \
+              --data '{"chat_id":"'"${TG_CHAT}"'","text":"🚨 THE WAY — האתר לא מגיב כלל (health-check unreachable). ייתכן שכל הפרודקשן למטה."}' >/dev/null
+            echo "❌ site unreachable — Telegram alert sent"
+          else
+            # e.g. 503: the endpoint already sent its own detailed alert on state change.
+            echo "❌ unhealthy (HTTP $code) — endpoint sends its own detailed alert"
+          fi
+          exit 1

@@ -165,12 +165,12 @@ export function useWaterTracker() {
 
   // Get motivation text
   const getMotivationText = (): string => {
-    if (progressPercent === 0) return 'כמעט התחלת! 💪 עוד ' + (waterGoal - waterTotal) + ' מ"ל ליעד';
-    if (progressPercent < 25) return 'כמעט התחלת! 💪 עוד ' + (waterGoal - waterTotal) + ' מ"ל ליעד';
-    if (progressPercent < 50) return 'חצי הדרך! 🏃 תמשיך, אתה יכול!';
-    if (progressPercent < 75) return 'סוף קצר! 🎯 עוד קצת ואתה שם';
-    if (progressPercent < 100) return 'כמעט שם! 🔥 עוד ' + (waterGoal - waterTotal) + ' מ"ל';
-    return 'הגעת ליעד! 🎉 מיוחד ממש!';
+    if (progressPercent === 0) return 'התחלה טובה! עוד קצת ויגיע אליך 💪';
+    if (progressPercent < 25) return 'התחלה טובה! עוד קצת ויגיע אליך 💪';
+    if (progressPercent < 50) return 'באמצע הדרך! המשך בקצב הזה 🔥';
+    if (progressPercent < 75) return 'כמעט שם! עוד דחיפה אחרונה 🎯';
+    if (progressPercent < 100) return 'כמעט הגעת! מטר אחד עוד ✨';
+    return 'כל הכבוד! הגעת למטרה 🎉';
   };
 
   useEffect(() => {

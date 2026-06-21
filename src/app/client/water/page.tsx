@@ -82,10 +82,10 @@ export default function WaterTrackerPage() {
           transition={{ duration: 0.4 }}
         >
           <h1 className="text-display-lg font-black text-neutral-900 dark:text-white text-right">
-            עומק הביצה
+            שמור על עצמך
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400 text-right mt-1">
-            עקוב אחרי שתיית המיים שלך היום
+            יומן ההידרציה שלי - עדכון יומי
           </p>
         </motion.div>
 

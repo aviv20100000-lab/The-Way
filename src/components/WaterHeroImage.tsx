@@ -1,62 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
+const gradients = [
+  'from-cyan-400 via-blue-500 to-indigo-600',
+  'from-emerald-400 via-green-500 to-teal-600',
+  'from-blue-400 via-cyan-500 to-sky-600',
+  'from-indigo-400 via-purple-500 to-pink-600',
+  'from-teal-400 via-cyan-500 to-blue-600',
+  'from-sky-400 via-blue-500 to-indigo-600',
+  'from-cyan-300 via-blue-400 to-purple-600',
+  'from-emerald-300 via-teal-500 to-cyan-600',
+];
+
+const emojis = ['💧', '💪', '🏃', '⚡', '🎯', '✨', '🔥', '🌟'];
+
 export function WaterHeroImage() {
-  const [imageUrl, setImageUrl] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchImage = async () => {
-      try {
-        const res = await fetch('/api/generate-water-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        const data = await res.json();
-        if (data.imageUrl) {
-          setImageUrl(data.imageUrl);
-        }
-      } catch (err) {
-        console.error('Error fetching image:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchImage();
-  }, []);
+  const randomGradient = gradients[Math.floor(Math.random() * gradients.length)];
+  const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
 
   return (
     <motion.div
-      className="relative rounded-3xl overflow-hidden shadow-lg aspect-square w-full mb-6 bg-gradient-to-br from-neutral-200 to-neutral-300"
+      className={`relative rounded-3xl overflow-hidden shadow-lg aspect-square w-full mb-6 bg-gradient-to-br ${randomGradient}`}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {imageUrl && (
-        <motion.img
-          src={imageUrl}
-          alt="Motivation - Woman drinking water"
-          className="w-full h-full object-cover"
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-        />
-      )}
-
       {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/40" />
 
-      {/* Loading Skeleton */}
-      {loading && (
-        <div className="absolute inset-0 bg-gradient-to-r from-neutral-300 via-neutral-200 to-neutral-300 animate-pulse" />
-      )}
+      {/* Center Emoji */}
+      <motion.div
+        className="absolute inset-0 flex items-center justify-center"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.6, type: 'spring', stiffness: 100 }}
+      >
+        <span className="text-9xl">{randomEmoji}</span>
+      </motion.div>
 
       {/* Overlay Text */}
       <motion.div
-        className="absolute bottom-4 left-5 text-white"
+        className="absolute bottom-4 right-5 text-white"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.3 }}

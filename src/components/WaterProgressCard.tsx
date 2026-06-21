@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ProgressRing } from './ProgressRing';
+import ProgressRing from './ProgressRing';
 
 interface WaterProgressCardProps {
   waterTotal: number;

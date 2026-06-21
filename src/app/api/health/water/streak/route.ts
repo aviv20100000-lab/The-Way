@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { getSession } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession(request);
-    if (!session?.userId) {
+    const user = await getSessionUser();
+    if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       sql: `SELECT current_streak, last_completed_date, best_streak
             FROM water_streak
             WHERE user_id = ?`,
-      args: [session.userId],
+      args: [user.id],
     });
 
     const streak = result.rows[0] || {
@@ -27,14 +27,14 @@ export async function GET(request: NextRequest) {
     const waterResult = await db.execute({
       sql: `SELECT SUM(amount_ml) as total FROM water_logs
             WHERE user_id = ? AND date(logged_at) = ?`,
-      args: [session.userId, today],
+      args: [user.id, today],
     });
 
     const waterTotal = (waterResult.rows[0]?.total as number) || 0;
 
     const goalResult = await db.execute({
       sql: `SELECT daily_water_ml FROM goals WHERE user_id = ?`,
-      args: [session.userId],
+      args: [user.id],
     });
 
     const dailyGoal = (goalResult.rows[0]?.daily_water_ml as number) || 2000;

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { getSession } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getSession(request);
-    if (!session?.userId) {
+    const user = await getSessionUser();
+    if (!user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,7 +17,7 @@ export async function DELETE(
     // Verify the water log belongs to the user
     const logResult = await db.execute({
       sql: `SELECT amount_ml FROM water_logs WHERE id = ? AND user_id = ?`,
-      args: [id, session.userId],
+      args: [id, user.id],
     });
 
     if (!logResult.rows.length) {
@@ -32,7 +32,7 @@ export async function DELETE(
     // Delete the log
     await db.execute({
       sql: `DELETE FROM water_logs WHERE id = ? AND user_id = ?`,
-      args: [id, session.userId],
+      args: [id, user.id],
     });
 
     return NextResponse.json({

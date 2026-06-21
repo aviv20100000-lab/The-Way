@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import MealHistory from "@/components/MealHistory";
 import ProgressRing from "@/components/ProgressRing";
 import { PhotoUpload } from "@/components/PhotoUpload";
@@ -15,7 +16,11 @@ import {
   useStepsTracking,
 } from "@/hooks";
 
-type Tab = "home" | "food" | "weight" | "steps";
+const WaterTrackerTab = dynamic(() => import("@/app/client/water/page"), {
+  loading: () => <div className="text-center py-8">טוען...</div>,
+});
+
+type Tab = "home" | "food" | "weight" | "steps" | "water";
 
 export default function ClientPage() {
   const [tab, setTab] = useState<Tab>("home");
@@ -340,6 +345,16 @@ export default function ClientPage() {
         )}
 
         {/* WEIGHT TAB */}
+        {tab === "water" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <WaterTrackerTab />
+          </motion.div>
+        )}
+
         {tab === "weight" && (
           <div className="space-y-6">
             <motion.h2
@@ -522,6 +537,7 @@ export default function ClientPage() {
             {[
               { id: "home" as Tab, icon: "🏠", label: "בית" },
               { id: "food" as Tab, icon: "🍽️", label: "אוכל" },
+              { id: "water" as Tab, icon: "💧", label: "מים" },
               { id: "weight" as Tab, icon: "⚖️", label: "משקל" },
               { id: "steps" as Tab, icon: "👟", label: "תחרות" },
             ].map((t) => (

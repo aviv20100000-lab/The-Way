@@ -30,7 +30,7 @@ jobs:
         run: |
           code=$(curl -s -o body.json -w "%{http_code}" --max-time 30 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "https://the-way-app-two.vercel.app/api/cron/health-check" || echo "000")
+            "https://the-way-app-two.vercel.app/api/cron/csrf-broken" || echo "000")
           echo "HTTP status: $code"
           cat body.json 2>/dev/null || true
           echo

@@ -7,7 +7,6 @@ import ProgressRing from "@/components/ProgressRing";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { FoodItemGramAdjuster } from "@/components/FoodItemGramAdjuster";
 import { WeightJourney } from "@/components/WeightJourney";
-import { scaleFoodMacros } from "@/lib/nutrition-calculations";
 import {
   useAuth,
   useClientHome,
@@ -24,7 +23,7 @@ export default function ClientPage() {
   // Hooks
   const { user, logout } = useAuth();
   const { quote, waterTotal, waterGoal, todaySteps, notifStatus, isPwa, addWater, enableNotifications } = useClientHome();
-  const { analyzing, aiResult, foodError, itemGrams, mealSaved, myMeals, todayCalories, calorieGoal, setItemGrams, analyzeFood, logMeal, resetAiResult } = useFoodTracking();
+  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, analyzeFood, logMeal, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, deleteItem, addItem } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, uploadingSteps, stepsSuccess, lbView, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
@@ -223,9 +222,7 @@ export default function ClientPage() {
             <PhotoUpload onFile={analyzeFood} isLoading={analyzing} error={foodError} />
 
             {aiResult && (() => {
-              const grams = aiResult.items.map((it, i) => itemGrams[i] ?? it.estimated_weight_g);
-              const scaled = scaleFoodMacros(aiResult.items, grams);
-              const total = scaled.reduce((s, x) => s + x.calories, 0);
+              const total = aiResult.items.reduce((s, it) => s + (it.calories || 0), 0);
 
               return (
                 <div className="rounded-2xl bg-white dark:bg-neutral-800 p-5 shadow-xs space-y-4">
@@ -234,49 +231,88 @@ export default function ClientPage() {
                     <div className="text-4xl font-bold text-orange-500">{total}</div>
                     <div className="text-sm text-gray-400 dark:text-gray-500">קלוריות</div>
                   </div>
+
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
+                    זיהה לא נכון? אפשר לתקן שם, כמות וקלוריות 👇
+                  </p>
+
                   <div className="space-y-3">
                     {aiResult.items.map((item, i) => (
-                      <div key={i} className="rounded-xl bg-gray-50 dark:bg-neutral-700 px-4 py-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium text-gray-800 dark:text-neutral-100">{item.name}</p>
-                          <p className="font-bold text-orange-500">{scaled[i].calories} קל'</p>
+                      <div key={i} className="rounded-xl bg-gray-50 dark:bg-neutral-700 px-4 py-3 space-y-3">
+                        {/* Editable name + delete */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updateItemName(i, e.target.value)}
+                            placeholder="שם המאכל"
+                            className="flex-1 rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 font-medium text-gray-800 dark:text-neutral-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                          />
+                          <button
+                            onClick={() => deleteItem(i)}
+                            title="מחק פריט"
+                            aria-label="מחק פריט"
+                            className="h-9 w-9 shrink-0 rounded-lg bg-red-50 dark:bg-red-950 text-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
+                          >
+                            🗑️
+                          </button>
                         </div>
-                        <FoodItemGramAdjuster
-                          itemIndex={i}
-                          currentGrams={grams[i]}
-                          estimatedGrams={item.estimated_weight_g}
-                          onChangeGrams={(idx, newGrams) => {
-                            setItemGrams((prev) => {
-                              const base = aiResult.items.map((it, idx) => prev[idx] ?? it.estimated_weight_g);
-                              base[idx] = newGrams;
-                              return base;
-                            });
-                          }}
-                        />
+
+                        {/* Grams adjuster + editable calories */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <FoodItemGramAdjuster
+                            itemIndex={i}
+                            currentGrams={item.estimated_weight_g}
+                            estimatedGrams={item.estimated_weight_g}
+                            onChangeGrams={(idx, newGrams) => updateItemGrams(idx, newGrams)}
+                          />
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={item.calories}
+                              onChange={(e) => updateItemCalories(i, parseInt(e.target.value, 10) || 0)}
+                              min="0"
+                              className="h-9 w-20 rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-center font-bold text-orange-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                            />
+                            <span className="text-sm font-semibold text-orange-500">קל'</span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Add a missing item */}
+                  <button
+                    onClick={addItem}
+                    className="w-full rounded-xl border border-dashed border-neutral-300 dark:border-neutral-600 py-2.5 text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-all"
+                  >
+                    ➕ הוסף פריט
+                  </button>
+
                   {mealSaved === "saved" ? (
                     <div className="rounded-xl bg-green-50 dark:bg-green-950 py-3 text-center font-semibold text-primary-600 dark:text-primary-400">✅ נשמר!</div>
                   ) : (
                     <motion.button
                       onClick={() =>
                         logMeal(
-                          aiResult.items.map((it, i) => ({
+                          aiResult.items.map((it) => ({
                             name: it.name,
-                            calories: scaled[i].calories,
-                            estimated_weight_g: grams[i],
+                            calories: it.calories,
+                            estimated_weight_g: it.estimated_weight_g,
                           })),
                           total
                         )
                       }
-                      disabled={mealSaved === "saving"}
+                      disabled={mealSaved === "saving" || aiResult.items.length === 0}
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
                       className="w-full rounded-xl bg-green-600 dark:bg-green-700 py-3 font-semibold text-white hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 transition-all"
                     >
                       {mealSaved === "saving" ? "שומר..." : "✅ שמור"}
                     </motion.button>
+                  )}
+                  {mealSaved === "error" && (
+                    <p className="text-center text-sm text-red-600 dark:text-red-400">שמירה נכשלה, נסה שוב</p>
                   )}
                   <motion.button
                     onClick={resetAiResult}

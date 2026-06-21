@@ -67,8 +67,8 @@ export function FoodItemGramAdjuster({
         +
       </motion.button>
 
-      <span className="text-xs text-neutral-500 min-w-fit">
-        {estimatedGrams}g
+      <span className="text-xs text-neutral-500 dark:text-neutral-400 min-w-fit">
+        גרם
       </span>
     </motion.div>
   );

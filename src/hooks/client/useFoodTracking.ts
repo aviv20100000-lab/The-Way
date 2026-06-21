@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { compressImageToJpeg } from "@/lib/image-compression";
 import { getCsrfToken } from "@/lib/csrf-client";
 
@@ -29,7 +29,6 @@ export function useFoodTracking() {
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [foodError, setFoodError] = useState("");
-  const [itemGrams, setItemGrams] = useState<number[]>([]);
   const [mealSaved, setMealSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [myMeals, setMyMeals] = useState<MyMeal[]>([]);
   const [todayCalories, setTodayCalories] = useState(0);
@@ -39,6 +38,7 @@ export function useFoodTracking() {
     setAnalyzing(true);
     setFoodError("");
     setAiResult(null);
+    setMealSaved("idle");
     try {
       const jpeg = await compressImageToJpeg(file);
       const fd = new FormData();
@@ -58,10 +58,70 @@ export function useFoodTracking() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setAiResult(data);
+      setMealSaved("idle");
     } catch (e: unknown) {
       setFoodError(e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
     }
     setAnalyzing(false);
+  }, []);
+
+  // --- Manual editing of the AI-detected items ---
+  const updateItemName = useCallback((index: number, name: string) => {
+    setMealSaved("idle");
+    setAiResult((prev) =>
+      prev ? { ...prev, items: prev.items.map((it, i) => (i === index ? { ...it, name } : it)) } : prev
+    );
+  }, []);
+
+  const updateItemCalories = useCallback((index: number, calories: number) => {
+    setMealSaved("idle");
+    const safe = Math.max(0, Math.round(Number.isFinite(calories) ? calories : 0));
+    setAiResult((prev) =>
+      prev ? { ...prev, items: prev.items.map((it, i) => (i === index ? { ...it, calories: safe } : it)) } : prev
+    );
+  }, []);
+
+  // Adjusting grams scales the item's calories/macros proportionally.
+  const updateItemGrams = useCallback((index: number, newGrams: number) => {
+    setMealSaved("idle");
+    const grams = Math.max(1, Math.round(newGrams));
+    setAiResult((prev) => {
+      if (!prev) return prev;
+      const items = prev.items.map((it, i) => {
+        if (i !== index) return it;
+        const oldGrams = it.estimated_weight_g > 0 ? it.estimated_weight_g : grams;
+        const ratio = oldGrams > 0 ? grams / oldGrams : 1;
+        return {
+          ...it,
+          estimated_weight_g: grams,
+          calories: Math.round(it.calories * ratio),
+          protein_g: Math.round((it.protein_g || 0) * ratio),
+          carbs_g: Math.round((it.carbs_g || 0) * ratio),
+          fat_g: Math.round((it.fat_g || 0) * ratio),
+        };
+      });
+      return { ...prev, items };
+    });
+  }, []);
+
+  const deleteItem = useCallback((index: number) => {
+    setMealSaved("idle");
+    setAiResult((prev) => (prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : prev));
+  }, []);
+
+  const addItem = useCallback(() => {
+    setMealSaved("idle");
+    setAiResult((prev) =>
+      prev
+        ? {
+            ...prev,
+            items: [
+              ...prev.items,
+              { name: "", estimated_weight_g: 100, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+            ],
+          }
+        : prev
+    );
   }, []);
 
   const loadMyMeals = useCallback(async () => {
@@ -108,26 +168,25 @@ export function useFoodTracking() {
   const resetAiResult = useCallback(() => {
     setAiResult(null);
     setFoodError("");
-  }, []);
-
-  useEffect(() => {
-    setItemGrams(aiResult ? aiResult.items.map((it) => it.estimated_weight_g) : []);
     setMealSaved("idle");
-  }, [aiResult]);
+  }, []);
 
   return {
     analyzing,
     aiResult,
     foodError,
-    itemGrams,
     mealSaved,
     myMeals,
     todayCalories,
     calorieGoal,
-    setItemGrams,
     analyzeFood,
     logMeal,
     loadMyMeals,
     resetAiResult,
+    updateItemName,
+    updateItemCalories,
+    updateItemGrams,
+    deleteItem,
+    addItem,
   };
 }

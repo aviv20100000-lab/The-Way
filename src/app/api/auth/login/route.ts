@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserByUsername, setSession, verifyPassword } from "@/lib/auth";
+import { getUserByUsername, getUserByEmail, setSession, verifyPassword } from "@/lib/auth";
 import { ensureSeed } from "@/lib/seed";
 import { checkRateLimit } from "@/lib/ratelimit";
 
@@ -18,7 +18,12 @@ export async function POST(req: NextRequest) {
   const { username, password } = await req.json();
   if (!username || !password) return NextResponse.json({ error: "נא למלא שם משתמש וסיסמה" }, { status: 400 });
 
-  const user = await getUserByUsername(username);
+  // Try username first, fall back to email for backward compatibility
+  let user = await getUserByUsername(username);
+  if (!user) {
+    user = await getUserByEmail(username);
+  }
+
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     return NextResponse.json({ error: "שם משתמש או סיסמה שגויים" }, { status: 401 });
   }

@@ -61,7 +61,7 @@ export function WaterMotivation({
       {/* Best Streak Info */}
       {bestStreak > 0 && (
         <p className="text-center text-sm text-neutral-600 dark:text-neutral-400">
-          סדרה הטובה ביותר: {bestStreak} ימים
+          סדרה הטובה ביותר: {bestStreak} ימים 💪 (יא כאוב!)
         </p>
       )}
     </motion.div>

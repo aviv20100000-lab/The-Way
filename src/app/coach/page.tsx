@@ -243,6 +243,21 @@ export default function CoachPage() {
     }
   }
 
+  async function sendGoodMorning() {
+    setTestingPush(true);
+    setPushResult("");
+    try {
+      const res = await fetch("/api/push/test?type=morning", {
+        method: "POST",
+        headers: await withCsrf(),
+      });
+      const data = await res.json();
+      setPushResult(data.ok ? `✅ ${data.message}` : `❌ ${data.error ?? data.message}`);
+    } finally {
+      setTestingPush(false);
+    }
+  }
+
   async function sendPush() {
     if (!pushTitle.trim() || !pushBody.trim()) return;
     setSendingPush(true);
@@ -584,6 +599,14 @@ export default function CoachPage() {
                   className="rounded-lg bg-neutral-100 px-4 py-3 text-sm font-semibold text-neutral-700 disabled:opacity-50"
                 >
                   {testingPush ? "..." : "🔔 בדיקה"}
+                </button>
+                <button
+                  onClick={sendGoodMorning}
+                  disabled={testingPush}
+                  title="שלח בוקר טוב לכולם"
+                  className="rounded-lg bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 disabled:opacity-50"
+                >
+                  {testingPush ? "..." : "🌅 בוקר טוב"}
                 </button>
               </div>
               {pushResult && <p className="text-center text-sm font-medium" style={{color: pushResult.startsWith("✅") ? "green" : "red"}}>{pushResult}</p>}

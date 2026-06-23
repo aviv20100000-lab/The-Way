@@ -15,6 +15,9 @@ export async function sendTelegramAlert(text: string): Promise<boolean> {
     return false;
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
@@ -26,6 +29,7 @@ export async function sendTelegramAlert(text: string): Promise<boolean> {
         disable_web_page_preview: true,
       }),
       cache: "no-store",
+      signal: controller.signal,
     });
 
     if (!res.ok) {
@@ -35,7 +39,10 @@ export async function sendTelegramAlert(text: string): Promise<boolean> {
     }
     return true;
   } catch (e) {
-    console.error("[telegram] send error", e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[telegram] send error", msg);
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }

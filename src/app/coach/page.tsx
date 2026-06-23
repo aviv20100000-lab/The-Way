@@ -76,6 +76,7 @@ export default function CoachPage() {
   const [pushBody, setPushBody] = useState("");
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState("");
+  const [testingPush, setTestingPush] = useState(false);
 
   // Notifications for the coach himself
   const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
@@ -225,6 +226,21 @@ export default function CoachPage() {
     setNewQuote({ text: "", author: "" });
     setAddingQuote(false);
     loadQuotes();
+  }
+
+  async function testPush() {
+    setTestingPush(true);
+    setPushResult("");
+    try {
+      const res = await fetch("/api/push/test", {
+        method: "POST",
+        headers: await withCsrf(),
+      });
+      const data = await res.json();
+      setPushResult(data.ok ? `✅ ${data.message}` : `❌ ${data.error ?? data.message}`);
+    } finally {
+      setTestingPush(false);
+    }
   }
 
   async function sendPush() {
@@ -553,14 +569,24 @@ export default function CoachPage() {
                 placeholder="תוכן"
                 className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
               />
-              <button
-                onClick={() => { try { sendPush(); } catch(e) { console.log(e); } }}
-                disabled={sendingPush || !(pushTitle?.trim()) || !(pushBody?.trim())}
-                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
-              >
-                {sendingPush ? "שולח..." : "שלח"}
-              </button>
-              {pushResult && <p className="text-center text-sm text-primary-600 font-medium">{pushResult}</p>}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { try { sendPush(); } catch(e) { console.log(e); } }}
+                  disabled={sendingPush || !(pushTitle?.trim()) || !(pushBody?.trim())}
+                  className="flex-1 rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
+                >
+                  {sendingPush ? "שולח..." : "שלח לכולם"}
+                </button>
+                <button
+                  onClick={testPush}
+                  disabled={testingPush}
+                  title="שלח התראת בדיקה לעצמך"
+                  className="rounded-lg bg-neutral-100 px-4 py-3 text-sm font-semibold text-neutral-700 disabled:opacity-50"
+                >
+                  {testingPush ? "..." : "🔔 בדיקה"}
+                </button>
+              </div>
+              {pushResult && <p className="text-center text-sm font-medium" style={{color: pushResult.startsWith("✅") ? "green" : "red"}}>{pushResult}</p>}
             </div>
 
             <div className="rounded-2xl bg-white p-4 shadow-xs space-y-3">

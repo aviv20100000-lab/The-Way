@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
 import webpush from "web-push";
 import crypto from "crypto";
+import { sendTelegramAlert } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 
 // Tel Aviv / central coast
 const LAT = 32.08;
 const LON = 34.78;
-const HOT_THRESHOLD = 30; // °C — below this, no reminder is sent
+const HOT_THRESHOLD = 28; // °C — below this, no reminder is sent
 
 function buildMessage(temp: number): { title: string; body: string } {
   const t = Math.round(temp);
@@ -18,7 +19,10 @@ function buildMessage(temp: number): { title: string; body: string } {
   if (temp >= 33) {
     return { title: "🥵 ממש חם בחוץ", body: `${t}° — שתה עכשיו לפחות כוס מים גדולה 💧` };
   }
-  return { title: "🌡️ חם היום", body: `${t}° בחוץ — זמן טוב לכוס מים 💧` };
+  if (temp >= 30) {
+    return { title: "🌡️ חם היום", body: `${t}° בחוץ — זמן טוב לכוס מים 💧` };
+  }
+  return { title: "💧 תזכורת שתייה", body: `${t}° בחוץ — אל תשכח לשתות מים היום` };
 }
 
 function timingSafeCompare(a: string, b: string): boolean {
@@ -30,17 +34,15 @@ function timingSafeCompare(a: string, b: string): boolean {
 }
 
 async function handle(req: NextRequest) {
-  // Auth: Vercel Cron sends "Authorization: Bearer <CRON_SECRET>".
-  // External cron can pass ?secret=<CRON_SECRET> instead.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    const qs = req.nextUrl.searchParams.get("secret");
-    const authValid = auth ? timingSafeCompare(auth, `Bearer ${secret}`) : false;
-    const qsValid = qs ? timingSafeCompare(qs, secret) : false;
-    if (!authValid && !qsValid) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    }
+  if (!secret) {
+    console.error("CRON_SECRET is not configured");
+    return NextResponse.json({ error: "service unavailable" }, { status: 503 });
+  }
+
+  const auth = req.headers.get("authorization");
+  if (!auth || !timingSafeCompare(auth, `Bearer ${secret}`)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   // Current temperature from Open-Meteo (free, no API key)
@@ -52,17 +54,19 @@ async function handle(req: NextRequest) {
     );
     const w = await wRes.json();
     temp = Number(w?.current?.temperature_2m);
-    if (!Number.isFinite(temp)) throw new Error("no temperature");
+    if (!Number.isFinite(temp)) throw new Error("no temperature in response");
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : String(e);
     console.error("weather fetch error:", errMsg);
-    return NextResponse.json(
-      { error: "weather fetch failed" },
-      { status: 502 }
-    );
+    await sendTelegramAlert(`⚠️ <b>Water Reminder</b> — כשל בטעינת מזג האוויר\n${errMsg}`);
+    return NextResponse.json({ error: "weather fetch failed" }, { status: 502 });
   }
 
   if (temp < HOT_THRESHOLD) {
+    await sendTelegramAlert(
+      `ℹ️ <b>Water Reminder</b> — לא נשלח\n` +
+      `🌡️ טמפרטורה: ${Math.round(temp)}° (מתחת לסף ${HOT_THRESHOLD}°)`
+    );
     return NextResponse.json({ skipped: true, temp, reason: "not hot enough" });
   }
 
@@ -80,10 +84,10 @@ async function handle(req: NextRequest) {
   })).rows;
 
   const { title, body } = buildMessage(temp);
-  const payload = JSON.stringify({ title, body, icon: "/icon-192.png" })
-    .replace(/[^\x00-\x7F]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+  const payload = JSON.stringify({ title, body, icon: "/icon-192.png" });
 
   let sent = 0;
+  let failed = 0;
   for (const sub of subs) {
     try {
       await webpush.sendNotification(
@@ -92,11 +96,20 @@ async function handle(req: NextRequest) {
       );
       sent++;
     } catch {
+      failed++;
       await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint=?", args: [sub.endpoint as string] });
     }
   }
 
-  return NextResponse.json({ ok: true, temp, sent });
+  await sendTelegramAlert(
+    `✅ <b>Water Reminder</b> — נשלח\n` +
+    `🌡️ טמפרטורה: ${Math.round(temp)}°\n` +
+    `📨 נשלח ל: ${sent} משתמשים\n` +
+    `❌ נכשל (subscription נמחקה): ${failed}\n` +
+    `📋 סה"כ subscriptions: ${subs.length}`
+  );
+
+  return NextResponse.json({ ok: true, temp, sent, failed });
 }
 
 export async function GET(req: NextRequest) {

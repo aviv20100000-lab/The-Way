@@ -11,16 +11,23 @@ interface LeaderboardEntry {
 
 export function useStepsTracking() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [foodLeaderboard, setFoodLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
   const [lbView, setLbView] = useState<"today" | "week">("today");
+  const [compType, setCompType] = useState<"steps" | "food">("steps");
   const [todaySteps, setTodaySteps] = useState(0);
 
   const loadLeaderboard = useCallback(async () => {
     try {
-      const res = await fetch("/api/health/steps?type=leaderboard");
-      const data = await res.json();
-      setLeaderboard(data);
+      const [stepsRes, foodRes] = await Promise.all([
+        fetch("/api/health/steps?type=leaderboard"),
+        fetch("/api/health/leaderboard?type=food"),
+      ]);
+      const stepsData = await stepsRes.json();
+      const foodData = await foodRes.json();
+      setLeaderboard(stepsData);
+      setFoodLeaderboard(foodData);
     } catch (e) {
       console.error("Error loading leaderboard:", e);
     }
@@ -55,11 +62,14 @@ export function useStepsTracking() {
 
   return {
     leaderboard,
+    foodLeaderboard,
     uploadingSteps,
     stepsSuccess,
     lbView,
+    compType,
     todaySteps,
     setLbView,
+    setCompType,
     loadLeaderboard,
     uploadStepsScreenshot,
   };

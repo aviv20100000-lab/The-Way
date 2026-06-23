@@ -6,7 +6,7 @@ import { getCsrfToken } from "@/lib/csrf-client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ export default function LoginPage() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers,
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
 
     const data = await res.json();
@@ -91,21 +91,23 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Email field */}
+          {/* Username field */}
           <label
             className="mb-5 block"
           >
-            <span className="mb-2 block text-sm font-semibold text-neutral-700">אימייל</span>
+            <span className="mb-2 block text-sm font-semibold text-neutral-700">שם משתמש</span>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="coach / dani / michal"
               required
               dir="ltr"
+              autoCapitalize="none"
+              autoCorrect="off"
               disabled={loading}
               className="w-full rounded-xl border-2 border-neutral-200 bg-neutral-50 px-4 py-3 text-neutral-900 placeholder:text-neutral-400 transition focus:border-primary-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-600/30 disabled:opacity-50"
-              aria-label="אימייל"
+              aria-label="שם משתמש"
             />
           </label>
 

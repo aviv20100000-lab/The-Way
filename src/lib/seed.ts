@@ -60,8 +60,13 @@ export async function ensureSeed() {
     const coachId = uuid();
     const client1Id = uuid();
     const client2Id = uuid();
-    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?)", args: [coachId, "המאמן", "coach@theway.com", passwordHash, "coach", null] });
-    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?)", args: [client1Id, "דני", "dani@theway.com", passwordHash, "client", coachId] });
-    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?)", args: [client2Id, "מיכל", "michal@theway.com", passwordHash, "client", coachId] });
+    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [coachId, "המאמן", "coach@theway.com", "coach", passwordHash, "coach", null] });
+    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [client1Id, "דני", "dani@theway.com", "dani", passwordHash, "client", coachId] });
+    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [client2Id, "מיכל", "michal@theway.com", "michal", passwordHash, "client", coachId] });
+  } else {
+    // Migration: set username for existing users that don't have one yet
+    await db.execute({ sql: "UPDATE users SET username = 'coach' WHERE email = 'coach@theway.com' AND (username IS NULL OR username = '')", args: [] });
+    await db.execute({ sql: "UPDATE users SET username = 'dani' WHERE email = 'dani@theway.com' AND (username IS NULL OR username = '')", args: [] });
+    await db.execute({ sql: "UPDATE users SET username = 'michal' WHERE email = 'michal@theway.com' AND (username IS NULL OR username = '')", args: [] });
   }
 }

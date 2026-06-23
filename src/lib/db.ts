@@ -148,6 +148,13 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_chat_messages_receiver ON chat_messages(receiver_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sent_at ON chat_messages(sent_at);
   `);
+
+  // Migration: add username column if it doesn't exist
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN username TEXT", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
 }
 
 export default db;

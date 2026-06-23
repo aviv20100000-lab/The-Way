@@ -76,6 +76,14 @@ export async function getUserByEmail(email: string) {
   return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string };
 }
 
+export async function getUserByUsername(username: string) {
+  await ensureDb();
+  const res = await db.execute({ sql: "SELECT * FROM users WHERE username = ?", args: [username.toLowerCase()] });
+  const row = res.rows[0];
+  if (!row) return undefined;
+  return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string };
+}
+
 export async function createUser(data: { name: string; email: string; password: string; role: "coach" | "client"; coachId?: string }) {
   await ensureDb();
   const id = uuid();

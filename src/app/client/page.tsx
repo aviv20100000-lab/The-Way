@@ -534,7 +534,7 @@ export default function ClientPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-lg font-semibold text-black-matte"
             >
-              תחרות 🏆
+              תחרות 🏆 יא כאובים
             </motion.h2>
 
             {/* Competition type toggle */}

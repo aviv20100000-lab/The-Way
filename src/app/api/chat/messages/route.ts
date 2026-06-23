@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
+import webpush from "web-push";
+
+type Sub = { endpoint: string; p256dh: string; auth: string };
+
+function setupVapid() {
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL!.replace(/^﻿/, ""),
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
+}
+
+async function pushToUsers(userIds: string[], payload: string) {
+  if (userIds.length === 0) return;
+  const placeholders = userIds.map(() => "?").join(",");
+  const rows = (await db.execute({
+    sql: `SELECT ps.endpoint, ps.p256dh, ps.auth FROM push_subscriptions ps WHERE ps.user_id IN (${placeholders})`,
+    args: userIds,
+  })).rows as unknown as Sub[];
+
+  for (const sub of rows) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      );
+    } catch {
+      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint = ?", args: [sub.endpoint] });
+    }
+  }
+}
 
 function resolveCoachId(user: { id: string; role: string; coach_id?: string }): string | null {
   return user.role === "coach" ? user.id : (user.coach_id ?? null);
@@ -22,7 +53,6 @@ export async function GET(req: NextRequest) {
     if (type === "private") {
       if (!withUserId) return NextResponse.json({ error: "חסר פרמטר with" }, { status: 400 });
 
-      // Verify withUserId is in the same group before fetching
       const coachId = resolveCoachId(user as Parameters<typeof resolveCoachId>[0]);
       if (!coachId) return NextResponse.json({ error: "המשתמש אינו משויך לקבוצה" }, { status: 403 });
 
@@ -51,7 +81,6 @@ export async function GET(req: NextRequest) {
         args: [user.id, withUserId, withUserId, user.id],
       });
 
-      // Mark incoming messages as read
       await db.execute({
         sql: `UPDATE chat_messages SET is_read = 1
               WHERE sender_id = ? AND receiver_id = ? AND is_read = 0`,
@@ -81,8 +110,6 @@ export async function GET(req: NextRequest) {
       args: [coachId, coachId],
     });
 
-    // Mark group messages from others as read for this user.
-    // is_read is a shared flag — acceptable for this use case (small groups).
     await db.execute({
       sql: `UPDATE chat_messages SET is_read = 1
             WHERE receiver_id IS NULL
@@ -123,7 +150,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (receiver_id !== undefined && receiver_id !== null) {
-      // Private message — verify receiver is in the same group
       if (typeof receiver_id !== "string") {
         return NextResponse.json({ error: "receiver_id לא תקין" }, { status: 400 });
       }
@@ -146,6 +172,29 @@ export async function POST(req: NextRequest) {
             VALUES (?, ?, ?, ?, datetime('now'))`,
       args: [id, user.id, (receiver_id as string) ?? null, content.trim()],
     });
+
+    // Send push notification to recipient(s) — fire and forget
+    try {
+      setupVapid();
+      const senderName = (user as { name?: string }).name ?? "מישהו";
+      const preview = content.trim().slice(0, 80);
+      const payload = JSON.stringify({ title: `💬 ${senderName}`, body: preview, icon: "/icon-192.png" });
+
+      if (receiver_id && typeof receiver_id === "string") {
+        await pushToUsers([receiver_id], payload);
+      } else {
+        const membersRes = await db.execute({
+          sql: `SELECT id FROM users WHERE id = ? OR coach_id = ?`,
+          args: [coachId, coachId],
+        });
+        const memberIds = (membersRes.rows as unknown as { id: string }[])
+          .map((r) => r.id)
+          .filter((mid) => mid !== user.id);
+        await pushToUsers(memberIds, payload);
+      }
+    } catch (pushErr) {
+      console.error("[chat/messages push]", pushErr);
+    }
 
     return NextResponse.json({ id });
   } catch (err) {

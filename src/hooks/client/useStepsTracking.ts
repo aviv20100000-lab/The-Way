@@ -22,7 +22,7 @@ export function useStepsTracking() {
     try {
       const [stepsRes, foodRes] = await Promise.all([
         fetch("/api/health/steps?type=leaderboard"),
-        fetch("/api/health/leaderboard?type=food"),
+        fetch("/api/nutrition/leaderboard"),
       ]);
       const stepsData = await stepsRes.json();
       const foodData = await foodRes.json();

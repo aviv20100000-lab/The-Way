@@ -67,7 +67,7 @@ export async function initDb() {
       meal_id TEXT NOT NULL REFERENCES meals(id) ON DELETE CASCADE,
       food_id TEXT NOT NULL REFERENCES foods(id),
       quantity REAL NOT NULL DEFAULT 1,
-      unit TEXT NOT NULL DEFAULT 'מנה'
+      unit TEXT NOT NULL DEFAULT 'serving'
     );
 
     CREATE TABLE IF NOT EXISTS weight_logs (
@@ -134,6 +134,19 @@ export async function initDb() {
       best_streak INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      sender_id TEXT NOT NULL REFERENCES users(id),
+      receiver_id TEXT REFERENCES users(id),
+      content TEXT NOT NULL,
+      sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+      is_read INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON chat_messages(sender_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_receiver ON chat_messages(receiver_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_sent_at ON chat_messages(sent_at);
   `);
 }
 

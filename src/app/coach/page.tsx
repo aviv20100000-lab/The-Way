@@ -247,7 +247,7 @@ export default function CoachPage() {
     try {
       await fetch("/api/motivation/quotes", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: await withCsrf({ "Content-Type": "application/json" }),
         body: JSON.stringify({ quoteId: id }),
       });
       setQuotes((q) => q.filter((x) => x.id !== id));
@@ -267,7 +267,10 @@ export default function CoachPage() {
             </div>
             <p className="text-xs text-neutral-600 font-normal">היי {coachName} 👋</p>
           </div>
-          <button onClick={logout} className="rounded-lg bg-neutral-100 px-4 py-2 text-xs font-semibold text-black-matte hover:bg-neutral-200 transition-all duration-200">יציאה</button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => router.push("/chat")} className="min-h-11 rounded-lg bg-purple-100 px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-200 transition-all duration-200">💬 צ׳אט</button>
+            <button onClick={logout} className="min-h-11 rounded-lg bg-neutral-100 px-4 py-2 text-xs font-semibold text-black-matte hover:bg-neutral-200 transition-all duration-200">יציאה</button>
+          </div>
         </div>
       </header>
 
@@ -343,10 +346,14 @@ export default function CoachPage() {
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button onClick={() => openClientData(c)}
+                    aria-label={`צפה בנתונים של ${c.name}`}
+                    title={`צפה בנתונים של ${c.name}`}
                     className="rounded-lg bg-neutral-100 px-4 py-2.5 text-sm font-semibold text-black-matte hover:bg-neutral-200 transition-all">
                     📊
                   </button>
                   <button onClick={() => openClientGoals(c)}
+                    aria-label={`ערוך יעדים של ${c.name}`}
+                    title={`ערוך יעדים של ${c.name}`}
                     className="rounded-lg bg-neutral-100 px-4 py-2.5 text-sm font-semibold text-black-matte hover:bg-neutral-200 transition-all">
                     🎯
                   </button>
@@ -428,7 +435,7 @@ export default function CoachPage() {
                                 );
                               })()}
                               {clientData.goals.target_weight_kg && (
-                                <span className="mr-auto text-sm text-green-700 mb-1">יעד: {clientData.goals.target_weight_kg}</span>
+                                <span className="ms-auto text-sm text-green-700 mb-1">יעד: {clientData.goals.target_weight_kg}</span>
                               )}
                             </div>
                             <div className="space-y-1">
@@ -503,7 +510,7 @@ export default function CoachPage() {
                           <p className="text-xs text-neutral-500">{dateStr} • {timeStr}</p>
                         </div>
                       </div>
-                      <div className="text-left">
+                      <div className="text-start">
                         <p className="font-bold text-primary-600">{log.total_calories}</p>
                         <p className="text-xs text-neutral-500">קלוריות</p>
                       </div>

@@ -139,7 +139,7 @@ export default function CoachPage() {
       const perm = Notification.permission as string;
       setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
     }
-  }, [loadClients]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadClients]);
 
   async function enableNotifications() {
     if (!("Notification" in window) || !("serviceWorker" in navigator)) return;

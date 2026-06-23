@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { analyzeFoodPhotoBase64 } from "@/lib/anthropic";
+import {
+  analyzeFoodPhotoBase64,
+  isAnthropicImageMediaType,
+  MAX_ANTHROPIC_IMAGE_BYTES,
+} from "@/lib/anthropic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,22 +12,25 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
     const formData = await req.formData();
-    const photo = formData.get("photo") as File | null;
+    const photo = formData.get("photo");
 
-    if (!photo) {
+    if (!(photo instanceof File)) {
       return NextResponse.json({ error: "צריך להעלות תמונה" }, { status: 400 });
     }
 
-    const validMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!validMimeTypes.includes(photo.type)) {
+    if (!isAnthropicImageMediaType(photo.type)) {
       return NextResponse.json({ error: "רק קבצי תמונה מותרים (JPEG, PNG, WebP, GIF)" }, { status: 400 });
     }
 
     const buffer = Buffer.from(await photo.arrayBuffer());
     const sizeKB = Math.round(buffer.length / 1024);
 
-    if (buffer.length > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "התמונה גדולה מדי (מקסימום 10MB)" }, { status: 413 });
+    if (buffer.length === 0) {
+      return NextResponse.json({ error: "התמונה ריקה" }, { status: 400 });
+    }
+
+    if (buffer.length > MAX_ANTHROPIC_IMAGE_BYTES) {
+      return NextResponse.json({ error: "התמונה גדולה מדי (מקסימום 7.5MB)" }, { status: 413 });
     }
 
     console.log(`analyze-food: received ${sizeKB}KB, type=${photo.type}`);
@@ -38,7 +45,7 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json({
-      items: items.map((item: any) => ({
+      items: items.map((item: Record<string, unknown>) => ({
         name: item.name_he || item.name,
         estimated_weight_g: item.estimated_weight_g || 100,
         calories: item.calories || 0,

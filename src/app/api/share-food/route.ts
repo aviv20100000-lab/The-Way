@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     );
 
     const result = {
-      items: items.map((item: any) => ({
+      items: items.map((item: Record<string, unknown>) => ({
         name: item.name_he || item.name,
         estimated_weight_g: item.estimated_weight_g || 100,
         calories: item.calories || 0,

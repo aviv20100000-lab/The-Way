@@ -6,7 +6,7 @@ interface ClientSummary {
   weights: { weight_kg: number; logged_at: string }[];
   steps_today: number;
   water_today: number;
-  meals: { id: string; total_calories: number; logged_at: string; items: any[] }[];
+  meals: { id: string; total_calories: number; logged_at: string; items: unknown[] }[];
   goals: { target_weight_kg: number | null; daily_calories: number | null; daily_water_ml: number };
 }
 

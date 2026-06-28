@@ -30,7 +30,22 @@ const db = {
   batch: (stmts: any, mode?: any) => getDb().batch(stmts, mode),
 };
 
+// The schema setup below is idempotent but issues several remote round-trips.
+// Cache it so it runs at most once per server process instead of on every
+// request. Concurrent callers all await the same in-flight promise.
+let initPromise: Promise<void> | null = null;
+
 export async function initDb() {
+  if (initPromise) return initPromise;
+  initPromise = runInit().catch((e) => {
+    // Reset on failure so a later request can retry the initialization.
+    initPromise = null;
+    throw e;
+  });
+  return initPromise;
+}
+
+async function runInit() {
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -155,7 +170,19 @@ export async function initDb() {
   } catch {
     // Column already exists — ignore
   }
+
+  // Derive a plain username from the email address for existing users.
+  await db.execute({
+    sql: `
+      UPDATE users
+      SET username = lower(substr(trim(email), 1, instr(trim(email), '@') - 1))
+      WHERE username IS NULL
+         OR username = ''
+         OR username = lower(trim(email))
+         OR username = lower(trim(name));
+    `,
+    args: [],
+  });
 }
 
 export default db;
-

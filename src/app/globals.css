@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -251,4 +252,222 @@ html[dir="ltr"] {
   position: relative;
   z-index: 1;
 }
+/* Glass card — used in client dark theme. Layered for real frosted-glass depth:
+   top sheen gradient + inset highlight edge + soft floating shadow. */
+.glass-card {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0) 42%),
+    rgba(26, 28, 28, 0.85);
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    0 22px 45px -28px rgba(0, 0, 0, 0.85);
+}
+
+/* Lime glow for accent elements */
+.lime-glow {
+  box-shadow: 0 0 24px rgba(195, 244, 0, 0.15);
+}
+
+/* ─────────────────────────────────────────────
+   Aurora ambient — visible even on mobile dark bg.
+   No mix-blend-mode (screen kills on near-black).
+   ───────────────────────────────────────────── */
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  pointer-events: none;
+}
+.aurora-blob--lime {
+  width: 500px;
+  height: 500px;
+  top: -160px;
+  right: -100px;
+  background: radial-gradient(circle at 40% 40%, rgba(195, 244, 0, 0.28) 0%, transparent 65%);
+  filter: blur(80px);
+  animation: auroraDrift1 34s ease-in-out infinite;
+}
+.aurora-blob--cyan {
+  width: 440px;
+  height: 440px;
+  top: 45%;
+  left: -140px;
+  background: radial-gradient(circle at 60% 50%, rgba(56, 189, 248, 0.22) 0%, transparent 65%);
+  filter: blur(100px);
+  animation: auroraDrift2 44s ease-in-out infinite;
+}
+.aurora-blob--violet {
+  width: 360px;
+  height: 360px;
+  bottom: 15%;
+  right: -60px;
+  background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.18) 0%, transparent 65%);
+  filter: blur(90px);
+  animation: auroraDrift3 52s ease-in-out infinite;
+}
+.aurora-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+@keyframes auroraDrift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-30px, 50px) scale(1.08); }
+  66% { transform: translate(20px, 20px) scale(0.96); }
+}
+@keyframes auroraDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40% { transform: translate(50px, -40px) scale(1.1); }
+  70% { transform: translate(-20px, 20px) scale(0.94); }
+}
+@keyframes auroraDrift3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-40px, -50px) scale(1.12); }
+}
+
+/* ─────────────────────────────────────────────
+   Rotating conic-border glow for hero cards
+   ───────────────────────────────────────────── */
+.glow-border {
+  position: relative;
+}
+.glow-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    transparent 0deg,
+    rgba(195, 244, 0, 0.85) 60deg,
+    rgba(56, 189, 248, 0.5) 120deg,
+    transparent 180deg,
+    rgba(195, 244, 0, 0.3) 280deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: borderSpin 9s linear infinite;
+  pointer-events: none;
+}
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes borderSpin {
+  to { --angle: 360deg; }
+}
+
+/* ─────────────────────────────────────────────
+   Bottom nav pill slide indicator
+   ───────────────────────────────────────────── */
+.nav-pill {
+  position: absolute;
+  bottom: 4px;
+  height: calc(100% - 8px);
+  border-radius: 12px;
+  background: rgba(195, 244, 0, 0.12);
+  transition: right 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+.nav-tab-active-dot {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #c3f400;
+  margin: 2px auto 0;
+  box-shadow: 0 0 6px 2px rgba(195, 244, 0, 0.6);
+  animation: dotPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes dotPop {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────
+   Tilt (pointer only — no-op on touch)
+   ───────────────────────────────────────────── */
+.tilt-perspective {
+  perspective: 1100px;
+  height: 100%;
+}
+.tilt-card {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.tilt-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--glare, 0);
+  background: radial-gradient(
+    circle at var(--gx, 50%) var(--gy, 50%),
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0) 46%
+  );
+  transition: opacity 0.35s ease;
+}
+
+/* ---- Loading skeletons + page transitions ---- */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #1a1c1c;
+  border-radius: 0.75rem;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(195, 244, 0, 0.06) 40%,
+    rgba(195, 244, 0, 0.1) 50%,
+    rgba(195, 244, 0, 0.06) 60%,
+    transparent
+  );
+  animation: skeletonSweep 1.4s ease-in-out infinite;
+}
+@keyframes skeletonSweep {
+  100% { transform: translateX(100%); }
+}
+
+/* Soft fade/rise applied to freshly mounted route content */
+.app-fade-in {
+  animation: appFadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes appFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob { animation: none !important; }
+  .glow-border::before { animation: none !important; }
+  .tilt-card { transition: none !important; transform: none !important; }
+  .skeleton::after { animation: none !important; }
+  .app-fade-in { animation: none !important; }
+}
+
 /* rebuild trigger */

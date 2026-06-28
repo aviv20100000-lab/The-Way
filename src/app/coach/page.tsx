@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import MealHistory from "@/components/MealHistory";
 import { withCsrf } from "@/lib/csrf-client";
 
@@ -166,6 +167,11 @@ export default function CoachPage() {
     if (tab === "leaderboard") loadLeaderboard();
   }, [tab, loadQuotes, loadFoodLogs, loadLeaderboard]);
 
+  // Prefetch the chat route bundle for instant navigation
+  useEffect(() => {
+    router.prefetch("/chat");
+  }, [router]);
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST", headers: await withCsrf() });
     router.push("/login");
@@ -306,6 +312,14 @@ export default function CoachPage() {
       </header>
 
       <main className="mx-auto max-w-lg px-5 pt-5">
+        <AnimatePresence mode="wait">
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -10 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
 
         {tab === "clients" && (
           <div className="space-y-6">
@@ -570,6 +584,27 @@ export default function CoachPage() {
 
             <div className="rounded-2xl bg-white p-4 shadow-xs space-y-3">
               <p className="font-semibold text-base text-black-matte">📣 שלח הודעה</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { emoji: "🌅", label: "בוקר טוב", title: "בוקר טוב! ☀️", body: "מתחילים את היום עם אנרגיה ומוטיבציה! אתם מדהימים 💪" },
+                  { emoji: "🌞", label: "צהריים טובים", title: "צהריים טובים! 🌞", body: "איך היום מתקדם? זכרו לאכול טוב ולשתות מים 💧" },
+                  { emoji: "🌙", label: "לילה טוב", title: "לילה טוב! 🌙", body: "סיימתם יום נהדר – עכשיו זמן לנוח ולהתחדש. כל הכבוד! ⭐" },
+                  { emoji: "🏋️", label: "אל תוותרו", title: "אל תוותרו! 💪", body: "כל צעד קטן מקרב אתכם למטרה. אתם חזקים יותר ממה שאתם חושבים!" },
+                  { emoji: "🎯", label: "יאללה!", title: "יאללה! 🎯", body: "היום הוא הזדמנות חדשה. תנו את המקסימום ותגיעו לתוצאות שאתם חולמים עליהם!" },
+                  { emoji: "✨", label: "כל הכבוד", title: "כל הכבוד! ✨", body: "אנחנו גאים בכם על ההתמדה והמאמץ. המשיכו כך! 🙌" },
+                  { emoji: "🌿", label: "סוף שבוע", title: "סוף שבוע נהדר! 🌿", body: "תנצלו את הזמן להתאוששות ולאנרגיה לשבוע הבא. מגיע לכם! 🏆" },
+                  { emoji: "✡️", label: "שבת שלום", title: "שבת שלום! ✡️", body: "שבת מנוחה ומחייה לכם ולמשפחותיכם. שבוע טוב יבוא! 🕯️" },
+                  { emoji: "💧", label: "מים", title: "שתו מים! 💧", body: "רגע, עצרתם לשתות מים היום? הגוף שלכם צריך את זה – שתו עכשיו! 🫗" },
+                ].map((t) => (
+                  <button
+                    key={t.label}
+                    onClick={() => { setPushTitle(t.title); setPushBody(t.body); }}
+                    className="rounded-lg bg-neutral-100 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition-colors"
+                  >
+                    {t.emoji} {t.label}
+                  </button>
+                ))}
+              </div>
               <input
                 type="text"
                 value={pushTitle || ""}
@@ -599,14 +634,6 @@ export default function CoachPage() {
                   className="rounded-lg bg-neutral-100 px-4 py-3 text-sm font-semibold text-neutral-700 disabled:opacity-50"
                 >
                   {testingPush ? "..." : "🔔 בדיקה"}
-                </button>
-                <button
-                  onClick={sendGoodMorning}
-                  disabled={testingPush}
-                  title="שלח בוקר טוב לכולם"
-                  className="rounded-lg bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 disabled:opacity-50"
-                >
-                  {testingPush ? "..." : "🌅 בוקר טוב"}
                 </button>
               </div>
               {pushResult && <p className="text-center text-sm font-medium" style={{color: pushResult.startsWith("✅") ? "green" : "red"}}>{pushResult}</p>}
@@ -692,6 +719,8 @@ export default function CoachPage() {
             </button>
           </div>
         )}
+        </motion.div>
+        </AnimatePresence>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 border-t border-neutral-100 bg-white">

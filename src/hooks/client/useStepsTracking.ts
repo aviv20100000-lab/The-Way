@@ -17,6 +17,7 @@ export function useStepsTracking() {
   const [lbView, setLbView] = useState<"today" | "week">("today");
   const [compType, setCompType] = useState<"steps" | "food">("steps");
   const [todaySteps, setTodaySteps] = useState(0);
+  const [lbLoaded, setLbLoaded] = useState(false);
 
   const loadLeaderboard = useCallback(async () => {
     try {
@@ -30,6 +31,8 @@ export function useStepsTracking() {
       setFoodLeaderboard(foodData);
     } catch (e) {
       console.error("Error loading leaderboard:", e);
+    } finally {
+      setLbLoaded(true);
     }
   }, []);
 
@@ -68,6 +71,7 @@ export function useStepsTracking() {
     lbView,
     compType,
     todaySteps,
+    lbLoaded,
     setLbView,
     setCompType,
     loadLeaderboard,

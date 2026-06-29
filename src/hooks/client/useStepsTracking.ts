@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { compressImageToJpeg } from "@/lib/image-compression";
 import { getCsrfToken } from "@/lib/csrf-client";
 
@@ -11,26 +11,23 @@ interface LeaderboardEntry {
 
 export function useStepsTracking() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [foodLeaderboard, setFoodLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
   const [lbView, setLbView] = useState<"today" | "week">("today");
-  const [compType, setCompType] = useState<"steps" | "food">("steps");
   const [todaySteps, setTodaySteps] = useState(0);
   const [lbLoaded, setLbLoaded] = useState(false);
+  const loadedRef = useRef(false);
 
   const loadLeaderboard = useCallback(async () => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     try {
-      const [stepsRes, foodRes] = await Promise.all([
-        fetch("/api/health/steps?type=leaderboard"),
-        fetch("/api/nutrition/leaderboard"),
-      ]);
+      const stepsRes = await fetch("/api/health/steps?type=leaderboard");
       const stepsData = await stepsRes.json();
-      const foodData = await foodRes.json();
       setLeaderboard(stepsData);
-      setFoodLeaderboard(foodData);
     } catch (e) {
       console.error("Error loading leaderboard:", e);
+      loadedRef.current = false;
     } finally {
       setLbLoaded(true);
     }
@@ -65,15 +62,12 @@ export function useStepsTracking() {
 
   return {
     leaderboard,
-    foodLeaderboard,
     uploadingSteps,
     stepsSuccess,
     lbView,
-    compType,
     todaySteps,
     lbLoaded,
     setLbView,
-    setCompType,
     loadLeaderboard,
     uploadStepsScreenshot,
   };

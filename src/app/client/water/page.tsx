@@ -49,8 +49,7 @@ export default function WaterTrackerPage() {
       setShowContent(false);
       return;
     }
-    const timeout = setTimeout(() => setShowContent(true), 120);
-    return () => clearTimeout(timeout);
+    setShowContent(true);
   }, [isLoaded]);
 
   // Pull-to-refresh handlers

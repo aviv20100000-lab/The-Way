@@ -10,8 +10,9 @@ function GyroscopeCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const ctx = context;
 
     // 2x DPR — crisp on retina
     const dpr = window.devicePixelRatio || 1;
@@ -208,7 +209,7 @@ export default function LoginPage() {
     <div
       className="relative flex min-h-screen flex-col items-center overflow-hidden"
       dir="rtl"
-      style={{ fontFamily: "'Be Vietnam Pro', sans-serif", background: "#0c0f0f" }}
+      style={{ background: "#0c0f0f" }}
     >
       {/* Background glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">

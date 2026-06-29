@@ -62,8 +62,11 @@ type Tab = "home" | "food" | "weight" | "steps" | "water";
 export default function ClientPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("home");
-  const [todayCaloriesConsumed, setTodayCaloriesConsumed] = useState(0);
-  const [calorieGoalFromGoals, setCalorieGoalFromGoals] = useState<number | null>(null);
+  const [weightLoaded, setWeightLoaded] = useState(false);
+  const [showHomeContent, setShowHomeContent] = useState(false);
+  const [showFoodContent, setShowFoodContent] = useState(false);
+  const [showWeightContent, setShowWeightContent] = useState(false);
+  const [showStepsContent, setShowStepsContent] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
   const [showGoalEdit, setShowGoalEdit] = useState(false);
@@ -76,53 +79,90 @@ export default function ClientPage() {
 
   // Hooks
   const { user, logout } = useAuth();
-  const { quote, waterTotal, waterGoal, todaySteps, notifStatus, isPwa, addWater, enableNotifications } = useClientHome();
-  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, analyzeFood, logMeal, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
-  const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
-  const { leaderboard, foodLeaderboard, uploadingSteps, stepsSuccess, lbView, compType, lbLoaded, setLbView, setCompType, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
-
-  useEffect(() => {
-    loadWeight();
-  }, [loadWeight]);
+  const { quote, waterTotal, waterGoal, todaySteps, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
+  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, analyzeFood, logMeal, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
+  const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
+  const { leaderboard, uploadingSteps, stepsSuccess, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
   // Prefetch the chat route bundle so tapping צ׳אט navigates instantly
-  useEffect(() => {
-    router.prefetch("/chat");
-  }, [router]);
-
-  // Warm the competition leaderboard in the background so the תחרות tab is
-  // already populated by the time the user opens it (no on-tap wait).
-  useEffect(() => {
-    loadLeaderboard();
-  }, [loadLeaderboard]);
 
   // Warm the lazily-loaded water tab chunk so switching to מים is instant
-  // (no "download bundle then fetch" wait on first tap).
   useEffect(() => {
-    import("@/app/client/water/page");
-  }, []);
+    const connection = "connection" in navigator ? (navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection : undefined;
+
+    if (connection?.saveData || connection?.effectiveType === "2g") return;
+
+    const warmChat = () => {
+      router.prefetch("/chat");
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(warmChat, { timeout: 1500 });
+      return () => window.cancelIdleCallback(id);
+    }
+
+    const timeout = setTimeout(warmChat, 800);
+    return () => clearTimeout(timeout);
+  }, [router]);
+
+  useEffect(() => {
+    if (tab !== "weight" || weightLoaded) return;
+    setWeightLoaded(true);
+    void loadWeight();
+  }, [tab, weightLoaded, loadWeight]);
 
   useEffect(() => {
     if (tab === "steps") loadLeaderboard();
     if (tab === "food") loadMyMeals();
   }, [tab, loadLeaderboard, loadMyMeals]);
 
-  useEffect(() => {
-    fetch("/api/nutrition/today")
-      .then((r) => r.json())
-      .then((d) => { setTodayCaloriesConsumed(d.total_calories ?? 0); setCalorieGoalFromGoals(d.goal_calories ?? null); })
-      .catch(() => {});
-  }, []);
-
   // Sync home-tab calorie counter after AI meal saved
   useEffect(() => {
-    if (mealSaved === "saved") {
-      fetch("/api/nutrition/today")
-        .then((r) => r.json())
-        .then((d) => { setTodayCaloriesConsumed(d.total_calories ?? 0); setCalorieGoalFromGoals(d.goal_calories ?? null); })
-        .catch(() => {});
+    if (mealSaved === "saved") loadHome();
+  }, [mealSaved, loadHome]);
+
+  useEffect(() => {
+    if (tab !== "home") return;
+    if (!homeLoaded) {
+      setShowHomeContent(false);
+      return;
     }
-  }, [mealSaved]);
+    setShowHomeContent(true);
+  }, [tab, homeLoaded]);
+
+  useEffect(() => {
+    if (tab !== "food") return;
+    if (!mealsLoaded && loadingMeals) {
+      setShowFoodContent(false);
+      return;
+    }
+    if (!mealsLoaded && myMeals.length === 0) {
+      setShowFoodContent(false);
+      return;
+    }
+    setShowFoodContent(true);
+  }, [tab, mealsLoaded, loadingMeals, myMeals.length]);
+
+  useEffect(() => {
+    if (tab !== "weight") return;
+    if (!weightDataLoaded) {
+      setShowWeightContent(false);
+      return;
+    }
+    setShowWeightContent(true);
+  }, [tab, weightDataLoaded]);
+
+  useEffect(() => {
+    if (tab !== "steps") return;
+    const hasData = leaderboard.length > 0;
+    if (!lbLoaded && !hasData) {
+      setShowStepsContent(false);
+      return;
+    }
+    setShowStepsContent(true);
+  }, [tab, lbLoaded, leaderboard.length]);
 
   if (!user) return <PageSkeleton variant="dashboard" />;
 
@@ -133,7 +173,7 @@ export default function ClientPage() {
   const greeting = hour < 12 ? "בוקר טוב" : hour < 17 ? "צהריים טובים" : hour < 21 ? "ערב טוב" : "לילה טוב";
 
   return (
-    <div className="min-h-screen pb-32 bg-[#0c0f0f] text-[#e2e2e2]" dir="rtl" style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}>
+    <div className="min-h-screen pb-32 bg-[#0c0f0f] text-[#e2e2e2]" dir="rtl">
       <AuroraBackground />
 
       {/* Header */}
@@ -189,6 +229,21 @@ export default function ClientPage() {
         >
         {/* HOME TAB */}
         {tab === "home" && (
+          !showHomeContent ? (
+            <div className="space-y-5 pt-3">
+              <div className="space-y-2">
+                <div className="skeleton h-3 w-32 rounded" />
+                <div className="skeleton h-8 w-44 rounded-lg" />
+              </div>
+              <div className="skeleton h-40 w-full rounded-2xl" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="skeleton h-44 rounded-2xl" />
+                <div className="skeleton h-44 rounded-2xl" />
+              </div>
+              <div className="skeleton h-28 w-full rounded-2xl" />
+              <div className="skeleton h-28 w-full rounded-2xl" />
+            </div>
+          ) : (
           <div className="space-y-5">
             {/* Greeting — holographic HUD header */}
             <motion.div
@@ -424,17 +479,22 @@ export default function ClientPage() {
               </motion.button>
             )}
           </div>
+          )
         )}
 
 
         {/* FOOD TAB */}
         {tab === "food" && (
+          !showFoodContent ? (
+            <div className="space-y-4 pt-3">
+              <div className="skeleton h-28 w-full rounded-2xl" />
+              <div className="skeleton h-12 w-full rounded-xl" />
+              <div className="skeleton h-40 w-full rounded-2xl" />
+            </div>
+          ) : (
           <div className="space-y-4">
             <QuickMealLogger onSaved={() => {
-              fetch("/api/nutrition/today").then(r => r.json()).then(d => {
-                setTodayCaloriesConsumed(d.total_calories ?? 0);
-                setCalorieGoalFromGoals(d.goal_calories ?? null);
-              }).catch(() => {});
+              loadHome();
               loadMyMeals();
             }} />
 
@@ -455,7 +515,7 @@ export default function ClientPage() {
                   if (!cal || cal < 500) return;
                   const { withCsrf } = await import("@/lib/csrf-client");
                   await fetch("/api/goals", { method: "POST", headers: await withCsrf({ "Content-Type": "application/json" }), body: JSON.stringify({ daily_calories: cal }) });
-                  setCalorieGoalFromGoals(cal);
+                  loadHome();
                   setShowGoalEdit(false);
                 }} className="rounded-full bg-[#c3f400] px-4 py-2 text-sm font-bold text-[#161e00]">שמור</button>
                 <button onClick={() => setShowGoalEdit(false)} className="text-[#8e9379] text-sm">ביטול</button>
@@ -470,6 +530,7 @@ export default function ClientPage() {
 
             <MealHistory meals={myMeals} loading={loadingMeals} onDelete={deleteMeal} />
           </div>
+          )
         )}
 
         {/* WEIGHT TAB */}
@@ -484,6 +545,12 @@ export default function ClientPage() {
         )}
 
         {tab === "weight" && (
+          !showWeightContent ? (
+            <div className="space-y-4 pt-3">
+              <div className="skeleton h-48 w-full rounded-2xl" />
+              <div className="skeleton h-40 w-full rounded-2xl" />
+            </div>
+          ) : (
           <div className="space-y-6">
 
             {weightTarget && weightLogs.length > 0 && (
@@ -524,10 +591,38 @@ export default function ClientPage() {
               </motion.button>
             </motion.div>
           </div>
+          )
         )}
 
         {/* STEPS / COMPETITION TAB */}
         {tab === "steps" && (() => {
+          if (!showStepsContent) {
+            return (
+              <div className="space-y-4 pt-3">
+                <div className="flex items-end justify-between">
+                  <div className="space-y-2">
+                    <div className="skeleton h-8 w-40 rounded-lg" />
+                    <div className="skeleton h-3 w-24 rounded" />
+                  </div>
+                  <div className="skeleton h-10 w-28 rounded-xl" />
+                </div>
+                <div className="skeleton h-16 w-full rounded-2xl" />
+                <div className="glass-card rounded-2xl border border-[#2e3030] overflow-hidden">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-[#1a1c1c] last:border-0">
+                      <div className="skeleton h-4 w-4 rounded" />
+                      <div className="skeleton h-9 w-9 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <div className="skeleton h-3 w-24 rounded" />
+                        <div className="skeleton h-[3px] w-full rounded-full" />
+                      </div>
+                      <div className="skeleton h-4 w-10 rounded" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
           const sorted = leaderboard.slice().sort((a, b) => lbView === "today" ? b.today - a.today : b.week - a.week);
           const myEntry = sorted.find((e) => e.id === user.id);
           const myRank = myEntry ? sorted.indexOf(myEntry) + 1 : null;

@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -82,7 +80,7 @@ html {
 }
 
 body {
-  font-family: 'Rubik', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-be-vietnam-pro), var(--font-rubik), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -227,7 +225,7 @@ html[dir="ltr"] {
   background-image: url('/images/backgrounds/event-bg.jpg');
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
+  background-attachment: scroll;
   background-repeat: no-repeat;
 }
 
@@ -242,7 +240,7 @@ html[dir="ltr"] {
   background-image: url('/images/backgrounds/event-bg.jpg');
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
+  background-attachment: scroll;
   opacity: 0.15;
   pointer-events: none;
   z-index: 0;
@@ -281,6 +279,7 @@ html[dir="ltr"] {
   border-radius: 50%;
   will-change: transform;
   pointer-events: none;
+  animation-play-state: var(--aurora-play, running);
 }
 .aurora-blob--lime {
   width: 500px;

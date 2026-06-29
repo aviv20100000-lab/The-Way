@@ -38,43 +38,126 @@ interface Contact { id: string; name: string; role: "coach" | "client"; username
 interface Message { id: string; sender_id: string; sender_name: string; sender_username?: string; content: string; sent_at: string; is_read: number; }
 type ChatMode = { type: "group" } | { type: "private"; contact: Contact };
 
+const CHAT_CACHE_KEY = "way_chat_bootstrap";
+
+type ChatCache = {
+  user: User | null;
+  contacts: Contact[];
+  unreadMap: Record<string, number>;
+  groupUnread: number;
+  messages: Message[];
+};
+
+function readChatCache(): ChatCache | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(CHAT_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as ChatCache) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeChatCache(data: ChatCache) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(CHAT_CACHE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
 export default function ChatPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
-  const [groupUnread, setGroupUnread] = useState(0);
+  const cached = readChatCache();
+  const [user, setUser] = useState<User | null>(cached?.user ?? null);
+  const [contacts, setContacts] = useState<Contact[]>(cached?.contacts ?? []);
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>(cached?.unreadMap ?? {});
+  const [groupUnread, setGroupUnread] = useState(cached?.groupUnread ?? 0);
   const [mode, setMode] = useState<ChatMode>({ type: "group" });
   const [showChat, setShowChat] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(cached?.messages ?? []);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(cached?.user ? false : true);
+  const [showContent, setShowContent] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastMsgId = useRef<string | null>(null);
   const isAtBottom = useRef(true);
+  const userRef = useRef<User | null>(cached?.user ?? null);
+  const modeRef = useRef<ChatMode>({ type: "group" });
+  const contactsRef = useRef<Contact[]>(cached?.contacts ?? []);
+  const unreadMapRef = useRef<Record<string, number>>(cached?.unreadMap ?? {});
+  const groupUnreadRef = useRef(cached?.groupUnread ?? 0);
+  const messagesRef = useRef<Message[]>(cached?.messages ?? []);
+
+  const persistCache = useCallback((next?: Partial<ChatCache>) => {
+    const payload: ChatCache = {
+      user: next?.user ?? userRef.current,
+      contacts: next?.contacts ?? contactsRef.current,
+      unreadMap: next?.unreadMap ?? unreadMapRef.current,
+      groupUnread: next?.groupUnread ?? groupUnreadRef.current,
+      messages: next?.messages ?? messagesRef.current,
+    };
+    writeChatCache(payload);
+  }, []);
 
   useEffect(() => {
-    fetch("/api/auth/me").then(async (res) => {
-      if (!res.ok) { router.push("/login"); return; }
-      setUser(await res.json());
+    fetch("/api/chat/bootstrap").then(async (res) => {
+      if (!res.ok) {
+        if (res.status === 401) router.push("/login");
+        return;
+      }
+      const data = await res.json();
+      const me: User = data.user;
+      const nextContacts: Contact[] = data.contacts ?? [];
+      const nextUnreadMap: Record<string, number> = data.unreadMap ?? {};
+      const nextGroupUnread = data.groupUnread ?? 0;
+      const msgs: Message[] = data.messages ?? [];
+      userRef.current = me;
+      contactsRef.current = nextContacts;
+      unreadMapRef.current = nextUnreadMap;
+      groupUnreadRef.current = nextGroupUnread;
+      setUser(me);
+      setContacts(nextContacts);
+      setUnreadMap(nextUnreadMap);
+      setGroupUnread(nextGroupUnread);
+      lastMsgId.current = msgs[msgs.length - 1]?.id ?? null;
+      messagesRef.current = msgs;
+      setMessages(msgs);
+      persistCache({ user: me, contacts: nextContacts, unreadMap: nextUnreadMap, groupUnread: nextGroupUnread, messages: msgs });
+      setLoading(false);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "instant" }), 0);
     });
-  }, [router]);
+  }, [persistCache, router]);
+
+  useEffect(() => {
+    if (loading) {
+      setShowContent(false);
+      return;
+    }
+    const timeout = setTimeout(() => setShowContent(true), 120);
+    return () => clearTimeout(timeout);
+  }, [loading, mode, showChat]);
 
   const loadContacts = useCallback(async () => {
     const res = await fetch("/api/chat/contacts");
     if (!res.ok) return;
     const data = await res.json();
-    setContacts(data.contacts ?? []);
-    setUnreadMap(data.unreadMap ?? {});
-    setGroupUnread(data.groupUnread ?? 0);
-  }, []);
+    const nextContacts = data.contacts ?? [];
+    const nextUnreadMap = data.unreadMap ?? {};
+    const nextGroupUnread = data.groupUnread ?? 0;
+    contactsRef.current = nextContacts;
+    unreadMapRef.current = nextUnreadMap;
+    groupUnreadRef.current = nextGroupUnread;
+    setContacts(nextContacts);
+    setUnreadMap(nextUnreadMap);
+    setGroupUnread(nextGroupUnread);
+    persistCache({ contacts: nextContacts, unreadMap: nextUnreadMap, groupUnread: nextGroupUnread });
+  }, [persistCache]);
 
-  useEffect(() => { if (user) loadContacts(); }, [user, loadContacts]);
-
-  const loadMessages = useCallback(async (opts?: { silent?: boolean }) => {
+  const loadMessages = useCallback(async (opts?: { silent?: boolean; forMode?: ChatMode }) => {
+    const target = opts?.forMode ?? modeRef.current;
     const params = new URLSearchParams();
-    if (mode.type === "private") { params.set("type", "private"); params.set("with", mode.contact.id); }
+    if (target.type === "private") { params.set("type", "private"); params.set("with", target.contact.id); }
     else params.set("type", "group");
     const res = await fetch(`/api/chat/messages?${params}`);
     if (!res.ok) return;
@@ -83,31 +166,47 @@ export default function ChatPage() {
     const newLastId = msgs[msgs.length - 1]?.id ?? null;
     if (!opts?.silent || newLastId !== lastMsgId.current) {
       lastMsgId.current = newLastId;
+      messagesRef.current = msgs;
       setMessages(msgs);
+      persistCache({ messages: msgs });
       if (isAtBottom.current) setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
     }
-    if (!opts?.silent) setLoading(false);
-    if (mode.type === "private") setUnreadMap((p) => ({ ...p, [mode.contact.id]: 0 }));
-    else setGroupUnread(0);
-  }, [mode]);
+    if (target.type === "private") {
+      const nextUnreadMap = { ...unreadMapRef.current, [target.contact.id]: 0 };
+      unreadMapRef.current = nextUnreadMap;
+      setUnreadMap(nextUnreadMap);
+      persistCache({ unreadMap: nextUnreadMap });
+    } else {
+      groupUnreadRef.current = 0;
+      setGroupUnread(0);
+      persistCache({ groupUnread: 0 });
+    }
+  }, [persistCache]);
 
+  // Reload messages when switching chats (not on initial mount — handled above)
+  const initialMount = useRef(true);
   useEffect(() => {
+    if (initialMount.current) { initialMount.current = false; return; }
+    modeRef.current = mode;
+    if (!userRef.current) return;
     setLoading(true);
     lastMsgId.current = null;
     setMessages([]);
-    if (user) loadMessages();
-  }, [mode, user, loadMessages]);
+    loadMessages({ forMode: mode }).then(() => setLoading(false));
+  }, [mode, loadMessages]);
 
+  // Separate intervals: messages every 5s, contacts (unread) every 20s
   useEffect(() => {
-    if (!user) return;
-    const tick = () => {
-      if (document.hidden) return;
+    const msgInterval = setInterval(() => {
+      if (document.hidden || !userRef.current) return;
       loadMessages({ silent: true });
+    }, 5000);
+    const contactsInterval = setInterval(() => {
+      if (document.hidden || !userRef.current) return;
       loadContacts();
-    };
-    const id = setInterval(tick, 6000);
-    return () => clearInterval(id);
-  }, [user, loadMessages, loadContacts]);
+    }, 20000);
+    return () => { clearInterval(msgInterval); clearInterval(contactsInterval); };
+  }, [loadMessages, loadContacts]);
 
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
@@ -121,6 +220,7 @@ export default function ChatPage() {
       sent_at: new Date().toISOString(),
       is_read: 0,
     };
+    messagesRef.current = [...messagesRef.current, optimistic];
     setMessages((prev) => [...prev, optimistic]);
     isAtBottom.current = true;
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
@@ -183,7 +283,7 @@ export default function ChatPage() {
   const chatWindow = (
     <>
       <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ background: "#0c0f0f" }}>
-        {loading ? (
+        {loading || !showContent ? (
           <div className="flex justify-center pt-10">
             <div className="w-6 h-6 border-2 border-[#c3f400] border-t-transparent rounded-full animate-spin" />
           </div>
@@ -249,7 +349,7 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="h-[100dvh] flex flex-col" dir="rtl" style={{ background: "#0c0f0f", fontFamily: "'Be Vietnam Pro', sans-serif" }}>
+    <div className="h-[100dvh] flex flex-col" dir="rtl" style={{ background: "#0c0f0f" }}>
       {/* Header */}
       <header className="border-b border-[#1e2020] px-4 py-3 flex items-center gap-3 shrink-0 pt-[max(12px,env(safe-area-inset-top))]" style={{ background: "#0c0f0f" }}>
         <button

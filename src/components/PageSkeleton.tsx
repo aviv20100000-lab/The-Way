@@ -5,12 +5,11 @@ import BrandLogo from "@/components/BrandLogo";
  * the initial auth check resolves. Pure CSS (no framer-motion) so it renders
  * instantly without waiting for the JS bundle to hydrate.
  */
-export default function PageSkeleton({ variant = "dashboard" }: { variant?: "dashboard" | "chat" }) {
+export default function PageSkeleton({ variant = "dashboard" }: { variant?: "dashboard" | "chat" | "water" }) {
   return (
     <div
       className="min-h-screen bg-[#0c0f0f] text-[#e2e2e2] app-fade-in"
       dir="rtl"
-      style={{ fontFamily: "'Be Vietnam Pro', sans-serif" }}
       aria-busy="true"
       aria-label="טוען"
     >
@@ -37,6 +36,23 @@ export default function PageSkeleton({ variant = "dashboard" }: { variant?: "das
                 />
               </div>
             ))}
+          </div>
+        ) : variant === "water" ? (
+          <div className="space-y-5 pt-2">
+            {/* Title */}
+            <div className="skeleton h-8 w-36 rounded-lg mx-auto" />
+            {/* Hero image */}
+            <div className="skeleton h-48 w-full rounded-3xl" />
+            {/* Progress card */}
+            <div className="skeleton h-32 w-full rounded-3xl" />
+            {/* Action buttons */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="skeleton h-16 rounded-2xl" />
+              <div className="skeleton h-16 rounded-2xl" />
+              <div className="skeleton h-16 rounded-2xl" />
+            </div>
+            {/* Motivation */}
+            <div className="skeleton h-24 w-full rounded-2xl" />
           </div>
         ) : (
           <div className="space-y-5">

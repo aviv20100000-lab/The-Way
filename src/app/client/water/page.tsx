@@ -17,6 +17,7 @@ export default function WaterTrackerPage() {
     progressPercent,
     streak,
     loading,
+    isLoaded,
     error,
     addWater,
     deleteWater,
@@ -29,6 +30,7 @@ export default function WaterTrackerPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
+  const [showContent, setShowContent] = useState(false);
   const touchStartY = useRef(0);
 
   // Celebration effect when goal reached
@@ -41,6 +43,15 @@ export default function WaterTrackerPage() {
       setCelebrating(false);
     }
   }, [progressPercent, celebrating]);
+
+  useEffect(() => {
+    if (!isLoaded) {
+      setShowContent(false);
+      return;
+    }
+    const timeout = setTimeout(() => setShowContent(true), 120);
+    return () => clearTimeout(timeout);
+  }, [isLoaded]);
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -70,7 +81,8 @@ export default function WaterTrackerPage() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800"
+      className="min-h-screen"
+      style={{ background: "#0c0f0f" }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -129,17 +141,33 @@ export default function WaterTrackerPage() {
       <div className="max-w-lg mx-auto px-5 py-6">
         {/* Header */}
         <motion.div
-          className="mb-8"
+          className="mb-6"
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <h1 className="text-display-lg font-black text-neutral-900 dark:text-white text-right">
-            שמור על עצמך
+          <style>{`
+            @keyframes waterShimmer {
+              0%   { background-position: 0% center; }
+              50%  { background-position: 100% center; }
+              100% { background-position: 0% center; }
+            }
+            @keyframes titleFloat {
+              0%, 100% { transform: translateY(0px); }
+              50%       { transform: translateY(-10px); }
+            }
+            .water-title {
+              background: linear-gradient(135deg, #ffffff 0%, #38bdf8 40%, #c3f400 80%, #38bdf8 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              background-size: 200% auto;
+              animation: waterShimmer 4s ease-in-out infinite, titleFloat 4s ease-in-out infinite;
+            }
+          `}</style>
+          <h1 className="water-title text-3xl font-black text-center">
+            שתייה יומית
           </h1>
-          <p className="text-neutral-600 dark:text-neutral-400 text-right mt-1">
-            יומן ההידרציה שלי - עדכון יומי
-          </p>
         </motion.div>
 
         {/* Error Message */}
@@ -154,15 +182,15 @@ export default function WaterTrackerPage() {
         )}
 
         {/* Loading State */}
-        {loading ? (
+        {loading || !showContent ? (
           <motion.div
             className="space-y-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <div className="h-80 bg-neutral-200 dark:bg-neutral-700 rounded-3xl animate-pulse" />
-            <div className="h-32 bg-neutral-200 dark:bg-neutral-700 rounded-3xl animate-pulse" />
-            <div className="h-24 bg-neutral-200 dark:bg-neutral-700 rounded-3xl animate-pulse" />
+            <div className="h-80 bg-[#1e2020] rounded-3xl animate-pulse" />
+            <div className="h-32 bg-[#1e2020] rounded-3xl animate-pulse" />
+            <div className="h-24 bg-[#1e2020] rounded-3xl animate-pulse" />
           </motion.div>
         ) : (
           <>
@@ -193,7 +221,7 @@ export default function WaterTrackerPage() {
 
             {/* History */}
             <div className="mb-8">
-              <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-3 text-right">
+              <h2 className="text-lg font-bold text-white mb-3 text-right">
                 היסטוריה
               </h2>
               <WaterHistory

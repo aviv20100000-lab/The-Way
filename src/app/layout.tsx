@@ -1,6 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import { Rubik, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { RootLayoutContent } from "./layout-content";
+
+const rubik = Rubik({
+  subsets: ["latin", "hebrew"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-rubik",
+  display: "swap",
+});
+
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  variable: "--font-be-vietnam-pro",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "THE WAY",
@@ -17,13 +32,13 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#4f46e5",
+  themeColor: "#0c0f0f",
   colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" suppressHydrationWarning>
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${beVietnamPro.variable}`} suppressHydrationWarning>
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

@@ -93,8 +93,9 @@ export default function MealScanner(props: MealScannerProps) {
     /סלט/i.test(name);
 
   const needsMeatClarification = (name: string) =>
-    /שווארמה|קבב|נקניקי|בשר|מנגל|גריל|עז|כבד|לב|פרגית/i.test(name) &&
-    !/עוף|הודו|טלה|בקר|כבש|עגל/i.test(name);
+    /שווארמה|קבב|נקניקי|בשר|מנגל|גריל|כבד|לב|פרגית/i.test(name) &&
+    !/עוף|הודו|טלה|בקר|כבש|עגל/i.test(name) &&
+    !/^(אורז|פסטה|קוסקוס|פיתה|לחם|בורגר|תפוח|סלט|מרק)/i.test(name.trim());
 
   const handleEggCount = useCallback((index: number, count: number) => {
     setEggCounts(prev => ({ ...prev, [index]: count }));
@@ -104,10 +105,10 @@ export default function MealScanner(props: MealScannerProps) {
 
   const handleMeatType = useCallback((index: number, meat: string, currentName: string) => {
     setMeatTypes(prev => ({ ...prev, [index]: meat }));
-    const base = currentName
-      .replace(/טלה|בקר|עוף|הודו|כבש|עגל|עז/gi, "")
-      .replace(/\s+/g, " ").trim();
-    updateItemName(index, `${base} ${meat}`.trim());
+    // Extract the dish keyword (שווארמה / קבב / בשר etc.) and build a clean name
+    const dishMatch = currentName.match(/שווארמה|קבב|נקניקי|מנגל|גריל|כבד|לב|פרגית|בשר/i);
+    const dish = dishMatch ? dishMatch[0] : "בשר";
+    updateItemName(index, `${dish} ${meat}`);
   }, [updateItemName]);
 
   const handleSaladDressing = useCallback((index: number, choice: string, currentCals: number) => {

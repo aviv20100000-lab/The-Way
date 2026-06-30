@@ -84,6 +84,7 @@ export default function MealScanner(props: MealScannerProps) {
   const [suggestions, setSuggestions] = useState<Record<number, FoodSuggestion[]>>({});
   const [eggCounts, setEggCounts] = useState<Partial<Record<number, number>>>({});
   const [meatTypes, setMeatTypes] = useState<Partial<Record<number, string>>>({});
+  const [dishTypes, setDishTypes] = useState<Partial<Record<number, string>>>({});
   const [saladDressing, setSaladDressing] = useState<Partial<Record<number, string>>>({});
   const [foodCategory, setFoodCategory] = useState<Partial<Record<number, string>>>({});
 
@@ -93,10 +94,32 @@ export default function MealScanner(props: MealScannerProps) {
   const isSalad = (name: string) =>
     /סלט/i.test(name);
 
+  const isMeatDish = (name: string) =>
+    /עוף|הודו|טלה|בקר|כבש|עגל|שווארמה|קבב|נקניקי|בשר|מנגל|גריל|כבד|לב|פרגית/i.test(name) &&
+    !/^(אורז|פסטה|קוסקוס|פיתה|לחם|תפוח|סלט|מרק)/i.test(name.trim());
+
   const needsMeatClarification = (name: string) =>
     /שווארמה|קבב|נקניקי|בשר|מנגל|גריל|כבד|לב|פרגית/i.test(name) &&
     !/עוף|הודו|טלה|בקר|כבש|עגל/i.test(name) &&
     !/^(אורז|פסטה|קוסקוס|פיתה|לחם|בורגר|תפוח|סלט|מרק)/i.test(name.trim());
+
+  const DISH_TYPES = [
+    { label: "שווארמה", emoji: "🌯" },
+    { label: "קבב",     emoji: "🍢" },
+    { label: "צלוי",    emoji: "🔥" },
+    { label: "מבושל",   emoji: "🍲" },
+    { label: "מטוגן",   emoji: "🍳" },
+    { label: "טחון",    emoji: "🥩" },
+  ];
+
+  const handleDishType = useCallback((index: number, dish: string, currentName: string) => {
+    setDishTypes(prev => ({ ...prev, [index]: dish }));
+    // Extract meat type if present, build clean name
+    const meatMatch = currentName.match(/עוף|הודו|טלה|בקר|כבש|עגל|מיקס/i);
+    const newName = meatMatch ? `${dish} ${meatMatch[0]}` : dish;
+    updateItemName(index, newName);
+    setTimeout(() => estimateItemNutrition(index), 200);
+  }, [updateItemName, estimateItemNutrition]);
 
   const handleEggCount = useCallback((index: number, count: number) => {
     setEggCounts(prev => ({ ...prev, [index]: count }));
@@ -235,6 +258,7 @@ export default function MealScanner(props: MealScannerProps) {
     setCamera("starting");
     setEggCounts({});
     setMeatTypes({});
+    setDishTypes({});
     setSaladDressing({});
     setFoodCategory({});
     resetAiResult();
@@ -488,6 +512,25 @@ export default function MealScanner(props: MealScannerProps) {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-[#c3f400] font-semibold">✓ {meatTypes[i]}</span>
                       <button onClick={() => setMeatTypes(prev => { const n = { ...prev }; delete n[i]; return n; })}
+                        className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]">שנה</button>
+                    </div>
+                  )}
+                  {/* Dish type question — for all meat items */}
+                  {isMeatDish(item.name) && dishTypes[i] === undefined && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-[#c4c9ac] font-semibold">אופן הכנה?</span>
+                      {DISH_TYPES.map(({ label, emoji }) => (
+                        <button key={label} onClick={() => handleDishType(i, label, item.name)}
+                          className="h-8 px-3 rounded-lg border border-[#444933] bg-[#11140e] text-sm font-bold text-[#c4c9ac] hover:border-[#c3f400] hover:text-[#c3f400] transition-colors flex items-center gap-1">
+                          <span>{emoji}</span><span>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {isMeatDish(item.name) && dishTypes[i] !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[#c3f400] font-semibold">✓ {dishTypes[i]}</span>
+                      <button onClick={() => setDishTypes(prev => { const n = { ...prev }; delete n[i]; return n; })}
                         className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]">שנה</button>
                     </div>
                   )}

@@ -84,9 +84,13 @@ export default function MealScanner(props: MealScannerProps) {
   const [suggestions, setSuggestions] = useState<Record<number, FoodSuggestion[]>>({});
   const [eggCounts, setEggCounts] = useState<Partial<Record<number, number>>>({});
   const [meatTypes, setMeatTypes] = useState<Partial<Record<number, string>>>({});
+  const [saladDressing, setSaladDressing] = useState<Partial<Record<number, string>>>({});
 
   const isOmelet = (name: string) =>
     /חביתה|ביצה מקושקשת|ביצת עין|ביצים מקושקשות/i.test(name);
+
+  const isSalad = (name: string) =>
+    /סלט/i.test(name);
 
   const needsMeatClarification = (name: string) =>
     /שווארמה|קבב|נקניקי|בשר|מנגל|גריל|עז|כבד|לב|פרגית/i.test(name) &&
@@ -100,9 +104,17 @@ export default function MealScanner(props: MealScannerProps) {
 
   const handleMeatType = useCallback((index: number, meat: string, currentName: string) => {
     setMeatTypes(prev => ({ ...prev, [index]: meat }));
-    const base = currentName.replace(/טלה|בקר|עוף|הודו|כבש/gi, "").trim();
+    const base = currentName
+      .replace(/טלה|בקר|עוף|הודו|כבש|עגל|עז/gi, "")
+      .replace(/\s+/g, " ").trim();
     updateItemName(index, `${base} ${meat}`.trim());
   }, [updateItemName]);
+
+  const handleSaladDressing = useCallback((index: number, choice: string, currentCals: number) => {
+    setSaladDressing(prev => ({ ...prev, [index]: choice }));
+    const extra = choice === "שמן זית" ? 40 : choice === "רוטב" ? 60 : choice === "שניהם" ? 100 : 0;
+    updateItemCalories(index, currentCals + extra);
+  }, [updateItemCalories]);
   const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const fetchSuggestions = useCallback(async (index: number, query: string) => {
@@ -204,6 +216,7 @@ export default function MealScanner(props: MealScannerProps) {
     setCamera("starting");
     setEggCounts({});
     setMeatTypes({});
+    setSaladDressing({});
     resetAiResult();
   }, [resetAiResult]);
 
@@ -444,25 +457,37 @@ export default function MealScanner(props: MealScannerProps) {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-[#c4c9ac] font-semibold">איזה בשר?</span>
                       {["עוף", "הודו", "עגל", "טלה", "בקר", "מיקס"].map((meat) => (
-                        <button
-                          key={meat}
-                          onClick={() => handleMeatType(i, meat, item.name)}
-                          className="h-8 px-3 rounded-lg border border-[#444933] bg-[#11140e] text-sm font-bold text-[#c4c9ac] hover:border-[#c3f400] hover:text-[#c3f400] transition-colors"
-                        >
+                        <button key={meat} onClick={() => handleMeatType(i, meat, item.name)}
+                          className="h-8 px-3 rounded-lg border border-[#444933] bg-[#11140e] text-sm font-bold text-[#c4c9ac] hover:border-[#c3f400] hover:text-[#c3f400] transition-colors">
                           {meat}
                         </button>
                       ))}
                     </div>
                   )}
-                  {needsMeatClarification(item.name) && meatTypes[i] !== undefined && (
+                  {meatTypes[i] !== undefined && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-[#8e9379]">{item.name}</span>
-                      <button
-                        onClick={() => setMeatTypes(prev => { const n = { ...prev }; delete n[i]; return n; })}
-                        className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]"
-                      >
-                        שנה
-                      </button>
+                      <span className="text-xs text-[#c3f400] font-semibold">✓ {meatTypes[i]}</span>
+                      <button onClick={() => setMeatTypes(prev => { const n = { ...prev }; delete n[i]; return n; })}
+                        className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]">שנה</button>
+                    </div>
+                  )}
+                  {/* Salad dressing question */}
+                  {isSalad(item.name) && saladDressing[i] === undefined && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-[#c4c9ac] font-semibold">יש שמן/רוטב?</span>
+                      {["שמן זית", "רוטב", "שניהם", "בלי"].map((choice) => (
+                        <button key={choice} onClick={() => handleSaladDressing(i, choice, item.calories)}
+                          className="h-8 px-3 rounded-lg border border-[#444933] bg-[#11140e] text-sm font-bold text-[#c4c9ac] hover:border-[#c3f400] hover:text-[#c3f400] transition-colors">
+                          {choice}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {isSalad(item.name) && saladDressing[i] !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[#c3f400] font-semibold">✓ {saladDressing[i]}</span>
+                      <button onClick={() => setSaladDressing(prev => { const n = { ...prev }; delete n[i]; return n; })}
+                        className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]">שנה</button>
                     </div>
                   )}
                   {/* Egg count question */}

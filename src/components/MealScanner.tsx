@@ -85,6 +85,7 @@ export default function MealScanner(props: MealScannerProps) {
   const [eggCounts, setEggCounts] = useState<Partial<Record<number, number>>>({});
   const [meatTypes, setMeatTypes] = useState<Partial<Record<number, string>>>({});
   const [saladDressing, setSaladDressing] = useState<Partial<Record<number, string>>>({});
+  const [foodCategory, setFoodCategory] = useState<Partial<Record<number, string>>>({});
 
   const isOmelet = (name: string) =>
     /חביתה|ביצה מקושקשת|ביצת עין|ביצים מקושקשות/i.test(name);
@@ -116,6 +117,23 @@ export default function MealScanner(props: MealScannerProps) {
     const extra = choice === "שמן זית" ? 90 : choice === "רוטב" ? 80 : choice === "שניהם" ? 160 : 0;
     updateItemCalories(index, Math.max(currentCals, 1) + extra);
   }, [updateItemCalories]);
+
+  const FOOD_CATEGORIES = [
+    { label: "דג",      emoji: "🐟" },
+    { label: "עוף",     emoji: "🍗" },
+    { label: "בשר",     emoji: "🥩" },
+    { label: "ביצה",    emoji: "🥚" },
+    { label: "ירק",     emoji: "🥦" },
+    { label: "חלבי",    emoji: "🧀" },
+    { label: "פחמימה",  emoji: "🍚" },
+    { label: "אחר",     emoji: "❓" },
+  ];
+
+  const handleFoodCategory = useCallback((index: number, label: string) => {
+    setFoodCategory(prev => ({ ...prev, [index]: label }));
+    updateItemName(index, label);
+    setTimeout(() => estimateItemNutrition(index), 200);
+  }, [updateItemName, estimateItemNutrition]);
   const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const fetchSuggestions = useCallback(async (index: number, query: string) => {
@@ -218,6 +236,7 @@ export default function MealScanner(props: MealScannerProps) {
     setEggCounts({});
     setMeatTypes({});
     setSaladDressing({});
+    setFoodCategory({});
     resetAiResult();
   }, [resetAiResult]);
 
@@ -519,11 +538,43 @@ export default function MealScanner(props: MealScannerProps) {
                       </button>
                     </div>
                   )}
-                  {/* Manual entry prompt */}
-                  {item.needsManualEntry && (
-                    <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2">
-                      <span className="text-amber-400 text-sm">⚠</span>
-                      <span className="text-xs font-semibold text-amber-300">לא זוהה בבירור — הקלד ערכים ידנית</span>
+                  {/* Food category picker for low-confidence items */}
+                  {item.needsManualEntry && foodCategory[i] === undefined && (
+                    <div className="rounded-2xl p-3 space-y-2.5"
+                      style={{ background: "rgba(195,244,0,0.04)", border: "1px solid rgba(195,244,0,0.15)" }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black tracking-widest uppercase text-[#c3f400]">לא זוהה</span>
+                        <div className="flex-1 h-px" style={{ background: "rgba(195,244,0,0.15)" }} />
+                        <span className="text-[10px] text-[#8e9379]">בחר קטגוריה</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {FOOD_CATEGORIES.map(({ label, emoji }) => (
+                          <button
+                            key={label}
+                            onClick={() => handleFoodCategory(i, label)}
+                            className="flex flex-col items-center gap-1.5 rounded-xl py-3 transition-all active:scale-95"
+                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(195,244,0,0.12)" }}
+                            onMouseEnter={e => (e.currentTarget.style.border = "1px solid rgba(195,244,0,0.5)")}
+                            onMouseLeave={e => (e.currentTarget.style.border = "1px solid rgba(195,244,0,0.12)")}
+                          >
+                            <span className="text-2xl leading-none">{emoji}</span>
+                            <span className="text-[10px] font-bold text-[#c4c9ac]">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {item.needsManualEntry && foodCategory[i] !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[#c3f400] font-semibold">
+                        {FOOD_CATEGORIES.find(c => c.label === foodCategory[i])?.emoji} {foodCategory[i]} — מחשב קלוריות...
+                      </span>
+                      <button
+                        onClick={() => setFoodCategory(prev => { const n = { ...prev }; delete n[i]; return n; })}
+                        className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]"
+                      >
+                        שנה
+                      </button>
                     </div>
                   )}
                   <div className="flex items-center gap-2">

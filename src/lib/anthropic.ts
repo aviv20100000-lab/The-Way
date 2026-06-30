@@ -39,7 +39,7 @@ STEP 3 — ESTIMATE: Use visual cues for portion weight. State your reasoning br
 STEP 4 — CONFIDENCE: Rate each item 0.0–1.0. Only include items you are at least 0.6 confident about.
 
 STRICT RULES:
-- RULE #1 — PACKAGED FOOD: If you see a product box, bag, or container with a label — READ the label text and use it as the food name. Ignore visual texture entirely when a label is readable.
+- RULE #1 — PACKAGED FOOD: If you see a product box, bag, or container with a label — READ the label to identify the food type and fat percentage. Use ONLY the generic food name + fat % (e.g. "קוטג' 5%", "שמנת חמוצה 15%", "יוגורט 3%"). NEVER include brand names.
 - RULE #2 — PLATED FOOD (no packaging visible): Identify by what you actually see on the plate/bowl. Do NOT invent a brand or product name.
   • Yellow/white fluffy or set egg → חביתה or ביצה מקושקשת (NEVER עוף)
   • White dairy with visible curds → קוטג'

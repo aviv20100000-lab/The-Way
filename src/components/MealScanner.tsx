@@ -497,7 +497,7 @@ export default function MealScanner(props: MealScannerProps) {
                   className="rounded-xl bg-[#1b1f17] border border-[#33391f] px-4 py-3 space-y-3"
                 >
                   {/* Meat type question */}
-                  {isMeatDish(item.name) && meatTypes[i] === undefined && (
+                  {needsMeatClarification(item.name) && meatTypes[i] === undefined && (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-[#c4c9ac] font-semibold">איזה בשר?</span>
                       {["עוף", "הודו", "עגל", "טלה", "בקר", "מיקס"].map((meat) => (

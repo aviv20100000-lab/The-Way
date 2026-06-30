@@ -89,8 +89,8 @@ export default function MealScanner(props: MealScannerProps) {
     /חביתה|ביצה מקושקשת|ביצת עין|ביצים מקושקשות/i.test(name);
 
   const needsMeatClarification = (name: string) =>
-    /שווארמה|קבב|נקניקי|בשר|מנגל|גריל/i.test(name) &&
-    !/עוף|הודו|טלה|בקר|כבש/i.test(name);
+    /שווארמה|קבב|נקניקי|בשר|מנגל|גריל|עז|כבד|לב|פרגית/i.test(name) &&
+    !/עוף|הודו|טלה|בקר|כבש|עגל/i.test(name);
 
   const handleEggCount = useCallback((index: number, count: number) => {
     setEggCounts(prev => ({ ...prev, [index]: count }));

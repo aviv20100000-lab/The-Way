@@ -137,19 +137,19 @@ export async function ensureSeed() {
   await initDb();
   seeded = true;
 
-  if (process.env.NODE_ENV === "production") {
-    return;
-  }
-
-  // Always seed foods (in all environments) so production DB has full list
+  // Seed foods in all environments (INSERT OR IGNORE by name_he to avoid duplicates)
   for (const food of FOODS) {
     await db.execute({
-      sql: "INSERT OR IGNORE INTO foods (id, name_he, name_en, calories, protein, carbs, fat, serving_size) VALUES (?, ?, ?, ?, ?, ?, ?, '100g')",
-      args: [uuid(), food.name_he, food.name_en, food.calories, food.protein, food.carbs, food.fat],
+      sql: "INSERT OR IGNORE INTO foods (id, name_he, name_en, calories, protein, carbs, fat, serving_size) SELECT ?, ?, ?, ?, ?, ?, ?, '100g' WHERE NOT EXISTS (SELECT 1 FROM foods WHERE name_he = ?)",
+      args: [uuid(), food.name_he, food.name_en, food.calories, food.protein, food.carbs, food.fat, food.name_he],
     });
   }
 
-  if (process.env.NODE_ENV === "production") {
+  if ((process.env.NODE_ENV as string) === "production") {
+    return;
+  }
+
+  if ((process.env.NODE_ENV as string) === "production") {
     return;
   }
 

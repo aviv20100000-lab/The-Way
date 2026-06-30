@@ -96,11 +96,13 @@ export default function MealScanner(props: MealScannerProps) {
 
   const isMeatDish = (name: string) =>
     /עוף|הודו|טלה|בקר|כבש|עגל|שווארמה|קבב|נקניקי|בשר|מנגל|גריל|כבד|לב|פרגית/i.test(name) &&
+    !/דג|סלמון|טונה|בס|דניס|נסיכה|פילה/i.test(name) &&
     !/^(אורז|פסטה|קוסקוס|פיתה|לחם|תפוח|סלט|מרק)/i.test(name.trim());
 
   const needsMeatClarification = (name: string) =>
     /שווארמה|קבב|נקניקי|בשר|מנגל|גריל|כבד|לב|פרגית/i.test(name) &&
     !/עוף|הודו|טלה|בקר|כבש|עגל/i.test(name) &&
+    !/דג|סלמון|טונה|בס|דניס|נסיכה|פילה/i.test(name) &&
     !/^(אורז|פסטה|קוסקוס|פיתה|לחם|בורגר|תפוח|סלט|מרק)/i.test(name.trim());
 
   const DISH_TYPES = [

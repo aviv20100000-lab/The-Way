@@ -82,7 +82,7 @@ export default function MealScanner(props: MealScannerProps) {
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Record<number, FoodSuggestion[]>>({});
   // egg count per item index — undefined = not yet answered, number = answered
-  const [eggCounts, setEggCounts] = useState<Record<number, number>>({});
+  const [eggCounts, setEggCounts] = useState<Partial<Record<number, number>>>({});
 
   const isOmelet = (name: string) =>
     /חביתה|ביצה מקושקשת|ביצת עין|ביצים מקושקשות/i.test(name);

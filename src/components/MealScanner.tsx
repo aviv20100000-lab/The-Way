@@ -113,8 +113,8 @@ export default function MealScanner(props: MealScannerProps) {
 
   const handleSaladDressing = useCallback((index: number, choice: string, currentCals: number) => {
     setSaladDressing(prev => ({ ...prev, [index]: choice }));
-    const extra = choice === "שמן זית" ? 40 : choice === "רוטב" ? 60 : choice === "שניהם" ? 100 : 0;
-    updateItemCalories(index, currentCals + extra);
+    const extra = choice === "שמן זית" ? 90 : choice === "רוטב" ? 80 : choice === "שניהם" ? 160 : 0;
+    updateItemCalories(index, Math.max(currentCals, 1) + extra);
   }, [updateItemCalories]);
   const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 

@@ -45,6 +45,7 @@ STRICT RULES:
   • White dairy with visible curds → קוטג'
   • Smooth white cream in a bowl → שמנת חמוצה or יוגורט
   • Smooth white spread on bread → גבינה לבנה
+  • Fillet or whole fish with visible scales/skin/bones, or flaky white/pink flesh → דג (NEVER עוף). Identify type if visible: סלמון (pink/orange), טונה (dark red/brown), דג לבן (white fillet).
 - Do NOT invent foods. Only include what you clearly see.
 - Add oil/dressing ONLY if you see visible oil sheen or pooling sauce.`;
 

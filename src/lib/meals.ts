@@ -2,9 +2,23 @@ import { v4 as uuid } from "uuid";
 import db from "./db";
 import type { Food, Meal, MealItem, MealType, User } from "./types";
 
+function hebrewVariants(q: string): string[] {
+  const normalized = q
+    .replace(/ח/g, "כ").replace(/כ/g, "ח")
+    .replace(/ק/g, "כ")
+    .replace(/ש/g, "ס").replace(/ס/g, "ש")
+    .replace(/ת/g, "ט").replace(/ט/g, "ת")
+    .replace(/א/g, "ע").replace(/ע/g, "א")
+    .replace(/ו/g, "ב").replace(/ב/g, "ו");
+  return [...new Set([q, normalized])];
+}
+
 export async function searchFoods(query: string): Promise<Food[]> {
-  const q = `%${query.trim()}%`;
-  const res = await db.execute({ sql: "SELECT * FROM foods WHERE name_he LIKE ? OR name_en LIKE ? ORDER BY name_he LIMIT 20", args: [q, q] });
+  const trimmed = query.trim();
+  const variants = hebrewVariants(trimmed);
+  const conditions = variants.flatMap(() => ["name_he LIKE ?", "name_en LIKE ?"]).join(" OR ");
+  const args = variants.flatMap((v) => [`%${v}%`, `%${v}%`]);
+  const res = await db.execute({ sql: `SELECT * FROM foods WHERE ${conditions} ORDER BY name_he LIMIT 20`, args });
   return res.rows.map((r) => r as unknown as Food);
 }
 

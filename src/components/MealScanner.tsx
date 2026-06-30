@@ -12,6 +12,7 @@ interface AiItem {
   carbs_g: number;
   fat_g: number;
   confidence?: number;
+  needsManualEntry?: boolean;
 }
 
 interface FoodSuggestion {
@@ -81,17 +82,27 @@ export default function MealScanner(props: MealScannerProps) {
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Record<number, FoodSuggestion[]>>({});
-  // egg count per item index — undefined = not yet answered, number = answered
   const [eggCounts, setEggCounts] = useState<Partial<Record<number, number>>>({});
+  const [meatTypes, setMeatTypes] = useState<Partial<Record<number, string>>>({});
 
   const isOmelet = (name: string) =>
     /חביתה|ביצה מקושקשת|ביצת עין|ביצים מקושקשות/i.test(name);
+
+  const needsMeatClarification = (name: string) =>
+    /שווארמה|קבב|נקניקי|בשר|מנגל|גריל/i.test(name) &&
+    !/עוף|הודו|טלה|בקר|כבש/i.test(name);
 
   const handleEggCount = useCallback((index: number, count: number) => {
     setEggCounts(prev => ({ ...prev, [index]: count }));
     updateItemGrams(index, count * 55);
     updateItemCalories(index, count * 80);
   }, [updateItemGrams, updateItemCalories]);
+
+  const handleMeatType = useCallback((index: number, meat: string, currentName: string) => {
+    setMeatTypes(prev => ({ ...prev, [index]: meat }));
+    const base = currentName.replace(/טלה|בקר|עוף|הודו|כבש/gi, "").trim();
+    updateItemName(index, `${base} ${meat}`.trim());
+  }, [updateItemName]);
   const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const fetchSuggestions = useCallback(async (index: number, query: string) => {
@@ -192,6 +203,7 @@ export default function MealScanner(props: MealScannerProps) {
     setArmed(false);
     setCamera("starting");
     setEggCounts({});
+    setMeatTypes({});
     resetAiResult();
   }, [resetAiResult]);
 
@@ -217,12 +229,12 @@ export default function MealScanner(props: MealScannerProps) {
       }}
     >
       <style>{`
-        @keyframes scanSweep { 0%{transform:translateY(-10%);opacity:0} 12%{opacity:1} 88%{opacity:1} 100%{transform:translateY(1000%);opacity:0} }
+        @keyframes scanSweep { 0%{top:0%;opacity:0} 5%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0} }
         @keyframes hudPulse { 0%,100%{opacity:.45} 50%{opacity:1} }
         @keyframes gridDrift { from{background-position:0 0} to{background-position:26px 26px} }
-        .ms-scanline{position:absolute;left:0;right:0;height:2px;
+        .ms-scanline{position:absolute;left:0;right:0;height:2px;top:0;
           background:linear-gradient(90deg,transparent,#c3f400,transparent);
-          box-shadow:0 0 14px 2px rgba(195,244,0,.55);animation:scanSweep 1.9s cubic-bezier(.5,0,.5,1) infinite}
+          box-shadow:0 0 14px 2px rgba(195,244,0,.55);animation:scanSweep 2s linear infinite}
         .ms-grid{background-image:linear-gradient(rgba(195,244,0,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(195,244,0,.06) 1px,transparent 1px);
           background-size:26px 26px;animation:gridDrift 6s linear infinite}
         .ms-corner{position:absolute;width:26px;height:26px;border-color:#c3f400;opacity:.9}
@@ -427,6 +439,32 @@ export default function MealScanner(props: MealScannerProps) {
                   transition={{ delay: 0.1 + i * 0.06 }}
                   className="rounded-xl bg-[#1b1f17] border border-[#33391f] px-4 py-3 space-y-3"
                 >
+                  {/* Meat type question */}
+                  {needsMeatClarification(item.name) && meatTypes[i] === undefined && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-[#c4c9ac] font-semibold">איזה בשר?</span>
+                      {["עוף", "הודו", "עגל", "טלה", "בקר", "מיקס"].map((meat) => (
+                        <button
+                          key={meat}
+                          onClick={() => handleMeatType(i, meat, item.name)}
+                          className="h-8 px-3 rounded-lg border border-[#444933] bg-[#11140e] text-sm font-bold text-[#c4c9ac] hover:border-[#c3f400] hover:text-[#c3f400] transition-colors"
+                        >
+                          {meat}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {needsMeatClarification(item.name) && meatTypes[i] !== undefined && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[#8e9379]">{item.name}</span>
+                      <button
+                        onClick={() => setMeatTypes(prev => { const n = { ...prev }; delete n[i]; return n; })}
+                        className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]"
+                      >
+                        שנה
+                      </button>
+                    </div>
+                  )}
                   {/* Egg count question */}
                   {isOmelet(item.name) && eggCounts[i] === undefined && (
                     <div className="flex flex-wrap items-center gap-2">
@@ -455,12 +493,11 @@ export default function MealScanner(props: MealScannerProps) {
                       </button>
                     </div>
                   )}
-                  {/* Confidence badge */}
-                  {item.confidence !== undefined && item.confidence < 0.7 && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
-                        ⚠ בדוק — ה-AI לא בטוח
-                      </span>
+                  {/* Manual entry prompt */}
+                  {item.needsManualEntry && (
+                    <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25 px-3 py-2">
+                      <span className="text-amber-400 text-sm">⚠</span>
+                      <span className="text-xs font-semibold text-amber-300">לא זוהה בבירור — הקלד ערכים ידנית</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2">

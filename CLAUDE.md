@@ -73,3 +73,12 @@ Defer extras unless the user explicitly prioritizes them:
 - community
 - challenges
 - advanced analytics
+
+## Deployment Memory
+
+- On 2026-07-04 the repository was synchronized with production in commit `115f2f9` and pushed to `main`.
+- GitHub `main` is connected to the active Vercel project `the-way-app`; every push to `main` triggers an automatic production deployment to `https://the-way-app-two.vercel.app`.
+- Normal release flow: save changes, create a git commit, then run `git push`. Vercel deploys automatically; do not run a separate manual Vercel deployment unless explicitly needed.
+- `git push` only sends committed changes. Local edits that were not committed are not deployed.
+- A stale duplicate Vercel project named `project-dxx1s` may report failed deployments; the active project to verify is `the-way-app`.
+- The nightly database-backup GitHub Actions workflow is active. Its first manual run succeeded and produced the `db-backup-2026-07-04` artifact.

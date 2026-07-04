@@ -1,6 +1,7 @@
 'use client';
 
 import React from "react";
+import { withCsrf } from "@/lib/csrf-client";
 
 interface Props {
   children: React.ReactNode;
@@ -24,6 +25,28 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Error caught by boundary:", error, errorInfo);
+    void this.reportError(error, errorInfo);
+  }
+
+  private async reportError(error: Error, errorInfo: React.ErrorInfo) {
+    try {
+      const headers = await withCsrf({ "Content-Type": "application/json" });
+      await fetch("/api/client-errors", {
+        method: "POST",
+        headers,
+        keepalive: true,
+        body: JSON.stringify({
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          componentStack: errorInfo.componentStack,
+          path: window.location.pathname,
+          userAgent: navigator.userAgent,
+        }),
+      });
+    } catch (reportError) {
+      console.error("Failed to report client error:", reportError);
+    }
   }
 
   render() {

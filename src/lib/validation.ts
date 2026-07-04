@@ -6,23 +6,13 @@ export function validateEmail(email: string): boolean {
 }
 
 export function validatePassword(password: string): { valid: boolean; error?: string } {
-  if (password.length < 12) {
-    return { valid: false, error: "סיסמה חייבת להיות לפחות 12 תווים" };
+  // Deliberately relaxed policy (owner decision 2026-07-04): friends-only app,
+  // usability wins. Minimum 4 characters, no complexity requirements.
+  if (password.length < 4) {
+    return { valid: false, error: "סיסמה חייבת להיות לפחות 4 תווים" };
   }
   if (password.length > 128) {
     return { valid: false, error: "סיסמה ארוכה מדי (מקסימום 128 תווים)" };
-  }
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, error: "סיסמה חייבת לכלול אות גדולה (A-Z)" };
-  }
-  if (!/[a-z]/.test(password)) {
-    return { valid: false, error: "סיסמה חייבת לכלול אות קטנה (a-z)" };
-  }
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, error: "סיסמה חייבת לכלול ספרה (0-9)" };
-  }
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    return { valid: false, error: "סיסמה חייבת לכלול תו מיוחד (!@#$%^&* וכו')" };
   }
   return { valid: true };
 }

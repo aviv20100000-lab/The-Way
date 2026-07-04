@@ -16,7 +16,7 @@ export async function GET() {
             aml.total_calories,
             aml.ai_response,
             aml.photo_url,
-            aml.logged_at,
+            strftime('%Y-%m-%dT%H:%M:%SZ', aml.logged_at) AS logged_at,
             u.name AS client_name
           FROM ai_meal_logs aml
           JOIN users u ON aml.user_id = u.id

@@ -1,22 +1,20 @@
-// Telegram alert helper for the health-check bot.
+// Telegram alert helper.
 //
 // Fully optional and fail-safe: if TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are not
-// configured, this is a silent no-op and NEVER throws — so it can never break a
-// request that calls it. Setup instructions live in MONITORING.md.
+// configured, this is a silent no-op and never throws. Setup instructions live
+// in docs/MONITORING.md.
 
 export async function sendTelegramAlert(text: string): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId) {
-    console.warn(
-      "[telegram] skipped — TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set"
-    );
+    console.warn("[telegram] skipped - TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set");
     return false;
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -37,6 +35,7 @@ export async function sendTelegramAlert(text: string): Promise<boolean> {
       console.error("[telegram] send failed", res.status, detail);
       return false;
     }
+
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -48,7 +48,13 @@ export async function POST(req: NextRequest) {
 
   if (type === "morning") {
     const rows = (await db.execute({
-      sql: "SELECT ps.endpoint, ps.p256dh, ps.auth FROM push_subscriptions ps JOIN users u ON u.id = ps.user_id",
+      sql: `
+        SELECT ps.endpoint, ps.p256dh, ps.auth
+        FROM push_subscriptions ps
+        JOIN users u ON u.id = ps.user_id
+        WHERE u.id = ? OR u.coach_id = ?
+      `,
+      args: [user.id, user.id],
     })).rows as unknown as Sub[];
 
     if (rows.length === 0) return NextResponse.json({ ok: false, error: "אין subscriptions בכלל" });

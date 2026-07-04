@@ -18,8 +18,8 @@ export function useStepsTracking() {
   const [lbLoaded, setLbLoaded] = useState(false);
   const loadedRef = useRef(false);
 
-  const loadLeaderboard = useCallback(async () => {
-    if (loadedRef.current) return;
+  const loadLeaderboard = useCallback(async (force = false) => {
+    if (loadedRef.current && !force) return;
     loadedRef.current = true;
     try {
       const stepsRes = await fetch("/api/health/steps?type=leaderboard");

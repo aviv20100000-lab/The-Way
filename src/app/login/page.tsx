@@ -172,6 +172,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updateMotionPreference();
+    mediaQuery.addEventListener("change", updateMotionPreference);
+
+    return () => mediaQuery.removeEventListener("change", updateMotionPreference);
+  }, []);
 
   // Warm up both dashboards so the post-login redirect is instant
   useEffect(() => {
@@ -201,8 +212,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(data.role === "coach" ? "/coach" : "/client");
-    router.refresh();
+    window.location.href = data.role === "coach" ? "/coach" : "/client";
   }
 
   return (
@@ -211,6 +221,23 @@ export default function LoginPage() {
       dir="rtl"
       style={{ background: "#0c0f0f" }}
     >
+      {prefersReducedMotion === false && (
+        <>
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className="absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-1000"
+            onCanPlay={(e) => e.currentTarget.classList.remove("opacity-0")}
+          >
+            <source src="/videos/login-bg.mp4" type="video/mp4" />
+          </video>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-black/60 to-black/80" />
+        </>
+      )}
+
       {/* Background glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-[#c3f400]/6 blur-[140px]" />
@@ -310,7 +337,6 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
               required
               dir="ltr"
               autoComplete="current-password"
@@ -328,6 +354,9 @@ export default function LoginPage() {
           >
             {loading ? "נכנסים..." : "כניסה"}
           </button>
+          <a href="/forgot-password" className="block text-center text-sm text-[#8e9379] hover:text-[#c3f400]">
+            שכחת סיסמה?
+          </a>
         </form>
 
         <p className="mt-5 text-center text-xs text-[#8e9379]">

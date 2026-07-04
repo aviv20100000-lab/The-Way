@@ -27,9 +27,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# env files
-.env*.local
-.env
+# env files (covers .env, .env.local, .env.prod, .env.local.test, etc.)
+.env*
 
 # database & uploads
 /data/*.db

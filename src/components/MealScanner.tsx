@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PhotoUpload } from "@/components/PhotoUpload";
+import MealSharePrompt from "@/components/MealSharePrompt";
+import ScanProgress from "@/components/ScanProgress";
 
 interface AiItem {
   name: string;
@@ -13,6 +15,7 @@ interface AiItem {
   fat_g: number;
   confidence?: number;
   needsManualEntry?: boolean;
+  source?: "tzameret" | "ai";
 }
 
 interface FoodSuggestion {
@@ -29,6 +32,7 @@ interface AiResult {
 }
 
 interface MealScannerProps {
+  compact?: boolean;
   analyzing: boolean;
   aiResult: AiResult | null;
   foodError: string;
@@ -36,6 +40,13 @@ interface MealScannerProps {
   estimatingIndex: number | null;
   analyzeFood: (file: File) => void;
   logMeal: (items: { name: string; calories: number; estimated_weight_g: number }[], total: number) => void;
+  lastSavedMealId: string | null;
+  sharingMeal: boolean;
+  shareMealError: string;
+  mealShared: boolean;
+  sharePromptDismissed: boolean;
+  shareMealToGroup: (mealId: string) => void;
+  dismissSharePrompt: () => void;
   resetAiResult: () => void;
   updateItemName: (index: number, name: string) => void;
   updateItemCalories: (index: number, calories: number) => void;
@@ -71,8 +82,9 @@ function AnimatedNumber({ value, className }: { value: number; className?: strin
 
 export default function MealScanner(props: MealScannerProps) {
   const {
+    compact = false,
     analyzing, aiResult, foodError, mealSaved, estimatingIndex,
-    analyzeFood, logMeal, resetAiResult,
+    analyzeFood, logMeal, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, shareMealToGroup, dismissSharePrompt, resetAiResult,
     updateItemName, updateItemCalories, updateItemGrams,
     estimateItemNutrition, deleteItem, addItem,
   } = props;
@@ -80,6 +92,7 @@ export default function MealScanner(props: MealScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [capturedUrl, setCapturedUrl] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Record<number, FoodSuggestion[]>>({});
   const [eggCounts, setEggCounts] = useState<Partial<Record<number, number>>>({});
@@ -104,6 +117,10 @@ export default function MealScanner(props: MealScannerProps) {
     !/עוף|הודו|טלה|בקר|כבש|עגל/i.test(name) &&
     !/דג|סלמון|טונה|בס|דניס|נסיכה|פילה/i.test(name) &&
     !/^(אורז|פסטה|קוסקוס|פיתה|לחם|בורגר|תפוח|סלט|מרק)/i.test(name.trim());
+
+  const needsDishClarification = (name: string) =>
+    isMeatDish(name) &&
+    !/שווארמה|קבב|צלוי|מבושל|מטוגן|טחון|פרגית|שניצל|סטייק|המבורגר/i.test(name);
 
   const DISH_TYPES = [
     { label: "שווארמה", emoji: "🌯" },
@@ -264,6 +281,9 @@ export default function MealScanner(props: MealScannerProps) {
     setSaladDressing({});
     setFoodCategory({});
     resetAiResult();
+    // The result list is long — bring the scanner back into view instead of
+    // stranding the user at the bottom of the page.
+    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [resetAiResult]);
 
   // Macro totals (real data already returned by the API)
@@ -277,9 +297,11 @@ export default function MealScanner(props: MealScannerProps) {
   );
   const macroMax = Math.max(macros.p, macros.c, macros.f, 1);
   const total = (aiResult?.items ?? []).reduce((s, it) => s + (it.calories || 0), 0);
+  const compactIdle = compact && phase === "live" && !armed;
 
   return (
     <div
+      ref={rootRef}
       className="relative rounded-3xl overflow-hidden"
       style={{
         background: "linear-gradient(165deg, #141812 0%, #0e110d 100%)",
@@ -301,7 +323,7 @@ export default function MealScanner(props: MealScannerProps) {
 
       {/* ===== HEADER ===== */}
       {phase !== "result" && (
-        <div className="px-5 pt-5 pb-1 flex items-center justify-between">
+        <div className={`flex items-center justify-between px-5 pb-1 ${compactIdle ? "pt-3" : "pt-5"}`}>
           <div>
             <p className="text-base font-semibold text-white">סורק הארוחות</p>
             <p className="text-xs text-[#8e9379] mt-0.5">כוון, צלם, וה-AI יחשב הכל</p>
@@ -317,8 +339,8 @@ export default function MealScanner(props: MealScannerProps) {
 
       {/* ===== VIEWFINDER / PHOTO STAGE ===== */}
       {phase !== "result" && (
-        <div className="px-5 pt-3">
-          <div className="relative w-full overflow-hidden rounded-2xl bg-black" style={{ aspectRatio: "4 / 3" }}>
+        <div className={`px-5 ${compactIdle ? "pt-2" : "pt-3"}`}>
+          <div className="relative w-full overflow-hidden rounded-2xl bg-black" style={{ aspectRatio: compactIdle ? "16 / 7" : "4 / 3" }}>
             {/* live video — only mounted once the user arms the camera */}
             {phase === "live" && armed && (
               <video ref={videoRef} playsInline muted
@@ -333,15 +355,15 @@ export default function MealScanner(props: MealScannerProps) {
 
             {/* Idle poster — calm CTA, camera NOT running */}
             {phase === "live" && !armed && camera !== "fallback" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
+              <div className={`absolute inset-0 flex flex-col items-center justify-center text-center px-6 ${compactIdle ? "gap-1" : "gap-3"}`}>
                 <div className="ms-grid pointer-events-none absolute inset-0 opacity-25" />
                 <div className="ms-corner top-3 left-3" style={{ borderTop: "2px solid", borderLeft: "2px solid", borderTopLeftRadius: 8, opacity: 0.5 }} />
                 <div className="ms-corner top-3 right-3" style={{ borderTop: "2px solid", borderRight: "2px solid", borderTopRightRadius: 8, opacity: 0.5 }} />
                 <div className="ms-corner bottom-3 left-3" style={{ borderBottom: "2px solid", borderLeft: "2px solid", borderBottomLeftRadius: 8, opacity: 0.5 }} />
                 <div className="ms-corner bottom-3 right-3" style={{ borderBottom: "2px solid", borderRight: "2px solid", borderBottomRightRadius: 8, opacity: 0.5 }} />
-                <span className="relative text-4xl">🍽️</span>
+                <span className={`relative ${compactIdle ? "text-2xl" : "text-4xl"}`}>🍽️</span>
                 <p className="relative text-sm font-semibold text-white">מוכן לסרוק את הארוחה</p>
-                <p className="relative text-xs text-[#8e9379]">לחץ על הכפתור כשתרצה</p>
+                {!compactIdle && <p className="relative text-xs text-[#8e9379]">לחץ על הכפתור כשתרצה</p>}
               </div>
             )}
 
@@ -357,7 +379,7 @@ export default function MealScanner(props: MealScannerProps) {
                 {phase === "scanning" && (
                   <div className="absolute inset-x-0 bottom-0 p-3 text-center"
                     style={{ background: "linear-gradient(0deg, rgba(0,0,0,0.7), transparent)" }}>
-                    <span className="text-xs font-bold tracking-widest text-[#c3f400]">מנתח את הארוחה…</span>
+                    <ScanProgress />
                   </div>
                 )}
               </>
@@ -379,7 +401,7 @@ export default function MealScanner(props: MealScannerProps) {
           </div>
 
           {/* controls */}
-          <div className="py-5">
+          <div className={compactIdle ? "py-3" : "py-5"}>
             {/* idle — primary CTA opens the camera on demand */}
             {phase === "live" && !armed && camera !== "fallback" && (
               <div className="space-y-3">
@@ -387,7 +409,7 @@ export default function MealScanner(props: MealScannerProps) {
                   onClick={handleArm}
                   whileHover={{ scale: 1.02, boxShadow: "0 0 36px rgba(195,244,0,0.28)" }}
                   whileTap={{ scale: 0.97 }}
-                  className="w-full rounded-2xl py-4 flex items-center justify-center gap-2.5 font-bold text-[#161e00] transition-all"
+                  className={`w-full rounded-2xl flex items-center justify-center gap-2.5 font-bold text-[#161e00] transition-all ${compactIdle ? "py-3" : "py-4"}`}
                   style={{ background: "linear-gradient(145deg, #c3f400 0%, #a8d600 100%)", boxShadow: "0 8px 24px rgba(195,244,0,0.18), inset 0 1px 0 rgba(255,255,255,0.28)" }}
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -517,8 +539,8 @@ export default function MealScanner(props: MealScannerProps) {
                         className="text-[10px] text-[#8e9379] underline hover:text-[#c3f400]">שנה</button>
                     </div>
                   )}
-                  {/* Dish type question — for all meat items */}
-                  {isMeatDish(item.name) && dishTypes[i] === undefined && (
+                  {/* Ask preparation only after meat type is known and when the name lacks it. */}
+                  {!item.needsManualEntry && !needsMeatClarification(item.name) && needsDishClarification(item.name) && dishTypes[i] === undefined && (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs text-[#c4c9ac] font-semibold">אופן הכנה?</span>
                       {DISH_TYPES.map(({ label, emoji }) => (
@@ -529,7 +551,7 @@ export default function MealScanner(props: MealScannerProps) {
                       ))}
                     </div>
                   )}
-                  {isMeatDish(item.name) && dishTypes[i] !== undefined && (
+                  {dishTypes[i] !== undefined && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-[#c3f400] font-semibold">✓ {dishTypes[i]}</span>
                       <button onClick={() => setDishTypes(prev => { const n = { ...prev }; delete n[i]; return n; })}
@@ -630,6 +652,7 @@ export default function MealScanner(props: MealScannerProps) {
                           updateItemName(i, e.target.value);
                           fetchSuggestions(i, e.target.value);
                         }}
+                        onFocus={(e) => e.target.select()}
                         onBlur={() => { blurTimers.current[i] = setTimeout(() => setSuggestions(s => ({ ...s, [i]: [] })), 150); }}
                         placeholder="שם המאכל"
                         className="w-full rounded-lg border border-[#444933] bg-[#11140e] px-3 py-2 font-medium text-white focus:ring-2 focus:ring-[#c3f400]/30 focus:border-[#c3f400] transition-all"
@@ -661,6 +684,13 @@ export default function MealScanner(props: MealScannerProps) {
                       🗑️
                     </button>
                   </div>
+                  {item.source === "tzameret" && (
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-[#c3f400]">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[#c3f400]/30 bg-[#c3f400]/10 px-2 py-0.5">
+                        ✓ ערכים ממאגר משרד הבריאות
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-2">
                     {/* dark gram stepper */}
                     <div className="flex items-center gap-1.5">
@@ -703,6 +733,19 @@ export default function MealScanner(props: MealScannerProps) {
               </motion.button>
             )}
             {mealSaved === "error" && <p className="text-center text-sm text-red-400">שמירה נכשלה, נסה שוב</p>}
+
+            <MealSharePrompt
+              visible={mealSaved === "saved" && !!lastSavedMealId && (!sharePromptDismissed || mealShared)}
+              sharing={sharingMeal}
+              shared={mealShared}
+              error={shareMealError}
+              onShare={() => {
+                if (lastSavedMealId) {
+                  shareMealToGroup(lastSavedMealId);
+                }
+              }}
+              onDismiss={dismissSharePrompt}
+            />
 
             <button onClick={handleRetake}
               className="w-full rounded-full glass-card border border-[#444933] py-3 font-semibold text-[#c4c9ac] hover:border-[#c3f400] transition-colors">

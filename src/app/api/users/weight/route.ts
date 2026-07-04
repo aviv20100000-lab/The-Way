@@ -34,7 +34,9 @@ export async function GET(req: NextRequest) {
   const daysNum = Math.max(1, Math.min(365, parseInt(days, 10)));
 
   const logsRes = await db.execute({
-    sql: `SELECT * FROM weight_logs
+    sql: `SELECT id, user_id, weight_kg, photo_url,
+                 strftime('%Y-%m-%dT%H:%M:%SZ', logged_at) AS logged_at
+          FROM weight_logs
           WHERE user_id = ?
           AND logged_at >= datetime('now', '-' || CAST(? AS TEXT) || ' days')
           ORDER BY logged_at DESC`,

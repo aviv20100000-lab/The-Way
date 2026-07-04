@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { useFoodTracking } from '@/hooks'
+import { useFoodTracking } from '@/hooks/client/useFoodTracking'
 
 describe('useFoodTracking', () => {
   beforeEach(() => {

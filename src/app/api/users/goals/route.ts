@@ -21,7 +21,14 @@ export async function GET(req: NextRequest) {
   }
 
   const goal = (await db.execute({ sql: "SELECT * FROM goals WHERE user_id=?", args: [userId] })).rows[0];
-  return NextResponse.json(goal ?? { user_id: userId, target_weight_kg: null, daily_calories: null, daily_water_ml: 2000 });
+  return NextResponse.json(goal ?? {
+    user_id: userId,
+    target_weight_kg: null,
+    daily_calories: null,
+    daily_protein_g: null,
+    daily_water_ml: 2000,
+    daily_steps: null,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -40,8 +47,25 @@ export async function POST(req: NextRequest) {
   }
 
   await db.execute({
-    sql: "INSERT INTO goals (user_id, target_weight_kg, daily_calories, daily_water_ml) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET target_weight_kg=excluded.target_weight_kg, daily_calories=excluded.daily_calories, daily_water_ml=excluded.daily_water_ml, updated_at=datetime('now')",
-    args: [userId, body.target_weight_kg ?? null, body.daily_calories ?? null, body.daily_water_ml ?? 2000],
+    sql: `INSERT INTO goals (user_id, target_weight_kg, daily_calories, daily_protein_g, daily_water_ml, daily_steps)
+          VALUES (?,?,?,?,?,?)
+          ON CONFLICT(user_id) DO UPDATE SET
+            target_weight_kg=COALESCE(excluded.target_weight_kg, goals.target_weight_kg),
+            daily_calories=COALESCE(excluded.daily_calories, goals.daily_calories),
+            daily_protein_g=COALESCE(excluded.daily_protein_g, goals.daily_protein_g),
+            daily_water_ml=CASE WHEN ? THEN COALESCE(?, goals.daily_water_ml) ELSE goals.daily_water_ml END,
+            daily_steps=COALESCE(excluded.daily_steps, goals.daily_steps),
+            updated_at=datetime('now')`,
+    args: [
+      userId,
+      body.target_weight_kg ?? null,
+      body.daily_calories ?? null,
+      body.daily_protein_g ?? null,
+      body.daily_water_ml ?? 2000,
+      body.daily_steps ?? null,
+      Object.prototype.hasOwnProperty.call(body, "daily_water_ml") ? 1 : 0,
+      body.daily_water_ml ?? null,
+    ],
   });
 
   return NextResponse.json({ ok: true });

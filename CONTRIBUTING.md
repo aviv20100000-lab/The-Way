@@ -176,12 +176,12 @@ npm run lint
 
 ## Deploy
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md)
+See [DEPLOYMENT.md](./docs/DEPLOYMENT.md)
 
 ## Questions?
 
-- Check [API.md](./API.md) for endpoint documentation
-- Review [DESIGN_ACCESSIBILITY_SUMMARY.md](./DESIGN_ACCESSIBILITY_SUMMARY.md) for UI guidelines
+- Check [API.md](./docs/API.md) for endpoint documentation
+- Review [DESIGN_ACCESSIBILITY_SUMMARY.md](./docs/DESIGN_ACCESSIBILITY_SUMMARY.md) for UI guidelines
 - Look at existing code for patterns
 
 Welcome! 🚀

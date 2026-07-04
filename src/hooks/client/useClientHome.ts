@@ -1,34 +1,97 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCsrfToken } from "@/lib/csrf-client";
 
+const CACHE_KEY = "way_client_home";
+
+type HomeCache = {
+  quotes: string[];
+  waterTotal: number;
+  waterGoal: number;
+  todaySteps: number;
+  stepsGoal: number;
+  todayCalories: number;
+  calorieGoal: number | null;
+  proteinGoal: number | null;
+  streak: number;
+};
+
+function readCache(): HomeCache | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as HomeCache) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data: HomeCache) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
 export function useClientHome() {
-  const [quote, setQuote] = useState("");
-  const [waterTotal, setWaterTotal] = useState(0);
-  const [waterGoal, setWaterGoal] = useState(2000);
-  const [todaySteps, setTodaySteps] = useState(0);
+  const cached = readCache();
+  const [quotes, setQuotes] = useState<string[]>(cached?.quotes ?? []);
+  const [quoteIdx, setQuoteIdx] = useState(0);
+  const quote = quotes[quoteIdx] ?? "";
+  const [waterTotal, setWaterTotal] = useState(cached?.waterTotal ?? 0);
+  const [waterGoal, setWaterGoal] = useState(cached?.waterGoal ?? 2000);
+  const [todaySteps, setTodaySteps] = useState(cached?.todaySteps ?? 0);
+  const [stepsGoal, setStepsGoal] = useState(cached?.stepsGoal ?? 10000);
+  const [todayCalories, setTodayCalories] = useState(cached?.todayCalories ?? 0);
+  const [calorieGoal, setCalorieGoal] = useState<number | null>(cached?.calorieGoal ?? null);
+  const [proteinGoal, setProteinGoal] = useState<number | null>(cached?.proteinGoal ?? null);
+  const [streak, setStreak] = useState(cached?.streak ?? 0);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
   const [isPwa, setIsPwa] = useState(false);
 
   const loadHome = useCallback(async () => {
     try {
-      const [quoteRes, waterRes, stepsRes] = await Promise.all([
-        fetch("/api/motivation/quotes"),
-        fetch("/api/health/water"),
-        fetch("/api/steps"),
-      ]);
-      const [q, w, s] = await Promise.all([
-        quoteRes.json(),
-        waterRes.json(),
-        stepsRes.json(),
-      ]);
-      if (q.text) setQuote(q.text);
-      setWaterTotal(w.total_ml ?? 0);
-      setWaterGoal(w.goal_ml ?? 2000);
-      setTodaySteps(s.steps ?? 0);
+      const res = await fetch("/api/home");
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.quotes?.length) {
+        const shuffled = [...data.quotes].sort(() => Math.random() - 0.5);
+        setQuotes(shuffled);
+      }
+      setWaterTotal(data.water?.total ?? 0);
+      setWaterGoal(data.water?.goal ?? 2000);
+      setTodaySteps(data.steps ?? 0);
+      setStepsGoal(data.steps_goal ?? 10000);
+      setTodayCalories(data.calories?.total ?? 0);
+      setCalorieGoal(data.calories?.goal ?? null);
+      setProteinGoal(data.protein_goal ?? null);
+      setStreak(data.streak ?? 0);
+      writeCache({
+        quotes: data.quotes ?? [],
+        waterTotal: data.water?.total ?? 0,
+        waterGoal: data.water?.goal ?? 2000,
+        todaySteps: data.steps ?? 0,
+        stepsGoal: data.steps_goal ?? 10000,
+        todayCalories: data.calories?.total ?? 0,
+        calorieGoal: data.calories?.goal ?? null,
+        proteinGoal: data.protein_goal ?? null,
+        streak: data.streak ?? 0,
+      });
     } catch (e) {
       console.error("Error loading home data:", e);
+    } finally {
+      setIsLoaded(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (quotes.length < 2) return;
+    const id = setInterval(() => {
+      setQuoteIdx(i => (i + 1) % quotes.length);
+    }, 10000);
+    return () => clearInterval(id);
+  }, [quotes.length]);
 
   useEffect(() => {
     loadHome();
@@ -97,6 +160,12 @@ export function useClientHome() {
     waterTotal,
     waterGoal,
     todaySteps,
+    stepsGoal,
+    todayCalories,
+    calorieGoal,
+    proteinGoal,
+    streak,
+    isLoaded,
     notifStatus,
     isPwa,
     loadHome,

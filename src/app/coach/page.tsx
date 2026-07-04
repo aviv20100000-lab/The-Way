@@ -1,18 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import MealHistory from "@/components/MealHistory";
+import CoachDailySummary from "@/components/coach/CoachDailySummary";
+import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
+import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
 
-type CoachTab = "clients" | "food" | "quotes" | "leaderboard";
+const AddClientForm = dynamic(() => import("@/components/coach/AddClientForm"), {
+  loading: () => <div className="skeleton h-48 rounded-3xl" />,
+});
 
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-}
+const ClientGoalsWizard = dynamic(() => import("@/components/coach/ClientGoalsWizard"), {
+  loading: () => <div className="skeleton h-80 rounded-3xl" />,
+});
+
+type CoachTab = "clients" | "food" | "quotes" | "leaderboard";
 
 interface Quote {
   id: string;
@@ -30,7 +36,9 @@ interface LeaderboardEntry {
 interface Goals {
   target_weight_kg: number | null;
   daily_calories: number | null;
+  daily_protein_g: number | null;
   daily_water_ml: number;
+  daily_steps: number | null;
 }
 
 interface ClientSummary {
@@ -43,24 +51,30 @@ interface ClientSummary {
 
 export default function CoachPage() {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const [tab, setTab] = useState<CoachTab>("clients");
   const [coachName, setCoachName] = useState("מאמן");
 
   // Clients
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<CoachClient[]>([]);
   const [showAddClient, setShowAddClient] = useState(false);
   const [newClient, setNewClient] = useState({ name: "", email: "", password: "" });
   const [addError, setAddError] = useState("");
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [clientGoals, setClientGoals] = useState<Goals>({ target_weight_kg: null, daily_calories: null, daily_water_ml: 2000 });
+  const [selectedClient, setSelectedClient] = useState<CoachClient | null>(null);
+  const [clientGoals, setClientGoals] = useState<Goals>({ target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null });
   const [savingGoals, setSavingGoals] = useState(false);
-  const [dataClient, setDataClient] = useState<Client | null>(null);
+  const [wizardClient, setWizardClient] = useState<CoachClient | null>(null);
+  const [dataClient, setDataClient] = useState<CoachClient | null>(null);
   const [clientData, setClientData] = useState<ClientSummary | null>(null);
 
   // Quotes
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [newQuote, setNewQuote] = useState({ text: "", author: "" });
   const [addingQuote, setAddingQuote] = useState(false);
+  const [pendingQuoteDelete, setPendingQuoteDelete] = useState<{ quote: Quote; index: number } | null>(null);
+  const pendingQuoteDeleteRef = useRef<{ quote: Quote; index: number } | null>(null);
+  const quoteDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Food logs
   interface FoodLog { id: string; client_name: string; photo_url: string; total_calories: number; logged_at: string; items: { name: string; calories: number; estimated_weight_g: number }[]; }
@@ -82,6 +96,9 @@ export default function CoachPage() {
   // Notifications for the coach himself
   const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
   const [isPwa, setIsPwa] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartY = useRef(0);
 
   const loadClients = useCallback(async () => {
     try {
@@ -174,7 +191,10 @@ export default function CoachPage() {
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST", headers: await withCsrf() });
-    router.push("/login");
+    // Wipe ALL cached data (home/chat/water/weight/user) so the next login
+    // never briefly shows a different account's stale numbers.
+    sessionStorage.clear();
+    window.location.href = "/login";
   }
 
   async function addClient() {
@@ -191,18 +211,20 @@ export default function CoachPage() {
     loadClients();
   }
 
-  async function openClientGoals(client: Client) {
+  async function openClientGoals(client: CoachClient) {
     setSelectedClient(client);
     const res = await fetch(`/api/users/goals?userId=${client.id}`);
     const data = await res.json();
     setClientGoals({
       target_weight_kg: data.target_weight_kg,
       daily_calories: data.daily_calories,
+      daily_protein_g: data.daily_protein_g,
       daily_water_ml: data.daily_water_ml ?? 2000,
+      daily_steps: data.daily_steps,
     });
   }
 
-  async function openClientData(client: Client) {
+  async function openClientData(client: CoachClient) {
     setDataClient(client);
     setClientData(null);
     const res = await fetch(`/api/client-summary?userId=${client.id}`);
@@ -212,13 +234,15 @@ export default function CoachPage() {
   async function saveGoals() {
     if (!selectedClient) return;
     setSavingGoals(true);
-    await fetch("/api/users/goals", {
+    const res = await fetch("/api/users/goals", {
       method: "POST",
       headers: await withCsrf({ "Content-Type": "application/json" }),
       body: JSON.stringify({ userId: selectedClient.id, ...clientGoals }),
     });
+    if (res.ok) setSuccessMessage("היעדים נשמרו");
     setSavingGoals(false);
     setSelectedClient(null);
+    loadClients();
   }
 
   async function addQuote() {
@@ -280,33 +304,128 @@ export default function CoachPage() {
     setSendingPush(false);
   }
 
-  async function deleteQuote(id: string) {
+  function restoreQuote(pending: { quote: Quote; index: number }) {
+    setQuotes((current) => {
+      if (current.some((quote) => quote.id === pending.quote.id)) return current;
+      const restored = [...current];
+      restored.splice(Math.min(pending.index, restored.length), 0, pending.quote);
+      return restored;
+    });
+  }
+
+  async function commitQuoteDelete(pending: { quote: Quote; index: number }) {
     try {
-      await fetch("/api/motivation/quotes", {
+      const res = await fetch("/api/motivation/quotes", {
         method: "DELETE",
         headers: await withCsrf({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ quoteId: id }),
+        body: JSON.stringify({ quoteId: pending.quote.id }),
       });
-      setQuotes((q) => q.filter((x) => x.id !== id));
+      if (!res.ok) throw new Error("quote delete failed");
     } catch (e) {
       console.error("Error deleting quote:", e);
+      restoreQuote(pending);
     }
   }
 
+  function deleteQuote(id: string) {
+    const quoteIndex = quotes.findIndex((quote) => quote.id === id);
+    if (quoteIndex < 0) return;
+
+    if (quoteDeleteTimerRef.current) clearTimeout(quoteDeleteTimerRef.current);
+    const previousPending = pendingQuoteDeleteRef.current;
+    if (previousPending) void commitQuoteDelete(previousPending);
+
+    const pending = { quote: quotes[quoteIndex], index: quoteIndex };
+    setQuotes((current) => current.filter((quote) => quote.id !== id));
+    pendingQuoteDeleteRef.current = pending;
+    setPendingQuoteDelete(pending);
+    quoteDeleteTimerRef.current = setTimeout(() => {
+      void commitQuoteDelete(pending);
+      if (pendingQuoteDeleteRef.current === pending) {
+        pendingQuoteDeleteRef.current = null;
+        setPendingQuoteDelete(null);
+      }
+      quoteDeleteTimerRef.current = null;
+    }, 5000);
+  }
+
+  function undoQuoteDelete() {
+    const pending = pendingQuoteDeleteRef.current;
+    if (!pending) return;
+    if (quoteDeleteTimerRef.current) clearTimeout(quoteDeleteTimerRef.current);
+    quoteDeleteTimerRef.current = null;
+    pendingQuoteDeleteRef.current = null;
+    setPendingQuoteDelete(null);
+    restoreQuote(pending);
+  }
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (refreshing) return;
+    touchStartY.current = event.touches[0].clientY;
+    setPullDistance(0);
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (refreshing || touchStartY.current === 0) return;
+    const distance = event.touches[0].clientY - touchStartY.current;
+    if (distance > 0 && window.scrollY <= 0) setPullDistance(distance);
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 80) {
+      try { navigator.vibrate?.(15); } catch {}
+      setRefreshing(true);
+      try {
+        if (tab === "clients") await loadClients();
+        if (tab === "food") await loadFoodLogs();
+        if (tab === "quotes") await loadQuotes();
+        if (tab === "leaderboard") await loadLeaderboard();
+      } finally {
+        setRefreshing(false);
+      }
+    }
+    touchStartY.current = 0;
+    setPullDistance(0);
+  };
+
   return (
-    <div className="min-h-screen bg-white pb-24" dir="rtl">
-      <header className="sticky top-0 z-20 bg-white border-b border-neutral-100">
+    <div
+      className="min-h-screen pb-24 text-white"
+      dir="rtl"
+      style={{ background: "#0c0f0f" }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {pullDistance > 0 && (
+        <motion.div
+          className="fixed inset-x-0 top-0 z-50 flex items-center justify-center"
+          style={{ height: pullDistance }}
+          initial={prefersReducedMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
+        >
+          <motion.div
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c3f400]/25 bg-[#1a1c1c] text-2xl font-bold text-[#c3f400] shadow-lg"
+            animate={{ rotate: prefersReducedMotion ? 0 : refreshing ? 360 : (pullDistance / 80) * 360 }}
+            transition={{ duration: refreshing && !prefersReducedMotion ? 1 : 0, repeat: refreshing && !prefersReducedMotion ? Infinity : 0 }}
+            aria-label={refreshing ? "מרענן" : "משוך לרענון"}
+          >
+            {refreshing ? "↻" : "↓"}
+          </motion.div>
+        </motion.div>
+      )}
+      <header className="sticky top-0 z-20 border-b border-[#1e2020] bg-[#0c0f0f]/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold tracking-tight text-black-matte">THE WAY — מאמן</h1>
-              <span className="text-xs font-normal text-neutral-500">by Aviv & Liav</span>
+              <h1 className="text-lg font-bold tracking-tight text-white">THE WAY — מאמן</h1>
+              <span className="text-xs font-normal text-[#8e9379]">by Aviv & Liav</span>
             </div>
-            <p className="text-xs text-neutral-600 font-normal">היי {coachName} 👋</p>
+            <p className="text-xs text-[#c4c9ac] font-normal">היי {coachName} 👋</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => router.push("/chat")} className="min-h-11 rounded-lg bg-purple-100 px-4 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-200 transition-all duration-200">💬 צ׳אט</button>
-            <button onClick={logout} className="min-h-11 rounded-lg bg-neutral-100 px-4 py-2 text-xs font-semibold text-black-matte hover:bg-neutral-200 transition-all duration-200">יציאה</button>
+            <button onClick={logout} className="min-h-11 rounded-lg bg-[#282a2b] px-4 py-2 text-xs font-semibold text-white hover:bg-[#333535] transition-all duration-200">יציאה</button>
           </div>
         </div>
       </header>
@@ -323,125 +442,147 @@ export default function CoachPage() {
 
         {tab === "clients" && (
           <div className="space-y-6">
+            <CoachDailySummary />
+
             {/* Notifications for the coach */}
-            {notifStatus === "granted" ? (
-              <div className="flex items-center gap-3 rounded-2xl bg-neutral-100 p-6 shadow-card">
-                <span className="text-2xl">✅</span>
-                <p className="font-semibold text-base text-black-matte">התראות דלוקות — מעולה!</p>
-              </div>
-            ) : !isPwa ? (
-              <div className="rounded-2xl bg-neutral-100 p-6 shadow-card space-y-3">
-                <p className="font-semibold text-base text-black-matte">📲 רוצה לקבל התראות?</p>
-                <ol className="text-sm text-neutral-600 space-y-2 list-decimal list-inside font-normal">
-                  <li>לחץ על כפתור השיתוף <strong>□↑</strong> בתחתית Safari</li>
-                  <li>בחר <strong>&quot;הוסף למסך הבית&quot;</strong></li>
-                  <li>פתח מהמסך הבית ולחץ על כפתור ההתראות</li>
-                </ol>
+            {notifStatus === "granted" ? null : !isPwa ? (
+              <div className="glass-card rounded-2xl border border-[#444933] p-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#c3f400]/25 bg-[#c3f400]/10 text-[#c3f400]">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 18h.01M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">קבלת התראות באייפון</p>
+                    <p className="mt-0.5 text-[11px] text-[#8e9379]">שלושה צעדים קצרים להפעלת ההתראות</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-1.5 text-xs leading-5 text-[#c4c9ac]">
+                  <div className="flex items-start gap-2.5 rounded-lg bg-[#1e2020] px-3 py-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[10px] font-bold text-[#c3f400]">1</span>
+                    <p>פתח ב־Safari ולחץ על <strong className="font-semibold text-white">סמל השיתוף</strong> בתחתית המסך.</p>
+                  </div>
+                  <div className="flex items-start gap-2.5 rounded-lg bg-[#1e2020] px-3 py-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[10px] font-bold text-[#c3f400]">2</span>
+                    <p>בחר באפשרות <strong className="font-semibold text-white">„הוספה למסך הבית”</strong>.</p>
+                  </div>
+                  <div className="flex items-start gap-2.5 rounded-lg bg-[#1e2020] px-3 py-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[10px] font-bold text-[#c3f400]">3</span>
+                    <p>פתח את <strong className="font-semibold text-white">THE WAY</strong> ממסך הבית ולחץ על „הפעל התראות”.</p>
+                  </div>
+                </div>
               </div>
             ) : (
               <button onClick={enableNotifications}
-                className="flex w-full items-center gap-4 rounded-2xl bg-primary-600 p-6 text-right text-white shadow-card hover:shadow-lg transition-all duration-300">
+                className="flex w-full items-center gap-4 rounded-2xl bg-[#c3f400] p-6 text-right text-[#161e00] hover:bg-[#d4ff26] transition-all duration-300">
                 <span className="text-4xl">🔔</span>
                 <div>
                   <p className="font-semibold text-base">הפעל התראות</p>
-                  <p className="text-xs text-white/70 font-normal">כדי לקבל עדכונים מהאפליקציה</p>
+                  <p className="text-xs text-[#161e00]/70 font-normal">כדי לקבל עדכונים מהאפליקציה</p>
                 </div>
               </button>
             )}
 
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-black-matte">המתאמנים שלך</h2>
+              <h2 className="text-lg font-semibold text-white">המתאמנים שלך</h2>
               <button onClick={() => setShowAddClient(true)}
-                className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 transition-all duration-300">
+                className="rounded-lg bg-[#c3f400] px-5 py-2.5 text-sm font-semibold text-[#161e00] hover:bg-[#d4ff26] transition-all duration-300">
                 + הוסף
               </button>
             </div>
 
             {showAddClient && (
-              <div className="rounded-2xl bg-white p-6 shadow-card space-y-4">
-                <h3 className="text-base font-semibold text-black-matte">הוספת מתאמן</h3>
-                {addError && <p className="text-sm text-red-600 bg-red-100 rounded-lg p-3 font-normal">{addError}</p>}
-                <input placeholder="שם" value={newClient.name}
-                  onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-                  className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
-                <input placeholder="אימייל" value={newClient.email} dir="ltr"
-                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                  className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
-                <input placeholder="סיסמה" type="password" value={newClient.password} dir="ltr"
-                  onChange={(e) => setNewClient({ ...newClient, password: e.target.value })}
-                  className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
-                <div className="flex gap-3 pt-2">
-                  <button onClick={() => setShowAddClient(false)}
-                    className="flex-1 rounded-lg border border-neutral-200 py-3 text-black-matte font-semibold hover:bg-neutral-50 transition-all">ביטול</button>
-                  <button onClick={addClient}
-                    className="flex-1 rounded-lg bg-primary-600 py-3 text-white font-semibold hover:bg-primary-700 transition-all">הוסף</button>
-                </div>
-              </div>
+              <AddClientForm
+                value={newClient}
+                error={addError}
+                onChange={setNewClient}
+                onCancel={() => setShowAddClient(false)}
+                onSubmit={() => void addClient()}
+              />
             )}
 
             {clients.length === 0 && !showAddClient && (
-              <p className="text-center text-neutral-400 py-10 text-sm">עוד אין מתאמנים — לחץ על הוסף כדי להתחיל</p>
+              <p className="text-center text-[#8e9379] py-10 text-sm">עוד אין מתאמנים — לחץ על הוסף כדי להתחיל</p>
             )}
 
-            {clients.map((c, i) => (
-              <div key={c.id} className="rounded-2xl bg-white shadow-card hover:shadow-lg transition-all duration-300 flex items-center justify-between gap-3 p-5">
-                <div className="min-w-0">
-                  <p className="font-semibold text-black-matte truncate text-base">{c.name}</p>
-                  <p className="text-xs text-neutral-500 truncate font-normal" dir="ltr">{c.email}</p>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <button onClick={() => openClientData(c)}
-                    aria-label={`צפה בנתונים של ${c.name}`}
-                    title={`צפה בנתונים של ${c.name}`}
-                    className="rounded-lg bg-neutral-100 px-4 py-2.5 text-sm font-semibold text-black-matte hover:bg-neutral-200 transition-all">
-                    📊
-                  </button>
-                  <button onClick={() => openClientGoals(c)}
-                    aria-label={`ערוך יעדים של ${c.name}`}
-                    title={`ערוך יעדים של ${c.name}`}
-                    className="rounded-lg bg-neutral-100 px-4 py-2.5 text-sm font-semibold text-black-matte hover:bg-neutral-200 transition-all">
-                    🎯
-                  </button>
-                </div>
-              </div>
+            {clients.map((client) => (
+              <ClientListCard
+                key={client.id}
+                client={client}
+                onOpenData={(selected) => void openClientData(selected)}
+                onOpenGoals={(selected) => void openClientGoals(selected)}
+                onOpenWizard={setWizardClient}
+                onAvatarUploaded={(clientId, url) => setClients((current) => current.map((item) => item.id === clientId ? { ...item, avatar_url: url } : item))}
+              />
             ))}
+
+            {wizardClient && (
+              <ClientGoalsWizard
+                client={wizardClient}
+                onClose={() => setWizardClient(null)}
+                onSaved={async () => {
+                  setWizardClient(null);
+                  await loadClients();
+                }}
+              />
+            )}
 
             {selectedClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4" onClick={() => setSelectedClient(null)}>
-                <div className="w-full max-w-lg rounded-t-lg bg-white p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="text-lg font-semibold text-black-matte">🎯 יעדים של {selectedClient.name}</h3>
+                <div className="w-full max-w-lg rounded-t-lg glass-card p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-lg font-semibold text-white">🎯 יעדים של {selectedClient.name}</h3>
 
                   <label className="block">
-                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">יעד משקל (ק"ג)</span>
+                    <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד משקל (ק"ג)</span>
                     <input type="number" step="0.5"
                       value={clientGoals.target_weight_kg ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, target_weight_kg: e.target.value ? parseFloat(e.target.value) : null })}
-                      className="mt-2 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all"
+                      className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
                       placeholder="לדוגמה: 75" />
                   </label>
 
                   <label className="block">
-                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">יעד קלוריות יומי</span>
+                    <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד קלוריות יומי</span>
                     <input type="number"
                       value={clientGoals.daily_calories ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_calories: e.target.value ? parseInt(e.target.value) : null })}
-                      className="mt-2 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all"
+                      className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
                       placeholder="לדוגמה: 1800" />
                   </label>
 
                   <label className="block">
-                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wide">יעד מים יומי (מ"ל)</span>
+                    <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד חלבון יומי (גרם)</span>
+                    <input type="number"
+                      value={clientGoals.daily_protein_g ?? ""}
+                      onChange={(e) => setClientGoals({ ...clientGoals, daily_protein_g: e.target.value ? parseInt(e.target.value) : null })}
+                      className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
+                      placeholder="לדוגמה: 120" />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד מים יומי (מ"ל)</span>
                     <input type="number"
                       value={clientGoals.daily_water_ml}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_water_ml: parseInt(e.target.value) || 2000 })}
-                      className="mt-2 w-full rounded-lg border border-neutral-200 bg-white px-4 py-3 text-black-matte focus:border-transparent focus:ring-2 focus:ring-primary-600 transition-all" />
+                      className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all" />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד צעדים יומי</span>
+                    <input type="number"
+                      value={clientGoals.daily_steps ?? ""}
+                      onChange={(e) => setClientGoals({ ...clientGoals, daily_steps: e.target.value ? parseInt(e.target.value) : null })}
+                      className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
+                      placeholder="לדוגמה: 10000" />
                   </label>
 
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => setSelectedClient(null)}
-                      className="flex-1 rounded-lg border border-neutral-200 py-3 text-black-matte font-semibold hover:bg-neutral-50 transition-all">ביטול</button>
+                      className="flex-1 rounded-lg border border-[#444933] py-3 text-white font-semibold hover:bg-[#1e2020] transition-all">ביטול</button>
                     <button onClick={saveGoals} disabled={savingGoals}
-                      className="flex-1 rounded-lg bg-primary-600 py-3 text-white font-semibold hover:bg-primary-700 disabled:opacity-50 transition-all">
+                      className="flex-1 rounded-lg bg-[#c3f400] py-3 text-[#161e00] font-semibold hover:bg-[#d4ff26] disabled:opacity-50 transition-all">
                       {savingGoals ? "שומר..." : "שמור יעדים"}
                     </button>
                   </div>
@@ -451,30 +592,30 @@ export default function CoachPage() {
 
             {dataClient && (
               <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={() => setDataClient(null)}>
-                <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-lg bg-white p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between sticky top-0 bg-white pb-1">
-                    <h3 className="font-semibold text-lg text-black-matte">📊 {dataClient.name}</h3>
-                    <button onClick={() => setDataClient(null)} className="text-neutral-400 text-2xl leading-none">×</button>
+                <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-t-lg glass-card p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="sticky top-0 flex items-center justify-between bg-[#1e2020] pb-1">
+                    <h3 className="font-semibold text-lg text-white">📊 {dataClient.name}</h3>
+                    <button onClick={() => setDataClient(null)} className="text-[#8e9379] text-2xl leading-none">×</button>
                   </div>
 
                   {!clientData ? (
-                    <p className="text-center text-neutral-400 py-8 font-normal">טוען נתונים...</p>
+                    <p className="text-center text-[#8e9379] py-8 font-normal">טוען נתונים...</p>
                   ) : (
                     <>
                       {/* Weight */}
-                      <div className="rounded-2xl bg-neutral-50 p-4 shadow-xs">
-                        <p className="text-sm font-semibold text-neutral-700 mb-2">⚖️ משקל</p>
+                      <div className="rounded-2xl bg-[#1e2020] p-4 ">
+                        <p className="text-sm font-semibold text-[#c4c9ac] mb-2">⚖️ משקל</p>
                         {clientData.weights.length === 0 ? (
-                          <p className="text-sm text-neutral-500 font-normal">עוד לא נשקל</p>
+                          <p className="text-sm text-[#8e9379] font-normal">עוד לא נשקל</p>
                         ) : (
                           <>
                             <div className="flex items-end gap-2 mb-3">
-                              <span className="text-3xl font-bold text-black-matte">{clientData.weights[0].weight_kg}</span>
-                              <span className="text-neutral-500 mb-1 font-normal">ק"ג</span>
+                              <span className="text-3xl font-bold text-white">{clientData.weights[0].weight_kg}</span>
+                              <span className="text-[#8e9379] mb-1 font-normal">ק"ג</span>
                               {clientData.weights.length > 1 && (() => {
                                 const diff = clientData.weights[0].weight_kg - clientData.weights[1].weight_kg;
                                 return (
-                                  <span className={`mb-1 text-sm font-medium ${diff < 0 ? "text-green-700" : diff > 0 ? "text-red-600" : "text-neutral-500"}`}>
+                                  <span className={`mb-1 text-sm font-medium ${diff < 0 ? "text-green-700" : diff > 0 ? "text-red-300" : "text-[#8e9379]"}`}>
                                     {diff < 0 ? "▼" : diff > 0 ? "▲" : ""}{Math.abs(diff).toFixed(1)}
                                   </span>
                                 );
@@ -485,9 +626,9 @@ export default function CoachPage() {
                             </div>
                             <div className="space-y-1">
                               {clientData.weights.map((w, i) => (
-                                <div key={i} className="flex justify-between text-sm border-b border-neutral-100 py-1">
-                                  <span className="text-neutral-500">{new Date(w.logged_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" })}</span>
-                                  <span className="font-medium text-neutral-700">{w.weight_kg} ק"ג</span>
+                                <div key={i} className="flex justify-between text-sm border-b border-[#444933] py-1">
+                                  <span className="text-[#8e9379]">{new Date(w.logged_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" })}</span>
+                                  <span className="font-medium text-[#c4c9ac]">{w.weight_kg} ק"ג</span>
                                 </div>
                               ))}
                             </div>
@@ -497,20 +638,20 @@ export default function CoachPage() {
 
                       {/* Steps + Water today */}
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl bg-white p-4 shadow-xs text-center">
-                          <p className="text-xs text-neutral-500 mb-1">👟 צעדים היום</p>
-                          <p className="text-2xl font-bold text-primary-600">{clientData.steps_today.toLocaleString()}</p>
+                        <div className="rounded-2xl glass-card p-4  text-center">
+                          <p className="text-xs text-[#8e9379] mb-1">👟 צעדים היום</p>
+                          <p className="text-2xl font-bold text-[#c3f400]">{clientData.steps_today.toLocaleString()}</p>
                         </div>
-                        <div className="rounded-2xl bg-white p-4 shadow-xs text-center">
-                          <p className="text-xs text-neutral-500 mb-1">💧 מים היום</p>
-                          <p className="text-2xl font-bold text-primary-600">{(clientData.water_today / 1000).toFixed(1)}<span className="text-sm">L</span></p>
-                          <p className="text-xs text-neutral-400">יעד {(clientData.goals.daily_water_ml / 1000).toFixed(1)}L</p>
+                        <div className="rounded-2xl glass-card p-4  text-center">
+                          <p className="text-xs text-[#8e9379] mb-1">💧 מים היום</p>
+                          <p className="text-2xl font-bold text-[#c3f400]">{(clientData.water_today / 1000).toFixed(1)}<span className="text-sm">L</span></p>
+                          <p className="text-xs text-[#8e9379]">יעד {(clientData.goals.daily_water_ml / 1000).toFixed(1)}L</p>
                         </div>
                       </div>
 
                       {/* Meals — day / week / month */}
-                      <div className="rounded-2xl bg-white p-4 shadow-xs">
-                        <p className="text-sm font-medium text-neutral-500 mb-3">🍽️ תזונה</p>
+                      <div className="rounded-2xl glass-card p-4 ">
+                        <p className="text-sm font-medium text-[#8e9379] mb-3">🍽️ תזונה</p>
                         <MealHistory meals={clientData.meals} title="" />
                       </div>
                     </>
@@ -524,13 +665,13 @@ export default function CoachPage() {
         {tab === "food" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-black-matte">אוכל — 7 ימים אחרונים</h2>
-              <button onClick={loadFoodLogs} className="text-sm text-primary-600">🔄 רענן</button>
+              <h2 className="text-xl font-bold text-white">אוכל — 7 ימים אחרונים</h2>
+              <button onClick={loadFoodLogs} className="text-sm text-[#c3f400]">🔄 רענן</button>
             </div>
 
-            {foodLoading && <p className="text-center text-neutral-500 py-8">טוען...</p>}
+            {foodLoading && <p className="text-center text-[#8e9379] py-8">טוען...</p>}
             {!foodLoading && foodLogs.length === 0 && (
-              <p className="text-center text-neutral-500 py-8">אין ארוחות מצולמות עדיין</p>
+              <p className="text-center text-[#8e9379] py-8">אין ארוחות מצולמות עדיין</p>
             )}
 
             {foodLogs.map((log) => {
@@ -540,24 +681,24 @@ export default function CoachPage() {
               const isExpanded = expandedLog === log.id;
 
               return (
-                <div key={log.id} className="rounded-2xl bg-white shadow-xs overflow-hidden">
+                <div key={log.id} className="rounded-2xl glass-card  overflow-hidden">
                   <button className="w-full text-right p-4" onClick={() => setExpandedLog(isExpanded ? null : log.id)}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-neutral-100 flex items-center justify-center text-2xl overflow-hidden">
+                        <div className="w-12 h-12 rounded-lg bg-[#282a2b] flex items-center justify-center text-2xl overflow-hidden">
                           {log.photo_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={log.photo_url} alt="ארוחה" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
                           ) : "🍽️"}
                         </div>
                         <div>
-                          <p className="font-semibold text-black-matte">{log.client_name}</p>
-                          <p className="text-xs text-neutral-500">{dateStr} • {timeStr}</p>
+                          <p className="font-semibold text-white">{log.client_name}</p>
+                          <p className="text-xs text-[#8e9379]">{dateStr} • {timeStr}</p>
                         </div>
                       </div>
                       <div className="text-start">
-                        <p className="font-bold text-primary-600">{log.total_calories}</p>
-                        <p className="text-xs text-neutral-500">קלוריות</p>
+                        <p className="font-bold text-[#c3f400]">{log.total_calories}</p>
+                        <p className="text-xs text-[#8e9379]">קלוריות</p>
                       </div>
                     </div>
 
@@ -565,8 +706,8 @@ export default function CoachPage() {
                       <div className="mt-3 border-t pt-3 space-y-1">
                         {log.items.map((item, i) => (
                           <div key={i} className="flex justify-between text-sm">
-                            <span className="text-neutral-700">{item.name} ({item.estimated_weight_g}g)</span>
-                            <span className="text-neutral-500">{item.calories} קל׳</span>
+                            <span className="text-[#c4c9ac]">{item.name} ({item.estimated_weight_g}g)</span>
+                            <span className="text-[#8e9379]">{item.calories} קל׳</span>
                           </div>
                         ))}
                       </div>
@@ -580,10 +721,10 @@ export default function CoachPage() {
 
         {tab === "quotes" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-black-matte">ציטוטים מוטיבציוניים</h2>
+            <h2 className="text-lg font-semibold text-white">ציטוטים מוטיבציוניים</h2>
 
-            <div className="rounded-2xl bg-white p-4 shadow-xs space-y-3">
-              <p className="font-semibold text-base text-black-matte">📣 שלח הודעה</p>
+            <div className="rounded-2xl glass-card p-4  space-y-3">
+              <p className="font-semibold text-base text-white">📣 שלח הודעה</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { emoji: "🌅", label: "בוקר טוב", title: "בוקר טוב! ☀️", body: "מתחילים את היום עם אנרגיה ומוטיבציה! אתם מדהימים 💪" },
@@ -599,7 +740,7 @@ export default function CoachPage() {
                   <button
                     key={t.label}
                     onClick={() => { setPushTitle(t.title); setPushBody(t.body); }}
-                    className="rounded-lg bg-neutral-100 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 transition-colors"
+                    className="rounded-lg bg-[#282a2b] px-3 py-2 text-xs font-semibold text-[#c4c9ac] hover:bg-[#333535] transition-colors"
                   >
                     {t.emoji} {t.label}
                   </button>
@@ -610,20 +751,20 @@ export default function CoachPage() {
                 value={pushTitle || ""}
                 onChange={(e) => setPushTitle(e.target.value)}
                 placeholder="כותרת"
-                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
+                className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white"
               />
               <input
                 type="text"
                 value={pushBody || ""}
                 onChange={(e) => setPushBody(e.target.value)}
                 placeholder="תוכן"
-                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
+                className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white"
               />
               <div className="flex gap-2">
                 <button
                   onClick={() => { try { sendPush(); } catch(e) { console.log(e); } }}
                   disabled={sendingPush || !(pushTitle?.trim()) || !(pushBody?.trim())}
-                  className="flex-1 rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
+                  className="flex-1 rounded-lg bg-[#c3f400] py-3 font-semibold text-[#161e00] hover:bg-[#d4ff26] disabled:opacity-50"
                 >
                   {sendingPush ? "שולח..." : "שלח לכולם"}
                 </button>
@@ -631,7 +772,7 @@ export default function CoachPage() {
                   onClick={testPush}
                   disabled={testingPush}
                   title="שלח התראת בדיקה לעצמך"
-                  className="rounded-lg bg-neutral-100 px-4 py-3 text-sm font-semibold text-neutral-700 disabled:opacity-50"
+                  className="rounded-lg bg-[#282a2b] px-4 py-3 text-sm font-semibold text-[#c4c9ac] disabled:opacity-50"
                 >
                   {testingPush ? "..." : "🔔 בדיקה"}
                 </button>
@@ -639,38 +780,38 @@ export default function CoachPage() {
               {pushResult && <p className="text-center text-sm font-medium" style={{color: pushResult.startsWith("✅") ? "green" : "red"}}>{pushResult}</p>}
             </div>
 
-            <div className="rounded-2xl bg-white p-4 shadow-xs space-y-3">
+            <div className="rounded-2xl glass-card p-4  space-y-3">
               <textarea
                 value={newQuote?.text || ""}
                 onChange={(e) => setNewQuote({ ...newQuote, text: e.target.value })}
                 placeholder="ציטוט..."
                 rows={3}
-                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte resize-none"
+                className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white resize-none"
               />
               <input
                 type="text"
                 value={newQuote?.author || ""}
                 onChange={(e) => setNewQuote({ ...newQuote, author: e.target.value })}
                 placeholder="מחבר"
-                className="w-full rounded-lg border border-neutral-200 px-4 py-3 bg-white text-black-matte"
+                className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white"
               />
               <button
                 onClick={() => { try { addQuote(); } catch(e) { console.log(e); } }}
                 disabled={addingQuote || !(newQuote?.text?.trim())}
-                className="w-full rounded-lg bg-primary-600 py-3 font-semibold text-white disabled:opacity-50"
+                className="w-full rounded-lg bg-[#c3f400] py-3 font-semibold text-[#161e00] hover:bg-[#d4ff26] disabled:opacity-50"
               >
                 {addingQuote ? "מוסיף..." : "הוסף"}
               </button>
             </div>
 
-            {quotes && quotes.length === 0 && <p className="text-center text-neutral-500 py-4">אין ציטוטים עדיין</p>}
+            {quotes && quotes.length === 0 && <p className="text-center text-[#8e9379] py-4">אין ציטוטים עדיין</p>}
             {quotes && quotes.map((q) => (
-              <div key={q?.id} className="rounded-2xl bg-white p-4 shadow-xs">
-                <p className="text-black-matte">"{q?.text}"</p>
-                {q?.author && <p className="text-sm text-neutral-500 mt-2">— {q?.author}</p>}
+              <div key={q?.id} className="rounded-2xl glass-card p-4 ">
+                <p className="text-white">"{q?.text}"</p>
+                {q?.author && <p className="text-sm text-[#8e9379] mt-2">— {q?.author}</p>}
                 <button
                   onClick={() => { try { deleteQuote(q?.id); } catch(e) { console.log(e); } }}
-                  className="mt-3 text-xs text-red-600 font-normal"
+                  className="mt-3 text-xs text-red-300 font-normal"
                 >
                   מחק
                 </button>
@@ -681,31 +822,31 @@ export default function CoachPage() {
 
         {tab === "leaderboard" && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-black-matte">דירוג צעדים 🏆</h2>
+            <h2 className="text-xl font-bold text-white">דירוג צעדים 🏆</h2>
 
-            <div className="rounded-2xl bg-white shadow-xs overflow-hidden">
+            <div className="rounded-2xl glass-card  overflow-hidden">
               <div className="flex border-b">
                 <button onClick={() => setLbView("today")}
-                  className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-primary-600 text-primary-600" : "text-neutral-500"}`}>
+                  className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-[#c3f400] text-[#c3f400]" : "text-[#8e9379]"}`}>
                   יומי
                 </button>
                 <button onClick={() => setLbView("week")}
-                  className={`flex-1 py-3 text-sm font-medium ${lbView === "week" ? "border-b-2 border-primary-600 text-primary-600" : "text-neutral-500"}`}>
+                  className={`flex-1 py-3 text-sm font-medium ${lbView === "week" ? "border-b-2 border-[#c3f400] text-[#c3f400]" : "text-[#8e9379]"}`}>
                   שבועי
                 </button>
               </div>
               <div className="p-4 space-y-2">
-                {leaderboard.length === 0 && <p className="text-center text-neutral-500 py-4">עוד אף אחד לא העלה צעדים היום</p>}
+                {leaderboard.length === 0 && <p className="text-center text-[#8e9379] py-4">עוד אף אחד לא העלה צעדים היום</p>}
                 {leaderboard
                   .slice()
                   .sort((a, b) => (lbView === "today" ? b.today - a.today : b.week - a.week))
                   .map((entry, i) => (
-                    <div key={entry.id} className="flex items-center gap-3 rounded-lg bg-neutral-50 px-4 py-3">
+                    <div key={entry.id} className="flex items-center gap-3 rounded-lg bg-[#1e2020] px-4 py-3">
                       <span className="text-lg font-bold w-6 text-center">
                         {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                       </span>
-                      <span className="flex-1 font-medium text-black-matte">{entry.name}</span>
-                      <span className="font-bold text-primary-600">
+                      <span className="flex-1 font-medium text-white">{entry.name}</span>
+                      <span className="font-bold text-[#c3f400]">
                         {(lbView === "today" ? entry.today : entry.week).toLocaleString()} 👟
                       </span>
                     </div>
@@ -714,7 +855,7 @@ export default function CoachPage() {
             </div>
 
             <button onClick={loadLeaderboard}
-              className="w-full rounded-lg border border-neutral-200 py-3 text-sm text-neutral-500 hover:bg-neutral-50">
+              className="w-full rounded-lg border border-[#444933] py-3 text-sm text-[#8e9379] hover:bg-[#1e2020]">
               🔄 עדכן
             </button>
           </div>
@@ -723,7 +864,28 @@ export default function CoachPage() {
         </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-neutral-100 bg-white">
+      <SuccessToast message={successMessage} onDismiss={() => setSuccessMessage(null)} />
+
+      <AnimatePresence>
+        {pendingQuoteDelete && (
+          <motion.div
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.18 }}
+            className="fixed inset-x-0 bottom-20 z-[65] flex justify-center px-4 pb-[env(safe-area-inset-bottom)]"
+          >
+            <div className="glass-card flex w-full max-w-sm items-center justify-between rounded-2xl border border-[#444933] px-4 py-3 shadow-xl">
+              <span className="text-sm text-[#c4c9ac]">הציטוט נמחק</span>
+              <button onClick={undoQuoteDelete} className="text-sm font-semibold text-[#c3f400] hover:underline">
+                ↶ בטל
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-[#1e2020] bg-[#0c0f0f]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg">
           {([
             { id: "clients", icon: "👥", label: "מתאמנים" },
@@ -732,11 +894,16 @@ export default function CoachPage() {
             { id: "leaderboard", icon: "🏆", label: "תחרות" },
           ] as { id: CoachTab; icon: string; label: string }[]).map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex flex-1 flex-col items-center py-3 text-xs transition ${tab === t.id ? "text-primary-600" : "text-neutral-500"}`}>
+              className={`flex flex-1 flex-col items-center py-3 text-xs transition ${tab === t.id ? "text-[#c3f400]" : "text-[#8e9379]"}`}>
               <span className="text-2xl">{t.icon}</span>
               <span className="mt-0.5">{t.label}</span>
             </button>
           ))}
+          <button onClick={() => router.push("/chat")}
+            className="flex flex-1 flex-col items-center py-3 text-xs text-[#8e9379] transition">
+            <span className="text-2xl">💬</span>
+            <span className="mt-0.5">צ׳אט</span>
+          </button>
         </div>
       </nav>
     </div>

@@ -287,7 +287,7 @@ html[dir="ltr"] {
   top: -160px;
   right: -100px;
   background: radial-gradient(circle at 40% 40%, rgba(195, 244, 0, 0.28) 0%, transparent 65%);
-  filter: blur(80px);
+  filter: blur(60px);
   animation: auroraDrift1 34s ease-in-out infinite;
 }
 .aurora-blob--cyan {
@@ -296,17 +296,8 @@ html[dir="ltr"] {
   top: 45%;
   left: -140px;
   background: radial-gradient(circle at 60% 50%, rgba(56, 189, 248, 0.22) 0%, transparent 65%);
-  filter: blur(100px);
+  filter: blur(65px);
   animation: auroraDrift2 44s ease-in-out infinite;
-}
-.aurora-blob--violet {
-  width: 360px;
-  height: 360px;
-  bottom: 15%;
-  right: -60px;
-  background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.18) 0%, transparent 65%);
-  filter: blur(90px);
-  animation: auroraDrift3 52s ease-in-out infinite;
 }
 .aurora-grain {
   position: absolute;
@@ -325,11 +316,6 @@ html[dir="ltr"] {
   40% { transform: translate(50px, -40px) scale(1.1); }
   70% { transform: translate(-20px, 20px) scale(0.94); }
 }
-@keyframes auroraDrift3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-40px, -50px) scale(1.12); }
-}
-
 /* ─────────────────────────────────────────────
    Rotating conic-border glow for hero cards
    ───────────────────────────────────────────── */

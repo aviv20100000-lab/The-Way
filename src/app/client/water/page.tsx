@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useWaterTracker } from '@/hooks/useWaterTracker';
 import { WaterHeroImage } from '@/components/WaterHeroImage';
 import { WaterProgressCard } from '@/components/WaterProgressCard';
@@ -32,17 +32,31 @@ export default function WaterTrackerPage() {
   const [pullDistance, setPullDistance] = useState(0);
   const [showContent, setShowContent] = useState(false);
   const touchStartY = useRef(0);
+  const prefersReducedMotion = useReducedMotion();
+  const confettiParticles = useMemo(
+    () =>
+      Array.from({ length: prefersReducedMotion ? 0 : 12 }, (_, i) => ({
+        id: i,
+        startX: (Math.random() - 0.5) * 100,
+        endX: (Math.random() - 0.5) * 200,
+        rotate: Math.random() * 360,
+        icon: ['🎉', '✨', '🌟', '💧'][Math.floor(Math.random() * 4)],
+      })),
+    [showConfetti, prefersReducedMotion]
+  );
 
   // Celebration effect when goal reached
   useEffect(() => {
     if (progressPercent === 100 && !celebrating) {
       setCelebrating(true);
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2000);
+      if (!prefersReducedMotion) {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 1600);
+      }
     } else if (progressPercent < 100) {
       setCelebrating(false);
     }
-  }, [progressPercent, celebrating]);
+  }, [progressPercent, celebrating, prefersReducedMotion]);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -62,13 +76,14 @@ export default function WaterTrackerPage() {
     const currentY = e.touches[0].clientY;
     const distance = currentY - touchStartY.current;
 
-    if (distance > 0 && window.scrollY === 0) {
+    if (distance > 0 && window.scrollY <= 0) {
       setPullDistance(distance);
     }
   };
 
   const handleTouchEnd = async () => {
     if (pullDistance > 80) {
+      try { navigator.vibrate?.(15); } catch {}
       setRefreshing(true);
       await loadWaterData();
       setRefreshing(false);
@@ -109,28 +124,28 @@ export default function WaterTrackerPage() {
       {/* Confetti Animation */}
       <AnimatePresence>
         {showConfetti &&
-          Array.from({ length: 30 }).map((_, i) => (
+          confettiParticles.map((particle) => (
             <motion.div
-              key={i}
+              key={particle.id}
               className="fixed pointer-events-none"
               initial={{
-                x: `calc(50vw + ${(Math.random() - 0.5) * 100}px)`,
+                x: `calc(50vw + ${particle.startX}px)`,
                 y: '50vh',
                 opacity: 1,
               }}
               animate={{
-                x: `calc(50vw + ${(Math.random() - 0.5) * 200}px)`,
+                x: `calc(50vw + ${particle.endX}px)`,
                 y: '10vh',
                 opacity: 0,
-                rotate: Math.random() * 360,
+                rotate: particle.rotate,
               }}
               transition={{
-                duration: 2,
+                duration: 1.6,
                 ease: 'easeOut',
               }}
             >
               <div className="text-2xl">
-                {['🎉', '✨', '🌟', '💧'][Math.floor(Math.random() * 4)]}
+                {particle.icon}
               </div>
             </motion.div>
           ))}
@@ -194,7 +209,7 @@ export default function WaterTrackerPage() {
         ) : (
           <>
             {/* Hero Image */}
-            <WaterHeroImage />
+            <WaterHeroImage progressPercent={progressPercent} />
 
             {/* Progress Card */}
             <WaterProgressCard

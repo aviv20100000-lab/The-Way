@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import ScanProgress from '@/components/ScanProgress';
 
 interface PhotoUploadProps {
   onFile: (file: File) => void;
@@ -10,10 +11,9 @@ interface PhotoUploadProps {
 }
 
 export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadProps) {
-  const [isDragActive, setIsDragActive] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const dragZoneRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const handleFile = (file: File) => {
     if (file.type.startsWith('image/')) {
@@ -21,142 +21,102 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
     }
   };
 
-  const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setIsDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setIsDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  };
-
   if (isLoading) {
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800 p-8 text-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-col items-center gap-4 py-8"
       >
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="mx-auto mb-4 text-5xl"
-        >
-          🔍
-        </motion.div>
-        <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">מנתח תמונה...</p>
-        <p className="mt-2 text-xs text-primary-600 dark:text-primary-400">זה יכול לקחת כמה שניות</p>
+        <style>{`
+          @keyframes scanSpin { to { transform: rotate(360deg); } }
+          .scan-spinner { animation: scanSpin 1.1s linear infinite; }
+        `}</style>
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <svg className="scan-spinner absolute inset-0 w-full h-full" viewBox="0 0 64 64" fill="none">
+            <circle cx="32" cy="32" r="28" stroke="url(#scanGrad)" strokeWidth="3"
+              strokeLinecap="round" strokeDasharray="88 176" />
+            <defs>
+              <linearGradient id="scanGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#c3f400" />
+                <stop offset="1" stopColor="#c3f400" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c3f400"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+        <ScanProgress />
       </motion.div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Drag & Drop Zone */}
-      <motion.div
-        ref={dragZoneRef}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        initial={{ opacity: 0, y: 8 }}
+    <div className="space-y-3">
+      <motion.button
+        onClick={() => cameraInputRef.current?.click()}
+        whileHover={prefersReducedMotion ? undefined : { scale: 1.02, boxShadow: "0 0 36px rgba(195,244,0,0.28)" }}
+        whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className={`
-          relative rounded-2xl border-2 border-dashed transition-all duration-200 p-8
-          ${
-            isDragActive
-              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900 scale-105'
-              : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900'
-          }
-        `}
+        className="w-full rounded-2xl py-5 flex flex-col items-center gap-2.5 font-bold text-[#161e00] transition-all"
+        style={{
+          background: "linear-gradient(145deg, #c3f400 0%, #a8d600 100%)",
+          boxShadow: "0 8px 24px rgba(195,244,0,0.18), inset 0 1px 0 rgba(255,255,255,0.28)",
+        }}
       >
-        <div className="flex flex-col items-center gap-3">
-          <motion.div
-            animate={isDragActive ? { y: -4 } : { y: 0 }}
-            className="text-5xl"
-          >
-            📸
-          </motion.div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-black-matte dark:text-neutral-100">גרור תמונה לכאן</p>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">או לחץ לבחירה מהגלריה</p>
-          </div>
-        </div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <span className="text-base">צלם ארוחה</span>
+      </motion.button>
 
-        {/* Hidden file input */}
-        <input
-          ref={galleryInputRef}
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFile(file);
-          }}
-          className="absolute inset-0 cursor-pointer opacity-0"
-        />
-      </motion.div>
+      <motion.button
+        onClick={() => galleryInputRef.current?.click()}
+        whileHover={prefersReducedMotion ? undefined : { scale: 1.01 }}
+        whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.06 }}
+        className="w-full rounded-xl py-3 text-sm font-semibold transition-all"
+        style={{
+          background: "rgba(195,244,0,0.06)",
+          border: "1px solid rgba(195,244,0,0.18)",
+          color: "#c3f400",
+        }}
+      >
+        בחר מגלריה
+      </motion.button>
 
-      {/* Camera & Gallery Buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <motion.button
-          onClick={() => cameraInputRef.current?.click()}
-          whileHover={{ scale: 1.05, y: -2 }}
-          whileTap={{ scale: 0.95 }}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 dark:from-sky-600 dark:to-cyan-600 p-4 text-white shadow-lg hover:shadow-xl transition-shadow"
-        >
-          <span className="text-2xl">📷</span>
-          <span className="text-xs font-semibold">מצלמה</span>
-        </motion.button>
-
-        <motion.button
-          onClick={() => galleryInputRef.current?.click()}
-          whileHover={{ scale: 1.05, y: -2 }}
-          whileTap={{ scale: 0.95 }}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="flex flex-col items-center gap-2 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 dark:from-primary-700 dark:to-primary-800 p-4 text-white shadow-lg hover:shadow-xl transition-shadow"
-        >
-          <span className="text-2xl">🖼️</span>
-          <span className="text-xs font-semibold">גלריה</span>
-        </motion.button>
-      </div>
-
-      {/* Hidden camera input */}
       <input
         ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
-        }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+        className="hidden"
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
         className="hidden"
       />
 
-      {/* Error Message */}
       {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl bg-rose-50 dark:bg-rose-950 p-4 text-sm text-rose-600 dark:text-rose-400"
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center text-xs text-red-400 pt-1"
         >
           {error}
-        </motion.div>
+        </motion.p>
       )}
     </div>
   );

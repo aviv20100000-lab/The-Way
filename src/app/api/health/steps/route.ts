@@ -3,10 +3,16 @@ import { getSessionUser } from "@/lib/auth";
 import { extractStepsFromScreenshotBase64 } from "@/lib/anthropic";
 import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
+import { checkPersistentRateLimit } from "@/lib/ratelimit";
+import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+  const rateLimit = await checkPersistentRateLimit(`steps-analyze:${user.id}`, "api");
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: "יותר מדי ניסיונות. נסה שוב בעוד דקה." }, { status: 429 });
+  }
 
   await initDb();
   const formData = await req.formData();
@@ -65,44 +71,46 @@ export async function GET(req: NextRequest) {
       args: [user.id],
     });
 
-    const userData = userRes.rows[0] as { coach_id: string; role: string };
+    const userData = userRes.rows[0] as unknown as { coach_id: string; role: string };
     const coachId = userData?.role === "coach" ? user.id : userData?.coach_id;
 
     if (!coachId) {
       return NextResponse.json([]);
     }
 
-    const today = new Date().toISOString().split("T")[0];
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    const weekStartStr = weekStart.toISOString().split("T")[0];
+    const todayKey = getTodayDayKey();
+    const todayRange = getDayRangeUtc(todayKey);
+    const weekStart = new Date(`${todayKey}T12:00:00Z`);
+    weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
+    const weekStartKey = weekStart.toISOString().slice(0, 10);
+    const weekStartUtc = getDayRangeUtc(weekStartKey).startUtc;
 
     const lbRes = await db.execute({
       sql: `
         SELECT
           u.id,
           u.name,
-          COALESCE(SUM(CASE WHEN DATE(s.logged_at) = ? THEN s.steps ELSE 0 END), 0) as today,
-          COALESCE(SUM(CASE WHEN DATE(s.logged_at) >= ? THEN s.steps ELSE 0 END), 0) as week
+          COALESCE(SUM(CASE WHEN s.logged_at >= ? AND s.logged_at < ? THEN s.steps ELSE 0 END), 0) as today,
+          COALESCE(SUM(CASE WHEN s.logged_at >= ? THEN s.steps ELSE 0 END), 0) as week
         FROM users u
         LEFT JOIN steps_logs s ON u.id = s.user_id
         WHERE u.coach_id = ?
         GROUP BY u.id
         ORDER BY week DESC
       `,
-      args: [today, weekStartStr, coachId],
+      args: [todayRange.startUtc, todayRange.endUtc, weekStartUtc, coachId],
     });
 
     return NextResponse.json(lbRes.rows);
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const { startUtc, endUtc } = getDayRangeUtc(getTodayDayKey());
   const todayRes = await db.execute({
     sql: `
       SELECT COALESCE(SUM(steps), 0) as steps FROM steps_logs
-      WHERE user_id = ? AND DATE(logged_at) = ?
+      WHERE user_id = ? AND logged_at >= ? AND logged_at < ?
     `,
-    args: [user.id, today],
+    args: [user.id, startUtc, endUtc],
   });
 
   const steps = (todayRes.rows[0]?.steps as number) || 0;

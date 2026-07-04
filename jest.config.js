@@ -16,4 +16,12 @@ const customJestConfig = {
   ],
 }
 
-module.exports = createJestConfig(customJestConfig)
+// nextJest sets its own transformIgnorePatterns; we override after the fact
+// so that ESM-only packages (jose, uuid v9+) get transpiled by SWC/Babel.
+module.exports = async () => {
+  const config = await createJestConfig(customJestConfig)()
+  config.transformIgnorePatterns = [
+    'node_modules/(?!(jose|uuid)/)',
+  ]
+  return config
+}

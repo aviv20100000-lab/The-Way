@@ -1,51 +1,25 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-
-function AnimatedScore({ value, className }: { value: number; className?: string }) {
-  const [display, setDisplay] = useState(0);
-  const rafRef = useRef<number>(0);
-  const prev = useRef(0);
-  useEffect(() => {
-    const start = prev.current;
-    const end = value;
-    const duration = 900;
-    const startTime = performance.now();
-    cancelAnimationFrame(rafRef.current);
-    const step = (now: number) => {
-      const t = Math.min(1, (now - startTime) / duration);
-      const ease = 1 - Math.pow(1 - t, 3);
-      const cur = Math.round(start + (end - start) * ease);
-      setDisplay(cur);
-      if (t < 1) rafRef.current = requestAnimationFrame(step);
-      else prev.current = end;
-    };
-    rafRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [value]);
-  const formatted = display >= 1000 ? `${(display / 1000).toFixed(1)}K` : display.toLocaleString();
-  return <span className={className}>{formatted}</span>;
-}
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
-import MealHistory from "@/components/MealHistory";
 import ProgressRing from "@/components/ProgressRing";
 import AuroraBackground from "@/components/AuroraBackground";
 import TiltCard from "@/components/TiltCard";
 import BrandLogo from "@/components/BrandLogo";
-import { PhotoUpload } from "@/components/PhotoUpload";
-import MealScanner from "@/components/MealScanner";
-import { WeightJourney } from "@/components/WeightJourney";
-import { QuickMealLogger } from "@/components/QuickMealLogger";
 import PageSkeleton from "@/components/PageSkeleton";
-import {
-  useAuth,
-  useClientHome,
-  useFoodTracking,
-  useWeightTracking,
-  useStepsTracking,
-} from "@/hooks";
+import { useAuth } from "@/hooks/useAuth";
+import { useClientHome } from "@/hooks/client/useClientHome";
+import { useFoodTracking } from "@/hooks/client/useFoodTracking";
+import { useWeightTracking } from "@/hooks/client/useWeightTracking";
+import { useStepsTracking } from "@/hooks/client/useStepsTracking";
+import SuccessToast from "@/components/SuccessToast";
+import { AnimatedScore } from "@/components/AnimatedScore";
+import MilestoneCelebration, { type MilestoneCelebrationData } from "@/components/MilestoneCelebration";
+
+const CELEBRATED_MILESTONES_KEY = "the-way:celebrated-milestones";
+const WATER_GOAL_CELEBRATED_KEY = "the-way:water-goal-celebrated";
 
 const WaterTrackerTab = dynamic(() => import("@/app/client/water/page"), {
   loading: () => (
@@ -57,11 +31,44 @@ const WaterTrackerTab = dynamic(() => import("@/app/client/water/page"), {
   ),
 });
 
+const MealHistory = dynamic(() => import("@/components/MealHistory"), {
+  loading: () => <div className="skeleton h-48 rounded-3xl" />,
+});
+
+const PhotoUpload = dynamic(
+  () => import("@/components/PhotoUpload").then((m) => ({ default: m.PhotoUpload })),
+  { loading: () => <div className="skeleton h-32 rounded-3xl" /> }
+);
+
+const MealScanner = dynamic(() => import("@/components/MealScanner"), {
+  loading: () => <div className="skeleton h-32 rounded-3xl" />,
+});
+
+const WeightJourney = dynamic(
+  () => import("@/components/WeightJourney").then((m) => ({ default: m.WeightJourney })),
+  { loading: () => <div className="skeleton h-64 rounded-3xl" /> }
+);
+
+const QuickMealLogger = dynamic(
+  () => import("@/components/QuickMealLogger").then((m) => ({ default: m.QuickMealLogger })),
+  { loading: () => <div className="skeleton h-24 rounded-3xl" /> }
+);
+
+const AvatarPhotoPicker = dynamic(() => import("@/components/AvatarPhotoPicker"), {
+  loading: () => <div className="skeleton h-24 rounded-3xl" />,
+});
+
+const ConnectSetup = dynamic(() => import("@/components/ConnectSetup"), {
+  loading: () => null,
+});
+
 type Tab = "home" | "food" | "weight" | "steps" | "water";
 
 export default function ClientPage() {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const [tab, setTab] = useState<Tab>("home");
+  const [clientNow, setClientNow] = useState<Date | null>(null);
   const [weightLoaded, setWeightLoaded] = useState(false);
   const [showHomeContent, setShowHomeContent] = useState(false);
   const [showFoodContent, setShowFoodContent] = useState(false);
@@ -75,14 +82,133 @@ export default function ClientPage() {
   const [profileNewPw, setProfileNewPw] = useState("");
   const [profileError, setProfileError] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
   const [goalInput, setGoalInput] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [waterGoalPulse, setWaterGoalPulse] = useState(false);
+  const [milestoneQueue, setMilestoneQueue] = useState<MilestoneCelebrationData[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const touchStartY = useRef(0);
+  const previousWaterTotalRef = useRef<number | null>(null);
+  const celebratedMilestonesRef = useRef<Set<string> | null>(null);
+  const homeRefreshReadyRef = useRef(false);
 
   // Hooks
-  const { user, logout } = useAuth();
-  const { quote, waterTotal, waterGoal, todaySteps, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
-  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, analyzeFood, logMeal, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
+  const { user, isLoading, logout } = useAuth();
+  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, streak, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
+  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, uploadingSteps, stepsSuccess, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
+
+  const handleSaveWeight = async () => {
+    if (await saveWeight()) setSuccessMessage("המשקל נשמר");
+  };
+
+  useEffect(() => {
+    if (!homeLoaded) return;
+
+    const previousWaterTotal = previousWaterTotalRef.current;
+    previousWaterTotalRef.current = waterTotal;
+
+    if (previousWaterTotal === null || waterGoal <= 0) return;
+    if (previousWaterTotal >= waterGoal || waterTotal < waterGoal) return;
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+    try {
+      if (localStorage.getItem(WATER_GOAL_CELEBRATED_KEY) === today) return;
+      localStorage.setItem(WATER_GOAL_CELEBRATED_KEY, today);
+    } catch {}
+
+    setSuccessMessage(`הגעת ליעד המים היומי — ${(waterGoal / 1000).toFixed(1)} ליטר`);
+    if (!prefersReducedMotion) setWaterGoalPulse(true);
+  }, [homeLoaded, prefersReducedMotion, waterGoal, waterTotal]);
+
+  const latestWeight = weightLogs[0]?.weight_kg ?? null;
+  const oldestWeight = weightLogs[weightLogs.length - 1]?.weight_kg ?? latestWeight;
+  const totalWeightLost = latestWeight !== null && oldestWeight !== null
+    ? Math.max(0, oldestWeight - latestWeight)
+    : 0;
+
+  useEffect(() => {
+    const reachedMilestones: MilestoneCelebrationData[] = [];
+
+    if (homeLoaded && [7, 30, 100].includes(streak)) {
+      reachedMilestones.push({
+        id: `streak-${streak}`,
+        value: streak,
+        suffix: "ימים",
+        message: `${streak} ימים של התמדה — כל הכבוד!`,
+      });
+    }
+
+    if (weightLogs.length >= 2) {
+      [5, 10].forEach((kilograms) => {
+        if (totalWeightLost >= kilograms) {
+          reachedMilestones.push({
+            id: `weight-${kilograms}`,
+            value: kilograms,
+            suffix: "ק״ג",
+            message: `ירדת ${kilograms} ק״ג — הישג נהדר!`,
+          });
+        }
+      });
+    }
+
+    if (reachedMilestones.length === 0) return;
+
+    if (!celebratedMilestonesRef.current) {
+      let storedMilestones: string[] = [];
+      try {
+        const stored = localStorage.getItem(CELEBRATED_MILESTONES_KEY);
+        const parsed: unknown = stored ? JSON.parse(stored) : [];
+        if (Array.isArray(parsed)) {
+          storedMilestones = parsed.filter((item): item is string => typeof item === "string");
+        }
+      } catch {}
+      celebratedMilestonesRef.current = new Set(storedMilestones);
+    }
+
+    const celebratedMilestones = celebratedMilestonesRef.current;
+    const newMilestones = reachedMilestones.filter((milestone) => !celebratedMilestones.has(milestone.id));
+    if (newMilestones.length === 0) return;
+
+    newMilestones.forEach((milestone) => celebratedMilestones.add(milestone.id));
+    try {
+      localStorage.setItem(CELEBRATED_MILESTONES_KEY, JSON.stringify([...celebratedMilestones]));
+    } catch {}
+    setMilestoneQueue((current) => [...current, ...newMilestones]);
+  }, [homeLoaded, streak, totalWeightLost, weightLogs.length]);
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (refreshing || !["home", "food", "steps"].includes(tab)) return;
+    touchStartY.current = event.touches[0].clientY;
+    setPullDistance(0);
+  };
+
+  const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (refreshing || !["home", "food", "steps"].includes(tab) || touchStartY.current === 0) return;
+    const distance = event.touches[0].clientY - touchStartY.current;
+    if (distance > 0 && window.scrollY <= 0) setPullDistance(distance);
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 80 && ["home", "food", "steps"].includes(tab)) {
+      try { navigator.vibrate?.(15); } catch {}
+      setRefreshing(true);
+      try {
+        if (tab === "home") await loadHome();
+        if (tab === "food") await loadMyMeals(true);
+        if (tab === "steps") await loadLeaderboard(true);
+      } finally {
+        setRefreshing(false);
+      }
+    }
+    touchStartY.current = 0;
+    setPullDistance(0);
+  };
 
   // Prefetch the chat route bundle so tapping צ׳אט navigates instantly
 
@@ -108,15 +234,25 @@ export default function ClientPage() {
   }, [router]);
 
   useEffect(() => {
-    if (tab !== "weight" || weightLoaded) return;
+    setClientNow(new Date());
+  }, []);
+
+  useEffect(() => {
+    if (weightLoaded) return;
     setWeightLoaded(true);
     void loadWeight();
-  }, [tab, weightLoaded, loadWeight]);
+  }, [weightLoaded, loadWeight]);
 
   useEffect(() => {
     if (tab === "steps") loadLeaderboard();
-    if (tab === "food") loadMyMeals();
-  }, [tab, loadLeaderboard, loadMyMeals]);
+    if (tab === "home" || tab === "food") loadMyMeals();
+    // Refresh home stats when returning to the home tab (skip the initial
+    // mount — useClientHome already fetches once on load).
+    if (tab === "home") {
+      if (homeRefreshReadyRef.current) loadHome();
+      else homeRefreshReadyRef.current = true;
+    }
+  }, [tab, loadLeaderboard, loadMyMeals, loadHome]);
 
   // Sync home-tab calorie counter after AI meal saved
   useEffect(() => {
@@ -163,18 +299,56 @@ export default function ClientPage() {
     }
     setShowStepsContent(true);
   }, [tab, lbLoaded, leaderboard.length]);
+  const sortedLeaderboard = useMemo(
+    () => leaderboard.slice().sort((a, b) => (lbView === "today" ? b.today - a.today : b.week - a.week)),
+    [leaderboard, lbView]
+  );
+  const myLeaderboardEntry = useMemo(
+    () => (user ? sortedLeaderboard.find((entry) => entry.id === user.id) ?? null : null),
+    [sortedLeaderboard, user]
+  );
+  const myLeaderboardRank = myLeaderboardEntry ? sortedLeaderboard.indexOf(myLeaderboardEntry) + 1 : null;
+  const leaderboardMaxValue = useMemo(
+    () => Math.max(...sortedLeaderboard.map((entry) => (lbView === "today" ? entry.today : entry.week)), 1),
+    [sortedLeaderboard, lbView]
+  );
 
-  if (!user) return <PageSkeleton variant="dashboard" />;
+  if (isLoading || !user) return <PageSkeleton variant="dashboard" />;
 
   const waterPct = Math.min(100, Math.round((waterTotal / waterGoal) * 100));
-  const stepsPct = Math.min(100, Math.round((todaySteps / 10000) * 100));
-  const latestWeight = weightLogs[0]?.weight_kg ?? null;
-  const hour = new Date().getHours();
+  const stepsPct = Math.min(100, Math.round((todaySteps / stepsGoal) * 100));
+  const hour = clientNow?.getHours() ?? 12;
   const greeting = hour < 12 ? "בוקר טוב" : hour < 17 ? "צהריים טובים" : hour < 21 ? "ערב טוב" : "לילה טוב";
+  const greetingDate = clientNow?.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }) ?? "";
 
   return (
-    <div className="min-h-screen pb-32 bg-[#0c0f0f] text-[#e2e2e2]" dir="rtl">
+    <div
+      className="min-h-screen pb-32 bg-[#0c0f0f] text-[#e2e2e2]"
+      dir="rtl"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <AuroraBackground />
+
+      {pullDistance > 0 && (
+        <motion.div
+          className="fixed inset-x-0 top-0 z-50 flex items-center justify-center"
+          style={{ height: pullDistance }}
+          initial={prefersReducedMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
+        >
+          <motion.div
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c3f400]/25 bg-[#1a1c1c] text-2xl font-bold text-[#c3f400] shadow-lg"
+            animate={{ rotate: prefersReducedMotion ? 0 : refreshing ? 360 : (pullDistance / 80) * 360 }}
+            transition={{ duration: refreshing && !prefersReducedMotion ? 1 : 0, repeat: refreshing && !prefersReducedMotion ? Infinity : 0 }}
+            aria-label={refreshing ? "מרענן" : "משוך לרענון"}
+          >
+            {refreshing ? "↻" : "↓"}
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Header */}
       <motion.header
@@ -284,11 +458,18 @@ export default function ClientPage() {
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="greet-dot w-1.5 h-1.5 rounded-full" style={{ background: "#c3f400", boxShadow: "0 0 8px #c3f400" }} />
                     <p className="text-[10px] font-bold tracking-[0.28em] uppercase" style={{ color: "rgba(195,244,0,0.55)" }}>
-                      {new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                      {greetingDate}
                     </p>
                   </div>
                   <p className="text-xs font-light tracking-wide text-[#6e7564] mb-0.5">{greeting}</p>
-                  <h2 className="greet-name text-3xl font-black leading-none truncate pb-1">{user.name || "אלוף"}</h2>
+                  <div className="flex items-center gap-2 pb-1">
+                    <h2 className="greet-name min-w-0 truncate text-3xl font-black leading-none">{user.name || "אלוף"}</h2>
+                    {streak >= 2 && (
+                      <span className="shrink-0 rounded-full border border-[#c3f400]/25 bg-black/30 px-2.5 py-1 text-[11px] font-bold text-[#c3f400] shadow-[0_0_14px_rgba(195,244,0,0.08)] backdrop-blur-sm">
+                        🔥 {streak} ימים ברצף
+                      </span>
+                    )}
+                  </div>
                   {/* HUD underline that draws in, with a sweeping light dot */}
                   <motion.div
                     initial={{ width: 0 }} animate={{ width: "168px" }}
@@ -306,6 +487,7 @@ export default function ClientPage() {
               transition={{ delay: 0.2, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             >
               <MealScanner
+                compact
                 analyzing={analyzing}
                 aiResult={aiResult}
                 foodError={foodError}
@@ -313,6 +495,13 @@ export default function ClientPage() {
                 estimatingIndex={estimatingIndex}
                 analyzeFood={analyzeFood}
                 logMeal={logMeal}
+                lastSavedMealId={lastSavedMealId}
+                sharingMeal={sharingMeal}
+                shareMealError={shareMealError}
+                mealShared={mealShared}
+                sharePromptDismissed={sharePromptDismissed}
+                shareMealToGroup={shareMealToGroup}
+                dismissSharePrompt={dismissSharePrompt}
                 resetAiResult={resetAiResult}
                 updateItemName={updateItemName}
                 updateItemCalories={updateItemCalories}
@@ -323,11 +512,21 @@ export default function ClientPage() {
               />
             </motion.div>
 
+            <MealHistory
+              meals={myMeals}
+              title="הארוחות האחרונות"
+              loading={loadingMeals && !mealsLoaded}
+              onDelete={deleteMeal}
+              compact
+              maxDays={3}
+              onShowAll={() => setTab("food")}
+            />
+
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
               <TiltCard className="flex flex-col items-center glass-card rounded-2xl p-6 transition-all" delay={0.3} max={10}>
                 <ProgressRing pct={stepsPct} size={88} stroke={8} color="#6366f1" track="#333535">
-                  <span className="text-xl font-bold text-white">{todaySteps >= 1000 ? `${(todaySteps / 1000).toFixed(1)}K` : todaySteps}</span>
+                  <AnimatedScore value={todaySteps} animate={!prefersReducedMotion} className="text-xl font-bold text-white" />
                   <span className="mt-0.5 text-xs font-normal text-[#c4c9ac]">צעדים</span>
                 </ProgressRing>
                 <p className="mt-4 text-sm font-semibold tracking-wide text-[#c4c9ac]">צעדים</p>
@@ -338,7 +537,13 @@ export default function ClientPage() {
                 {latestWeight ? (
                   <div className="mt-2 space-y-3">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black text-white leading-none">{latestWeight}</span>
+                      <AnimatedScore
+                        value={latestWeight}
+                        animate={!prefersReducedMotion}
+                        precision={Number.isInteger(latestWeight) ? 0 : 1}
+                        format={(value) => value.toLocaleString("he-IL", { maximumFractionDigits: 1 })}
+                        className="text-4xl font-black leading-none text-white"
+                      />
                       <span className="text-sm text-[#c4c9ac]">ק&quot;ג</span>
                     </div>
                     {weightTarget && (() => {
@@ -368,6 +573,17 @@ export default function ClientPage() {
             </div>
 
             {/* Water */}
+            <motion.div
+              animate={waterGoalPulse ? {
+                scale: [1, 1.035, 1],
+                boxShadow: ["0 0 0 rgba(195,244,0,0)", "0 0 26px rgba(195,244,0,0.22)", "0 0 0 rgba(195,244,0,0)"],
+              } : { scale: 1, boxShadow: "0 0 0 rgba(195,244,0,0)" }}
+              transition={{ duration: waterGoalPulse ? 0.6 : 0, ease: "easeInOut" }}
+              onAnimationComplete={() => {
+                if (waterGoalPulse) setWaterGoalPulse(false);
+              }}
+              className="rounded-2xl"
+            >
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -400,6 +616,7 @@ export default function ClientPage() {
                 </div>
               </div>
             </motion.div>
+            </motion.div>
 
             {/* Calorie Progress */}
             {(calorieGoalFromGoals !== null || todayCaloriesConsumed > 0) && (
@@ -416,7 +633,7 @@ export default function ClientPage() {
                   )}
                 </div>
                 <div className="flex items-end gap-1 mb-3">
-                  <span className="text-3xl font-bold text-[#c3f400]">{todayCaloriesConsumed}</span>
+                  <AnimatedScore value={todayCaloriesConsumed} animate={!prefersReducedMotion} className="text-3xl font-bold text-[#c3f400]" />
                   {calorieGoalFromGoals && (
                     <span className="mb-1 text-sm text-[#c4c9ac]">/ {calorieGoalFromGoals} קל׳</span>
                   )}
@@ -443,41 +660,6 @@ export default function ClientPage() {
               </motion.div>
             )}
 
-            {/* Notifications */}
-            {notifStatus === "granted" ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.6, type: "spring" }}
-                className="flex items-center gap-3 glass-card rounded-2xl p-6"
-              >
-                <span className="text-2xl animate-bounce">✅</span>
-                <p className="font-semibold text-white">התראות דלוקות!</p>
-              </motion.div>
-            ) : !isPwa ? (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="glass-card rounded-2xl p-6 space-y-3"
-              >
-                <p className="font-semibold text-white">📲 רוצה הודעות?</p>
-              </motion.div>
-            ) : (
-              <motion.button
-                onClick={enableNotifications}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, type: "spring" }}
-                className="flex w-full items-center gap-4 glass-card rounded-2xl p-6 text-white border border-[#c3f400]/20 lime-glow"
-              >
-                <span className="text-4xl">🔔</span>
-                <div>
-                  <p className="font-semibold">הפעל התראות</p>
-                  <p className="text-xs text-[#c4c9ac]">לקבל הודעות מהמאמן</p>
-                </div>
-              </motion.button>
-            )}
           </div>
           )
         )}
@@ -495,7 +677,7 @@ export default function ClientPage() {
           <div className="space-y-4">
             <QuickMealLogger onSaved={() => {
               loadHome();
-              loadMyMeals();
+              loadMyMeals(true);
             }} />
 
             {!calorieGoalFromGoals && !showGoalEdit && (
@@ -514,7 +696,7 @@ export default function ClientPage() {
                   const cal = parseInt(goalInput);
                   if (!cal || cal < 500) return;
                   const { withCsrf } = await import("@/lib/csrf-client");
-                  await fetch("/api/goals", { method: "POST", headers: await withCsrf({ "Content-Type": "application/json" }), body: JSON.stringify({ daily_calories: cal }) });
+                  await fetch("/api/users/goals", { method: "POST", headers: await withCsrf({ "Content-Type": "application/json" }), body: JSON.stringify({ daily_calories: cal }) });
                   loadHome();
                   setShowGoalEdit(false);
                 }} className="rounded-full bg-[#c3f400] px-4 py-2 text-sm font-bold text-[#161e00]">שמור</button>
@@ -527,6 +709,7 @@ export default function ClientPage() {
                 יעד: {calorieGoalFromGoals} קל'/יום · שנה
               </button>
             )}
+            {proteinGoal && <p className="text-xs text-[#8e9379]">יעד חלבון: {proteinGoal} גרם ביום</p>}
 
             <MealHistory meals={myMeals} loading={loadingMeals} onDelete={deleteMeal} />
           </div>
@@ -553,14 +736,22 @@ export default function ClientPage() {
           ) : (
           <div className="space-y-6">
 
-            {weightTarget && weightLogs.length > 0 && (
-              <WeightJourney
-                currentWeight={weightLogs[0]?.weight_kg ?? null}
-                targetWeight={weightTarget}
-                weightLogs={weightLogs}
-                startingWeight={weightLogs[weightLogs.length - 1]?.weight_kg ?? weightLogs[0]?.weight_kg ?? 0}
-              />
-            )}
+            {(() => {
+              const startW = weightLogs[weightLogs.length - 1]?.weight_kg ?? null;
+
+              return (
+                <>
+                  {weightTarget && weightLogs.length > 0 && (
+                    <WeightJourney
+                      currentWeight={latestWeight}
+                      targetWeight={weightTarget}
+                      weightLogs={weightLogs}
+                      startingWeight={startW ?? latestWeight ?? 0}
+                    />
+                  )}
+                </>
+              );
+            })()}
 
             <motion.div
               initial={{ opacity: 0, y: 8 }}
@@ -581,7 +772,7 @@ export default function ClientPage() {
                 <span className="text-sm font-semibold text-[#c4c9ac] shrink-0">ק״ג</span>
               </div>
               <motion.button
-                onClick={saveWeight}
+                onClick={handleSaveWeight}
                 disabled={savingWeight || !newWeight}
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -623,16 +814,16 @@ export default function ClientPage() {
               </div>
             );
           }
-          const sorted = leaderboard.slice().sort((a, b) => lbView === "today" ? b.today - a.today : b.week - a.week);
-          const myEntry = sorted.find((e) => e.id === user.id);
-          const myRank = myEntry ? sorted.indexOf(myEntry) + 1 : null;
-          const maxVal = Math.max(...sorted.map((e) => lbView === "today" ? e.today : e.week), 1);
+          const sorted = sortedLeaderboard;
+          const myEntry = myLeaderboardEntry;
+          const myRank = myLeaderboardRank;
+          const maxVal = leaderboardMaxValue;
           const CROWN = ["#c3f400","#c8c8c8","#c8a951"];
           return (
           <div className="space-y-5">
 
             {/* Header row */}
-            <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="flex items-end justify-between">
+            <motion.div initial={prefersReducedMotion ? false : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="flex items-end justify-between">
               <div>
                 <style>{`
                   @keyframes lbShimmer {
@@ -661,6 +852,7 @@ export default function ClientPage() {
                 `}</style>
                 <h2 className="lb-title text-2xl font-black leading-none">לוח מנצחים</h2>
                 {myRank && <p className="text-xs text-[#8e9379] mt-1">הדירוג שלך <span className="text-[#c3f400] font-bold">#{myRank}</span></p>}
+                <p className="text-xs text-[#8e9379] mt-1">היעד היומי שלך: {stepsGoal.toLocaleString()} צעדים</p>
               </div>
               {/* Time toggle — top right */}
               <div className="flex rounded-xl bg-[#1a1c1c] border border-[#2e3030] p-0.5 gap-0.5">
@@ -674,7 +866,7 @@ export default function ClientPage() {
             </motion.div>
 
             {/* Upload strip */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
+            <motion.div initial={prefersReducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
               {stepsSuccess ? (
                 <div className="flex items-center gap-3 rounded-2xl border border-[#c3f400]/20 bg-[#c3f400]/5 px-5 py-3.5">
                   <div className="w-5 h-5 rounded-full bg-[#c3f400] flex items-center justify-center shrink-0">
@@ -705,7 +897,7 @@ export default function ClientPage() {
               const gap = leaderVal - myVal;
               return (
                 <motion.div
-                  initial={{ opacity: 0, y: 4 }}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
                   className="flex items-center gap-3 rounded-2xl border border-[#c3f400]/15 bg-[#c3f400]/5 px-5 py-3"
@@ -739,7 +931,7 @@ export default function ClientPage() {
                 <p className="text-[#444] text-sm">אין נתונים עדיין</p>
               </div>
             ) : (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+              <motion.div initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
                 className="glass-card rounded-2xl border border-[#2e3030] overflow-hidden">
                 {sorted.map((entry, i) => {
                   const val = lbView === "today" ? entry.today : entry.week;
@@ -750,9 +942,9 @@ export default function ClientPage() {
                   return (
                     <motion.div
                       key={entry.id}
-                      initial={{ opacity: 0, x: 10 }}
+                      initial={prefersReducedMotion ? false : { opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05, duration: 0.3 }}
+                      transition={{ delay: prefersReducedMotion ? 0 : Math.min(i, 5) * 0.03, duration: prefersReducedMotion ? 0.12 : 0.22 }}
                       className={`relative flex items-center gap-4 px-5 py-4 border-b border-[#1a1c1c] last:border-0 overflow-hidden ${isMe ? "bg-[#c3f400]/[0.04]" : ""}`}
                     >
                       {/* #1 animated glow bg */}
@@ -793,9 +985,9 @@ export default function ClientPage() {
                           <motion.div
                             className="h-full rounded-full"
                             style={{ background: accent ?? (isMe ? "#c3f400" : "#333535") }}
-                            initial={{ width: 0 }}
+                            initial={prefersReducedMotion ? false : { width: 0 }}
                             animate={{ width: `${pct}%` }}
-                            transition={{ delay: i * 0.05 + 0.2, duration: 0.7, ease: [0.25,0.46,0.45,0.94] }}
+                            transition={{ delay: prefersReducedMotion ? 0 : Math.min(i, 5) * 0.03 + 0.12, duration: prefersReducedMotion ? 0.12 : 0.45, ease: [0.25,0.46,0.45,0.94] }}
                           />
                         </div>
                       </div>
@@ -804,7 +996,7 @@ export default function ClientPage() {
                       <div className="text-right shrink-0 min-w-[52px]">
                         <p className={`text-base font-black leading-none ${accent ? "" : isMe ? "text-[#c3f400]" : "text-white"}`}
                           style={accent ? { color: accent } : {}}>
-                          <AnimatedScore value={val} />
+                          <AnimatedScore value={val} animate={!prefersReducedMotion && i < 3} />
                         </p>
                         <p className="text-[10px] text-[#444] mt-0.5">צעדים</p>
                       </div>
@@ -841,7 +1033,7 @@ export default function ClientPage() {
               { id: "water" as Tab, icon: "💧", label: "מים" },
               { id: "weight" as Tab, icon: "⚖️", label: "משקל" },
               { id: "steps" as Tab, icon: "👟", label: "תחרות" },
-              { id: "chat" as "chat", icon: "💬", label: "צ׳אט" },
+              { id: "chat" as const, icon: "💬", label: "צ׳אט" },
             ];
             const allIds = navItems.map(n => n.id);
             const activeIdx = allIds.indexOf(tab as typeof allIds[number]);
@@ -883,11 +1075,28 @@ export default function ClientPage() {
         </div>
       </motion.nav>
 
+      <SuccessToast message={successMessage} onDismiss={() => setSuccessMessage(null)} />
+      <MilestoneCelebration
+        milestone={milestoneQueue[0] ?? null}
+        onDismiss={() => setMilestoneQueue((current) => current.slice(1))}
+      />
+      <ConnectSetup
+        notifStatus={notifStatus}
+        isPwa={isPwa}
+        enableNotifications={enableNotifications}
+      />
+
       {/* Profile modal */}
       {showProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowProfile(false)}>
           <div className="glass-card w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-4 border border-[#444933]" dir="rtl" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-white">הגדרות פרופיל</h2>
+
+            <AvatarPhotoPicker
+              name={user.name}
+              currentUrl={profileAvatarUrl}
+              onUploaded={setProfileAvatarUrl}
+            />
 
             <div className="space-y-3">
               <div>

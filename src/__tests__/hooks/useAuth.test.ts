@@ -1,9 +1,17 @@
 import { renderHook } from '@testing-library/react'
-import { useAuth } from '@/hooks'
+import { useAuth } from '@/hooks/useAuth'
+
+const push = jest.fn()
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}))
 
 describe('useAuth', () => {
   beforeEach(() => {
     global.fetch = jest.fn()
+    sessionStorage.clear()
+    push.mockClear()
   })
 
   afterEach(() => {

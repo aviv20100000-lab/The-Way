@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fitness Coach App Builder"
+  short_description: "Plan and build coach-client fitness apps."
+  default_prompt: "Use $fitness-coach-app-builder to plan and build a fitness coaching app with a clean MVP and safe architecture."

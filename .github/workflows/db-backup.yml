@@ -1,0 +1,54 @@
+name: db-backup
+
+# Creates a compressed production database backup every night. A failed run
+# alerts Telegram and also remains failed so GitHub can email the repo owner.
+#
+# Secrets required (already configured): CRON_SECRET, TELEGRAM_BOT_TOKEN,
+# TELEGRAM_CHAT_ID.
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download database backup
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS -o backup.json -w "%{http_code}" --max-time 120 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://the-way-app-two.vercel.app/api/cron/backup" || echo "000")
+          echo "HTTP status: $code"
+          if [ "$code" != "200" ] || [ ! -s backup.json ]; then
+            echo "Database backup download failed or returned an empty body"
+            exit 1
+          fi
+          backup_date=$(date -u +%Y-%m-%d)
+          echo "BACKUP_DATE=$backup_date" >> "$GITHUB_ENV"
+          gzip "backup.json"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ env.BACKUP_DATE }}
+          path: backup.json.gz
+          retention-days: 30
+
+      - name: Send Telegram alert on failure
+        if: failure()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            --data '{"chat_id":"'"${TG_CHAT}"'","text":"🚨 THE WAY — גיבוי מסד הנתונים הלילי נכשל. יש לבדוק את GitHub Actions."}' >/dev/null

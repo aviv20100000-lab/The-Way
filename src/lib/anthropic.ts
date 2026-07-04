@@ -135,6 +135,7 @@ export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) 
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 2048,
+    temperature: 0.2,
     tools: [LOG_FOOD_TOOL],
     tool_choice: { type: "any" },
     messages: [

@@ -15,15 +15,15 @@ export async function GET() {
         ? user.id
         : ((user as { coach_id?: string }).coach_id ?? null);
 
-    let contacts: { id: string; name: string; role: string }[] = [];
+    let contacts: { id: string; name: string; role: string; username: string; avatar_url: string | null }[] = [];
     if (coachId) {
       const membersRes = await db.execute({
-        sql: `SELECT id, name, role FROM users
+        sql: `SELECT id, name, role, username, avatar_url FROM users
               WHERE (id = ? OR coach_id = ?) AND id != ?
               ORDER BY role DESC, name ASC`,
         args: [coachId, coachId, user.id],
       });
-      contacts = membersRes.rows as unknown as { id: string; name: string; role: string }[];
+      contacts = membersRes.rows as unknown as { id: string; name: string; role: string; username: string; avatar_url: string | null }[];
     }
 
     // Unread DM count per sender
@@ -46,6 +46,7 @@ export async function GET() {
       const groupUnreadRes = await db.execute({
         sql: `SELECT COUNT(*) as count FROM chat_messages
               WHERE receiver_id IS NULL
+                AND group_id IS NULL
                 AND sender_id != ?
                 AND (sender_id = ? OR sender_id IN (SELECT id FROM users WHERE coach_id = ?))
                 AND is_read = 0`,
@@ -54,7 +55,26 @@ export async function GET() {
       groupUnread = Number(groupUnreadRes.rows[0]?.count ?? 0);
     }
 
-    return NextResponse.json({ contacts, unreadMap, groupUnread, coachId });
+    const namedGroupsRes = user.role === "coach"
+      ? await db.execute({
+          sql: "SELECT id, name, image_url AS imageUrl FROM chat_groups WHERE coach_id = ? ORDER BY created_at DESC",
+          args: [user.id],
+        })
+      : await db.execute({
+          sql: `SELECT g.id, g.name, g.image_url AS imageUrl
+                FROM chat_groups g
+                JOIN chat_group_members gm ON gm.group_id = g.id
+                WHERE gm.user_id = ?
+                ORDER BY g.created_at DESC`,
+          args: [user.id],
+        });
+
+    const defaultGroupNameRes = coachId
+      ? await db.execute({ sql: "SELECT default_group_name FROM users WHERE id = ?", args: [coachId] })
+      : { rows: [] as { default_group_name?: string | null }[] };
+    const defaultGroupName = (defaultGroupNameRes.rows[0]?.default_group_name as string | null | undefined) ?? null;
+
+    return NextResponse.json({ contacts, unreadMap, groupUnread, namedGroups: namedGroupsRes.rows, defaultGroupName, coachId });
   } catch (err) {
     console.error("[chat/contacts GET]", err);
     return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });

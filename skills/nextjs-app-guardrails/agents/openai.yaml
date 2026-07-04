@@ -1,0 +1,4 @@
+interface:
+  display_name: "Next.js App Guardrails"
+  short_description: "Prevent repeated app-building mistakes and slowdowns."
+  default_prompt: "Use $nextjs-app-guardrails to review this app plan before we build or refactor."

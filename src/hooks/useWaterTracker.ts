@@ -177,8 +177,10 @@ export function useWaterTracker() {
         });
 
         // Make API call
+        const { withCsrf } = await import('@/lib/csrf-client');
         const res = await fetch(`/api/health/water/${id}`, {
           method: 'DELETE',
+          headers: await withCsrf(),
         });
 
         if (!res.ok) {

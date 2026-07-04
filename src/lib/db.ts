@@ -68,6 +68,21 @@ async function runInit() {
       serving_size TEXT NOT NULL DEFAULT '100g'
     );
 
+    CREATE TABLE IF NOT EXISTS tzameret_foods (
+      code TEXT PRIMARY KEY,
+      name_he TEXT NOT NULL,
+      calories REAL,
+      protein REAL,
+      carbs REAL,
+      fat REAL
+    );
+
+    CREATE TABLE IF NOT EXISTS tzameret_portions (
+      food_code TEXT NOT NULL,
+      unit_name_he TEXT NOT NULL,
+      grams REAL NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS meals (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -97,7 +112,9 @@ async function runInit() {
       user_id TEXT PRIMARY KEY REFERENCES users(id),
       target_weight_kg REAL,
       daily_calories INTEGER,
+      daily_protein_g INTEGER,
       daily_water_ml INTEGER NOT NULL DEFAULT 2000,
+      daily_steps INTEGER,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -155,13 +172,65 @@ async function runInit() {
       sender_id TEXT NOT NULL REFERENCES users(id),
       receiver_id TEXT REFERENCES users(id),
       content TEXT NOT NULL,
+      image_url TEXT,
       sent_at TEXT NOT NULL DEFAULT (datetime('now')),
       is_read INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_groups (
+      id TEXT PRIMARY KEY,
+      coach_id TEXT NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_group_members (
+      group_id TEXT NOT NULL REFERENCES chat_groups(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      PRIMARY KEY (group_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_message_reactions (
+      message_id TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      emoji TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (message_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      jti TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      expires_at TEXT NOT NULL,
+      used_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      count INTEGER NOT NULL,
+      reset_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id TEXT PRIMARY KEY,
+      event TEXT NOT NULL,
+      user_id TEXT,
+      ip TEXT,
+      metadata TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON chat_messages(sender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_receiver ON chat_messages(receiver_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sent_at ON chat_messages(sent_at);
+    CREATE INDEX IF NOT EXISTS idx_chat_group_members_group ON chat_group_members(group_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_group_members_user ON chat_group_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_message_reactions_message ON chat_message_reactions(message_id);
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_event ON audit_log(event);
+    CREATE INDEX IF NOT EXISTS idx_tzameret_foods_name ON tzameret_foods(name_he);
+    CREATE INDEX IF NOT EXISTS idx_tzameret_portions_food ON tzameret_portions(food_code);
   `);
 
   // Migration: add username column if it doesn't exist
@@ -170,6 +239,67 @@ async function runInit() {
   } catch {
     // Column already exists — ignore
   }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN avatar_url TEXT", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN default_group_name TEXT", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  // Migration: add session_version for server-side session revocation
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  // Migrations: goals columns added after the original production table.
+  try {
+    await db.execute({ sql: "ALTER TABLE goals ADD COLUMN daily_protein_g INTEGER", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE goals ADD COLUMN daily_steps INTEGER", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE chat_messages ADD COLUMN image_url TEXT", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE chat_messages ADD COLUMN group_id TEXT", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE chat_groups ADD COLUMN image_url TEXT", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE chat_messages ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  await db.execute({
+    sql: "CREATE INDEX IF NOT EXISTS idx_chat_messages_group_id ON chat_messages(group_id)",
+    args: [],
+  });
 
   // Derive a plain username from the email address for existing users.
   await db.execute({

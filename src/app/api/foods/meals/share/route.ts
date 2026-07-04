@@ -58,6 +58,13 @@ export async function POST(req: NextRequest) {
     const caption = `${user.name} שיתף/ה ארוחה - ${Math.round(Number(meal.total_calories) || 0)} קל'`;
     const messageId = uuid();
 
+    // Keep the uploaded photo on the original meal. The meal's logged_at stays
+    // unchanged, so the coach sees when it was eaten rather than when it was shared.
+    await db.execute({
+      sql: "UPDATE ai_meal_logs SET photo_url = ? WHERE id = ? AND user_id = ?",
+      args: [imageUrl, mealId, user.id],
+    });
+
     await db.execute({
       sql: `INSERT INTO chat_messages (id, sender_id, receiver_id, content, image_url, sent_at)
             VALUES (?, ?, ?, ?, ?, datetime('now'))`,

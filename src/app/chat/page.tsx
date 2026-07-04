@@ -684,7 +684,11 @@ export default function ChatPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 px-1 text-[10px] text-[#8e9379]">
                   <span className="flex items-center gap-1.5">
-                    {new Date(msg.sent_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(msg.sent_at).toLocaleTimeString("he-IL", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Asia/Jerusalem",
+                    })}
                     {canPin && !msg.pinned && !msg.id.startsWith("opt-") && (
                       <button
                         onClick={() => togglePin(msg.id, true)}

@@ -4,6 +4,7 @@ import { createMeal } from "@/lib/meals";
 import { ensureSeed } from "@/lib/seed";
 import db from "@/lib/db";
 import type { MealType } from "@/lib/types";
+import { getMealTypeForIsraelTime } from "@/lib/meal-time";
 
 // Tzameret picks arrive as "tz-<code>" — copy them into the foods table so
 // meal_items' JOIN on foods keeps working (id is stable, so this is idempotent).
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   await ensureSeed();
 
   const body = await req.json();
-  const mealType = body.mealType as MealType;
+  const mealType: MealType = getMealTypeForIsraelTime();
 
   // Accepts either the legacy single-item shape { foodId, quantity } or { items: [...] }
   const rawItems: { foodId?: unknown; quantity?: unknown }[] = Array.isArray(body.items)
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     .map((it) => ({ foodId: String(it.foodId ?? ""), quantity: Number(it.quantity) }))
     .filter((it) => it.foodId && Number.isFinite(it.quantity) && it.quantity > 0);
 
-  if (items.length === 0 || items.length > 30 || !mealType) {
+  if (items.length === 0 || items.length > 30) {
     return NextResponse.json({ error: "חסרים פרטים" }, { status: 400 });
   }
 

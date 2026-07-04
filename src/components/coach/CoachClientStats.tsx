@@ -16,6 +16,9 @@ interface CoachClientStatsProps {
 }
 
 export function CoachClientStats({ clientName, data }: CoachClientStatsProps) {
+  const israelDayKey = (value: string | Date) =>
+    new Date(value).toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+
   // Calculate weight progress
   const latestWeight = data.weights[0]?.weight_kg ?? null;
   const oldestWeight = data.weights[data.weights.length - 1]?.weight_kg ?? latestWeight;
@@ -24,8 +27,9 @@ export function CoachClientStats({ clientName, data }: CoachClientStatsProps) {
   const weightProgress = latestWeight && targetWeight ? ((oldestWeight - latestWeight) / (oldestWeight - targetWeight) * 100).toFixed(0) : '0';
 
   // Calculate calories today
+  const todayIsrael = israelDayKey(new Date());
   const caloriestoday = data.meals
-    .filter(m => new Date(m.logged_at).toDateString() === new Date().toDateString())
+    .filter(m => israelDayKey(m.logged_at) === todayIsrael)
     .reduce((sum, m) => sum + m.total_calories, 0);
   const calorieGoal = data.goals.daily_calories ?? 2000;
   const caloriesPercent = Math.min(100, (caloriestoday / calorieGoal) * 100).toFixed(0);
@@ -157,7 +161,11 @@ export function CoachClientStats({ clientName, data }: CoachClientStatsProps) {
             {data.meals.slice(0, 3).map((meal) => (
               <div key={meal.id} className="flex items-center justify-between text-sm">
                 <span className="text-[#8e9379]">
-                  {new Date(meal.logged_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(meal.logged_at).toLocaleTimeString('he-IL', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'Asia/Jerusalem',
+                  })}
                 </span>
                 <span className="font-semibold text-white">{meal.total_calories} קל'</span>
               </div>

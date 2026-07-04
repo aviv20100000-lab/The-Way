@@ -627,7 +627,7 @@ export default function CoachPage() {
                             <div className="space-y-1">
                               {clientData.weights.map((w, i) => (
                                 <div key={i} className="flex justify-between text-sm border-b border-[#444933] py-1">
-                                  <span className="text-[#8e9379]">{new Date(w.logged_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" })}</span>
+                                  <span className="text-[#8e9379]">{new Date(w.logged_at).toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit", timeZone: "Asia/Jerusalem" })}</span>
                                   <span className="font-medium text-[#c4c9ac]">{w.weight_kg} ק"ג</span>
                                 </div>
                               ))}
@@ -676,8 +676,8 @@ export default function CoachPage() {
 
             {foodLogs.map((log) => {
               const date = new Date(log.logged_at);
-              const dateStr = date.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric" });
-              const timeStr = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+              const dateStr = date.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric", timeZone: "Asia/Jerusalem" });
+              const timeStr = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" });
               const isExpanded = expandedLog === log.id;
 
               return (

@@ -3,17 +3,11 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { withCsrf } from "@/lib/csrf-client";
+import { getMealTypeForIsraelTime, MEAL_TYPE_DETAILS } from "@/lib/meal-time";
+import type { MealType } from "@/lib/types";
 
 type Food = { id: string; name_he: string; name_en: string | null; calories: number };
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 type BasketItem = { food: Food; grams: number };
-
-const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
-  { value: "breakfast", label: "ארוחת בוקר", icon: "🌅" },
-  { value: "lunch", label: "ארוחת צהריים", icon: "☀️" },
-  { value: "dinner", label: "ארוחת ערב", icon: "🌙" },
-  { value: "snack", label: "חטיף", icon: "🍎" },
-];
 
 const itemCalories = (item: BasketItem) => Math.round(item.grams * item.food.calories / 100);
 
@@ -28,6 +22,13 @@ export function QuickMealLogger({ onSaved }: { onSaved?: () => void }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const updateMealType = () => setMealType(getMealTypeForIsraelTime());
+    updateMealType();
+    const interval = window.setInterval(updateMealType, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (selected) return;
@@ -67,6 +68,8 @@ export function QuickMealLogger({ onSaved }: { onSaved?: () => void }) {
     if (items.length === 0) return;
     setSaving(true);
     setError(null);
+    const automaticMealType = getMealTypeForIsraelTime();
+    setMealType(automaticMealType);
     try {
       const headers = await withCsrf({ "Content-Type": "application/json" });
       const res = await fetch("/api/meals/quick", {
@@ -75,7 +78,7 @@ export function QuickMealLogger({ onSaved }: { onSaved?: () => void }) {
         credentials: "include",
         body: JSON.stringify({
           items: items.map((item) => ({ foodId: item.food.id, quantity: item.grams })),
-          mealType,
+          mealType: automaticMealType,
         }),
       });
       if (!res.ok) {
@@ -103,21 +106,11 @@ export function QuickMealLogger({ onSaved }: { onSaved?: () => void }) {
     <div className="glass-card rounded-2xl p-5 space-y-4" dir="rtl" style={{ border: "1px solid #444933" }}>
       <p className="text-sm font-semibold text-white">⚡ רישום מהיר</p>
 
-      <div className="grid grid-cols-4 gap-1.5">
-        {MEAL_TYPES.map((t) => (
-          <button
-            key={t.value}
-            onClick={() => setMealType(t.value)}
-            className={`rounded-xl py-2 text-xs font-semibold transition-all ${
-              mealType === t.value
-                ? "bg-[#c3f400] text-[#161e00]"
-                : "bg-[#282a2b] text-[#8e9379] border border-[#444933] hover:border-[#c3f400]/50"
-            }`}
-          >
-            <div>{t.icon}</div>
-            <div className="mt-0.5 leading-tight">{t.label.replace("ארוחת ", "")}</div>
-          </button>
-        ))}
+      <div className="flex items-center justify-between rounded-xl border border-[#444933] bg-[#282a2b] px-4 py-3">
+        <span className="text-xs text-[#8e9379]">נבחר אוטומטית לפי השעה</span>
+        <span className="text-sm font-semibold text-white">
+          {MEAL_TYPE_DETAILS[mealType].icon} {MEAL_TYPE_DETAILS[mealType].label}
+        </span>
       </div>
 
       {basket.length > 0 && (

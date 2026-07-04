@@ -43,6 +43,10 @@ jest.mock("@/lib/security-alerts", () => ({
   sendSecurityAlert: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock("@/lib/anthropic", () => ({
+  extractStepsFromScreenshotBase64: jest.fn(),
+}));
+
 // web-push is used in chat/messages
 jest.mock("web-push", () => ({
   setVapidDetails: jest.fn(),

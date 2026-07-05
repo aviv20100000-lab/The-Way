@@ -65,6 +65,19 @@ function reportSlowNavigation() {
   }, 0);
 }
 
+// The manifest is injected after window load instead of living in the initial
+// <head>: iOS Safari fetches it on a separate connection that stalls ~21s on
+// cellular and holds the load event hostage. Injected this late it can't block
+// anything, and it's still in place by the time the user taps "add to home screen".
+function injectManifest() {
+  if (document.querySelector('link[rel="manifest"]')) return;
+  const link = document.createElement("link");
+  link.rel = "manifest";
+  link.href = "/manifest.json";
+  link.crossOrigin = "use-credentials";
+  document.head.appendChild(link);
+}
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -77,8 +90,10 @@ function urlBase64ToUint8Array(base64String: string) {
 export default function PwaRegister() {
   useEffect(() => {
     if (document.readyState === "complete") {
+      injectManifest();
       reportSlowNavigation();
     } else {
+      window.addEventListener("load", injectManifest, { once: true });
       window.addEventListener("load", reportSlowNavigation, { once: true });
     }
 
@@ -136,7 +151,10 @@ export default function PwaRegister() {
         // ignore
       }
     })();
-    return () => window.removeEventListener("load", reportSlowNavigation);
+    return () => {
+      window.removeEventListener("load", injectManifest);
+      window.removeEventListener("load", reportSlowNavigation);
+    };
   }, []);
 
   return null;

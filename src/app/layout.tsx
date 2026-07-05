@@ -20,7 +20,6 @@ const beVietnamPro = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: "THE WAY",
   description: "מעקב תזונה וכושר בגובה העיניים",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -39,6 +38,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} ${beVietnamPro.variable}`} suppressHydrationWarning>
       <head>
+        {/* Manual manifest link: crossOrigin="use-credentials" makes iOS Safari
+            fetch it over the existing credentialed connection instead of opening
+            a separate anonymous one — that separate connection stalled ~21s on
+            cellular and blocked the window load event (perf report 2026-07-05). */}
+        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

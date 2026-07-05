@@ -19,6 +19,27 @@ const beVietnamPro = Be_Vietnam_Pro({
 
 const earlyLoginProbe = `
 (() => {
+  const moduleCapable = "noModule" in document.createElement("script");
+  if (moduleCapable) {
+    const removeLegacyPolyfill = (node) => {
+      if (
+        node instanceof HTMLScriptElement &&
+        node.noModule &&
+        node.src.includes("/_next/static/chunks/polyfills-")
+      ) {
+        node.remove();
+      }
+    };
+    document.querySelectorAll("script[nomodule]").forEach(removeLegacyPolyfill);
+    const polyfillObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach(removeLegacyPolyfill);
+      }
+    });
+    polyfillObserver.observe(document.documentElement, { childList: true, subtree: true });
+    addEventListener("load", () => polyfillObserver.disconnect(), { once: true });
+  }
+
   setTimeout(async () => {
     try {
       if (location.pathname !== "/login" || document.readyState === "complete") return;

@@ -173,6 +173,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -182,6 +183,19 @@ export default function LoginPage() {
     mediaQuery.addEventListener("change", updateMotionPreference);
 
     return () => mediaQuery.removeEventListener("change", updateMotionPreference);
+  }, []);
+
+  // The 2.3MB background video must not compete with the JS/CSS the page needs
+  // to become interactive — on cellular it froze the login for ~30s. Mount it
+  // only after the window finished loading everything critical.
+  useEffect(() => {
+    if (document.readyState === "complete") {
+      setShowVideo(true);
+      return;
+    }
+    const onLoad = () => setShowVideo(true);
+    window.addEventListener("load", onLoad);
+    return () => window.removeEventListener("load", onLoad);
   }, []);
 
   // Warm up both dashboards so the post-login redirect is instant
@@ -221,7 +235,7 @@ export default function LoginPage() {
       dir="rtl"
       style={{ background: "#0c0f0f" }}
     >
-      {prefersReducedMotion === false && (
+      {prefersReducedMotion === false && showVideo && (
         <>
           <video
             autoPlay

@@ -174,9 +174,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean | null>(null);
   const [showVideo, setShowVideo] = useState(false);
-  const presentationWasForced = () =>
-    (window as Window & { __theWayPresentationForced?: boolean }).__theWayPresentationForced === true;
-
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches);
@@ -187,8 +184,11 @@ export default function LoginPage() {
     return () => mediaQuery.removeEventListener("change", updateMotionPreference);
   }, []);
 
-  // Do not start the 2.3MB video before load. On iOS Safari, dynamically
-  // inserted media can hold pageshow/load without a Resource Timing entry.
+  // HARD RULE: the 2.3MB video must NEVER mount before the window load event
+  // has fired. A <video> inserted pre-load delays the load event until it can
+  // play — ~20s on cellular — and leaves NO Resource Timing entry on Safari,
+  // which made this the "invisible" stall behind every 🐢 telemetry report
+  // (2026-07-05). No early-mount shortcuts, no timers that race the load event.
   useEffect(() => {
     let revealed = false;
     const revealVideo = () => {
@@ -198,7 +198,7 @@ export default function LoginPage() {
       setShowVideo(true);
     };
 
-    if (document.readyState === "complete" || presentationWasForced()) revealVideo();
+    if (document.readyState === "complete") revealVideo();
     else window.addEventListener("load", revealVideo, { once: true });
 
     return () => window.removeEventListener("load", revealVideo);
@@ -225,7 +225,7 @@ export default function LoginPage() {
       }
     };
 
-    if (document.readyState === "complete" || presentationWasForced()) prefetchDashboards();
+    if (document.readyState === "complete") prefetchDashboards();
     else window.addEventListener("load", prefetchDashboards, { once: true });
 
     return () => {

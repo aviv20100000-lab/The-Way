@@ -17,6 +17,67 @@ const beVietnamPro = Be_Vietnam_Pro({
   display: "swap",
 });
 
+const earlyLoginProbe = `
+(() => {
+  setTimeout(async () => {
+    try {
+      if (location.pathname !== "/login" || document.readyState === "complete") return;
+      const resources = performance.getEntriesByType("resource");
+      const resourceByUrl = new Map(resources.map((entry) => [entry.name, entry]));
+      const scriptStates = Array.from(document.scripts)
+        .filter((script) => script.src)
+        .slice(0, 20)
+        .map((script) => {
+          const resource = resourceByUrl.get(script.src);
+          return {
+            url: script.src.replace(location.origin, "").slice(0, 140),
+            completed: Boolean(resource),
+            duration: resource ? Math.round(resource.duration) : null,
+          };
+        });
+      const slowResources = [...resources]
+        .sort((a, b) => b.duration - a.duration)
+        .slice(0, 8)
+        .map((resource) => ({
+          url: resource.name.replace(location.origin, "").slice(0, 120),
+          initiatorType: resource.initiatorType,
+          duration: Math.round(resource.duration),
+          start: Math.round(resource.startTime),
+          bytes: resource.transferSize || 0,
+        }));
+      const paints = performance.getEntriesByType("paint");
+      const navigation = performance.getEntriesByType("navigation")[0];
+      const csrfResponse = await fetch("/api/auth/csrf-token", { cache: "no-store" });
+      const csrf = await csrfResponse.json();
+      const token = csrf.token || csrf.csrfToken;
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["x-csrf-token"] = token;
+      await fetch("/api/client-errors", {
+        method: "POST",
+        headers,
+        keepalive: true,
+        body: JSON.stringify({
+          type: "perf",
+          phase: "stuck",
+          path: location.pathname,
+          userAgent: navigator.userAgent,
+          duration: Math.round(performance.now()),
+          readyState: document.readyState,
+          visibilityState: document.visibilityState,
+          visibilityTimeline: [{ t: 0, state: document.visibilityState, event: "inline-probe" }],
+          domInteractive: navigation ? Math.round(navigation.domInteractive) : undefined,
+          domContentLoaded: navigation ? Math.round(navigation.domContentLoadedEventEnd) : undefined,
+          firstPaint: paints.find((entry) => entry.name === "first-paint")?.startTime,
+          firstContentfulPaint: paints.find((entry) => entry.name === "first-contentful-paint")?.startTime,
+          resourceCount: resources.length,
+          scriptStates,
+          slowResources,
+        }),
+      });
+    } catch {}
+  }, 10000);
+})();`;
+
 export const metadata: Metadata = {
   title: "THE WAY",
   description: "מעקב תזונה וכושר בגובה העיניים",
@@ -43,6 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             window load for ~21s on cellular. PwaRegister injects both later. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <script dangerouslySetInnerHTML={{ __html: earlyLoginProbe }} />
       </head>
       <body className="min-h-screen antialiased dark">
         <RootLayoutContent>{children}</RootLayoutContent>

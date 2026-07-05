@@ -98,6 +98,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (Array.isArray(body.scriptStates)) {
+      details.push("Script states at probe:");
+      for (const entry of body.scriptStates.slice(0, 20)) {
+        if (typeof entry !== "object" || entry === null) continue;
+        const script = entry as Record<string, unknown>;
+        const url = clean(script.url, 140) || "unknown";
+        const completed = script.completed === true;
+        const duration = cleanNumber(script.duration, 300_000);
+        details.push(
+          `• <code>${escapeHtml(url)}</code> — ${completed ? `${duration === null ? "?" : Math.round(duration)}ms` : "PENDING"}`
+        );
+      }
+    }
+
     if (Array.isArray(body.slowResources)) {
       details.push("Slowest resources:");
       for (const entry of body.slowResources.slice(0, 8)) {

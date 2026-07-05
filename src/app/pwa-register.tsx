@@ -19,6 +19,17 @@ function reportSlowNavigation() {
       if (!navigation || navigation.duration <= 8000) return;
 
       const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+
+      // Top slowest subresources — pinpoints WHICH file stalls the load
+      const slowResources = (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
+        .sort((a, b) => b.duration - a.duration)
+        .slice(0, 5)
+        .map((r) => ({
+          url: r.name.replace(window.location.origin, "").slice(0, 120),
+          duration: Math.round(r.duration),
+          start: Math.round(r.startTime),
+          bytes: r.transferSize,
+        }));
       void (async () => {
         try {
           const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -40,6 +51,7 @@ function reportSlowNavigation() {
               transferSize: navigation.transferSize,
               effectiveType: connection?.effectiveType,
               downlink: connection?.downlink,
+              slowResources,
             }),
             keepalive: true,
           });

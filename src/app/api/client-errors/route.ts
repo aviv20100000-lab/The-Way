@@ -73,6 +73,21 @@ export async function POST(req: NextRequest) {
       `Device: <code>${escapeHtml(userAgent)}</code>`,
     ];
 
+    if (Array.isArray(body.slowResources)) {
+      details.push("Slowest resources:");
+      for (const entry of body.slowResources.slice(0, 5)) {
+        if (typeof entry !== "object" || entry === null) continue;
+        const r = entry as Record<string, unknown>;
+        const url = clean(r.url, 120) || "unknown";
+        const dur = cleanNumber(r.duration, 300_000);
+        const start = cleanNumber(r.start, 300_000);
+        const bytes = cleanNumber(r.bytes, 100_000_000);
+        details.push(
+          `• <code>${escapeHtml(url)}</code> — ${dur === null ? "?" : Math.round(dur)}ms (start ${start === null ? "?" : Math.round(start)}ms, ${bytes === null ? "?" : bytes}B)`
+        );
+      }
+    }
+
     await sendTelegramAlert(details.join("\n"));
     return NextResponse.json(
       { accepted: true },

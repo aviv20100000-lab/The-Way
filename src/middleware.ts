@@ -9,7 +9,7 @@ async function getAuthRedirect(request: NextRequest): Promise<NextResponse | nul
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return null;
   if (pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico") return null;
   // Public static assets under /public (images, videos, manifest, etc.) never need auth.
-  if (/\.(mp4|webm|jpg|jpeg|png|gif|webp|svg|ico|json|txt|woff2?)$/i.test(pathname)) return null;
+  if (/\.(mp4|webm|jpg|jpeg|png|gif|webp|svg|ico|json|txt|html|woff2?)$/i.test(pathname)) return null;
 
   const token = request.cookies.get("the-way-session")?.value;
   if (!token) return NextResponse.redirect(new URL("/login", request.url));

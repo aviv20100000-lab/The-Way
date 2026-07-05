@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ping</title>
+</head>
+<body style="background:#0c0f0f;color:#c3f400;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;font-size:28px;">
+<div>
+  <div>✅ הדף עלה!</div>
+  <div id="t" style="font-size:16px;color:#8e9379;margin-top:8px;"></div>
+</div>
+<script>
+  var start = performance.now();
+  window.addEventListener("load", function () {
+    document.getElementById("t").textContent =
+      "load אחרי " + Math.round(performance.now()) + "ms";
+  });
+</script>
+</body>
+</html>

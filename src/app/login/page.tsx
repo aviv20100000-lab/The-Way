@@ -185,42 +185,32 @@ export default function LoginPage() {
     return () => mediaQuery.removeEventListener("change", updateMotionPreference);
   }, []);
 
-  // Prefer window load, but never let a stalled iOS load event hide the video.
+  // Do not start the 2.3MB video before load. On iOS Safari, dynamically
+  // inserted media can hold pageshow/load without a Resource Timing entry.
   useEffect(() => {
     let revealed = false;
-    let timerId: ReturnType<typeof setTimeout> | undefined;
     const revealVideo = () => {
       if (revealed) return;
       revealed = true;
       window.removeEventListener("load", revealVideo);
-      if (timerId !== undefined) clearTimeout(timerId);
       setShowVideo(true);
     };
 
     if (document.readyState === "complete") revealVideo();
-    else {
-      window.addEventListener("load", revealVideo, { once: true });
-      timerId = setTimeout(revealVideo, 1500);
-    }
+    else window.addEventListener("load", revealVideo, { once: true });
 
-    return () => {
-      window.removeEventListener("load", revealVideo);
-      if (timerId !== undefined) clearTimeout(timerId);
-    };
+    return () => window.removeEventListener("load", revealVideo);
   }, []);
 
-  // Prefer window load, with a fallback so a stalled iOS load event cannot
-  // postpone dashboard prefetch indefinitely.
+  // Prefetch only after load so it cannot compete with initial presentation.
   useEffect(() => {
     let idleId: number | undefined;
     let idleFallbackId: ReturnType<typeof setTimeout> | undefined;
-    let loadFallbackId: ReturnType<typeof setTimeout> | undefined;
     let scheduled = false;
     const prefetchDashboards = () => {
       if (scheduled) return;
       scheduled = true;
       window.removeEventListener("load", prefetchDashboards);
-      if (loadFallbackId !== undefined) clearTimeout(loadFallbackId);
 
       const run = () => {
         router.prefetch("/client");
@@ -234,14 +224,10 @@ export default function LoginPage() {
     };
 
     if (document.readyState === "complete") prefetchDashboards();
-    else {
-      window.addEventListener("load", prefetchDashboards, { once: true });
-      loadFallbackId = setTimeout(prefetchDashboards, 3000);
-    }
+    else window.addEventListener("load", prefetchDashboards, { once: true });
 
     return () => {
       window.removeEventListener("load", prefetchDashboards);
-      if (loadFallbackId !== undefined) clearTimeout(loadFallbackId);
       if (idleId !== undefined) window.cancelIdleCallback(idleId);
       if (idleFallbackId !== undefined) clearTimeout(idleFallbackId);
     };

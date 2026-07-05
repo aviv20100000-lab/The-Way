@@ -169,12 +169,10 @@ function urlBase64ToUint8Array(base64String: string) {
 export default function PwaRegister() {
   useEffect(() => {
     let manifestInjected = false;
-    let manifestTimer: ReturnType<typeof setTimeout> | undefined;
     const injectManifestOnce = () => {
       if (manifestInjected) return;
       manifestInjected = true;
       window.removeEventListener("load", injectManifestOnce);
-      if (manifestTimer !== undefined) clearTimeout(manifestTimer);
       injectManifest();
     };
 
@@ -184,13 +182,11 @@ export default function PwaRegister() {
     } else {
       window.addEventListener("load", injectManifestOnce, { once: true });
       window.addEventListener("load", reportFinalNavigation, { once: true });
-      manifestTimer = setTimeout(injectManifestOnce, 5000);
     }
 
     const cleanup = () => {
       window.removeEventListener("load", injectManifestOnce);
       window.removeEventListener("load", reportFinalNavigation);
-      if (manifestTimer !== undefined) clearTimeout(manifestTimer);
     };
 
     if (!("serviceWorker" in navigator)) return cleanup;

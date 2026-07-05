@@ -12,6 +12,17 @@ export async function isGroupOwner(groupId: string, coachUserId: string): Promis
   return result.rows.length > 0;
 }
 
+// Membership in the coach's default (all-hands) group. Coaches always belong;
+// clients belong only when their in_default_group flag is on.
+export async function isInDefaultGroup(user: { id: string; role: string }): Promise<boolean> {
+  if (user.role === "coach") return true;
+  const result = await db.execute({
+    sql: "SELECT 1 FROM users WHERE id = ? AND in_default_group = 1 LIMIT 1",
+    args: [user.id],
+  });
+  return result.rows.length > 0;
+}
+
 export async function isGroupMember(groupId: string, userId: string): Promise<boolean> {
   const result = await db.execute({
     sql: `SELECT 1

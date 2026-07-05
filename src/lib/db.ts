@@ -296,6 +296,14 @@ async function runInit() {
     // Column already exists — ignore
   }
 
+  // Default-group membership: existing users stay in (DEFAULT 1);
+  // newly created clients start outside the group (set at creation).
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN in_default_group INTEGER NOT NULL DEFAULT 1", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
   await db.execute({
     sql: "CREATE INDEX IF NOT EXISTS idx_chat_messages_group_id ON chat_messages(group_id)",
     args: [],

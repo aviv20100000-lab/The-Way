@@ -112,6 +112,23 @@ export default function CoachPage() {
     }
   }, [router]);
 
+  const toggleGroupMembership = useCallback(async (client: CoachClient) => {
+    const nextInGroup = !client.in_default_group;
+    // Optimistic update; revert on failure
+    setClients((current) => current.map((item) => item.id === client.id ? { ...item, in_default_group: nextInGroup } : item));
+    try {
+      const res = await fetch("/api/coach/group-membership", {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ clientId: client.id, inGroup: nextInGroup }),
+      });
+      if (!res.ok) throw new Error("toggle failed");
+    } catch (e) {
+      console.error("Error toggling group membership:", e);
+      setClients((current) => current.map((item) => item.id === client.id ? { ...item, in_default_group: client.in_default_group } : item));
+    }
+  }, []);
+
   const loadQuotes = useCallback(async () => {
     try {
       const res = await fetch("/api/motivation/quotes?action=list");
@@ -515,6 +532,7 @@ export default function CoachPage() {
                 onOpenGoals={(selected) => void openClientGoals(selected)}
                 onOpenWizard={setWizardClient}
                 onAvatarUploaded={(clientId, url) => setClients((current) => current.map((item) => item.id === clientId ? { ...item, avatar_url: url } : item))}
+                onToggleGroup={(selected) => void toggleGroupMembership(selected)}
               />
             ))}
 

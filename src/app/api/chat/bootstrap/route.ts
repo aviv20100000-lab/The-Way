@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
-import { resolveCoachId } from "@/lib/chat-group";
+import { isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
 
 type MessageRow = { id: string } & Record<string, unknown>;
@@ -14,6 +14,8 @@ export async function GET() {
     await initDb();
 
     const coachId = resolveCoachId(user as Parameters<typeof resolveCoachId>[0]);
+    const inDefaultGroup = await isInDefaultGroup(user);
+    const canSeeDefaultGroup = Boolean(coachId) && inDefaultGroup;
 
     const contactsPromise = coachId
       ? db.execute({
@@ -32,7 +34,7 @@ export async function GET() {
       args: [user.id],
     });
 
-    const groupUnreadPromise = coachId
+    const groupUnreadPromise = canSeeDefaultGroup
       ? db.execute({
           sql: `SELECT COUNT(*) as count FROM chat_messages
                 WHERE receiver_id IS NULL
@@ -44,7 +46,7 @@ export async function GET() {
         })
       : Promise.resolve({ rows: [{ count: 0 }] });
 
-    const groupMessagesPromise = coachId
+    const groupMessagesPromise = canSeeDefaultGroup
       ? db.execute({
           sql: `SELECT m.id, m.content, m.image_url, m.is_read,
                        m.sender_id, u.name as sender_name, u.username as sender_username,
@@ -97,7 +99,7 @@ export async function GET() {
       defaultGroupNamePromise,
     ]);
 
-    if (coachId) {
+    if (canSeeDefaultGroup) {
       await db.execute({
         sql: `UPDATE chat_messages SET is_read = 1
               WHERE receiver_id IS NULL
@@ -123,6 +125,7 @@ export async function GET() {
       groupUnread: Number(groupUnreadRes.rows[0]?.count ?? 0),
       namedGroups: namedGroupsRes.rows,
       defaultGroupName: (defaultGroupNameRes.rows[0]?.default_group_name as string | null) ?? null,
+      inDefaultGroup: canSeeDefaultGroup,
       messages,
     });
   } catch (error) {

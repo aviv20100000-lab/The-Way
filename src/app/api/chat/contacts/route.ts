@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
+import { isInDefaultGroup } from "@/lib/chat-group";
 
 // GET /api/chat/contacts — returns DM contacts + unread counts
 export async function GET() {
@@ -41,8 +42,9 @@ export async function GET() {
     }
 
     // Group unread: messages sent by others in the same group that are still unread
+    const inDefaultGroup = coachId ? await isInDefaultGroup(user) : false;
     let groupUnread = 0;
-    if (coachId) {
+    if (coachId && inDefaultGroup) {
       const groupUnreadRes = await db.execute({
         sql: `SELECT COUNT(*) as count FROM chat_messages
               WHERE receiver_id IS NULL
@@ -74,7 +76,7 @@ export async function GET() {
       : { rows: [] as { default_group_name?: string | null }[] };
     const defaultGroupName = (defaultGroupNameRes.rows[0]?.default_group_name as string | null | undefined) ?? null;
 
-    return NextResponse.json({ contacts, unreadMap, groupUnread, namedGroups: namedGroupsRes.rows, defaultGroupName, coachId });
+    return NextResponse.json({ contacts, unreadMap, groupUnread, namedGroups: namedGroupsRes.rows, defaultGroupName, inDefaultGroup, coachId });
   } catch (err) {
     console.error("[chat/contacts GET]", err);
     return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });

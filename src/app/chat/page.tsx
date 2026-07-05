@@ -116,6 +116,7 @@ type ChatCache = {
   groupUnread: number;
   messages: Message[];
   defaultGroupName: string | null;
+  inDefaultGroup?: boolean;
 };
 
 function readChatCache(): ChatCache | null {
@@ -195,6 +196,7 @@ export default function ChatPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [showGroupCreator, setShowGroupCreator] = useState(false);
   const [defaultGroupName, setDefaultGroupName] = useState<string | null>(cached?.defaultGroupName ?? null);
+  const [inDefaultGroup, setInDefaultGroup] = useState<boolean>(cached?.inDefaultGroup ?? true);
   const [renamingGroup, setRenamingGroup] = useState(false);
   const [groupNameInput, setGroupNameInput] = useState("");
   const [renamingSaving, setRenamingSaving] = useState(false);
@@ -210,6 +212,7 @@ export default function ChatPage() {
   const groupUnreadRef = useRef(cached?.groupUnread ?? 0);
   const messagesRef = useRef<Message[]>(cached?.messages ?? []);
   const defaultGroupNameRef = useRef<string | null>(cached?.defaultGroupName ?? null);
+  const inDefaultGroupRef = useRef<boolean>(cached?.inDefaultGroup ?? true);
   const reactingMessageIds = useRef(new Set<string>());
   const initialMessageIds = useRef(new Set((cached?.messages ?? []).map((message) => message.id)));
   const animatedMessageIds = useRef(new Set<string>());
@@ -224,6 +227,7 @@ export default function ChatPage() {
       groupUnread: next?.groupUnread ?? groupUnreadRef.current,
       messages: next?.messages ?? messagesRef.current,
       defaultGroupName: next?.defaultGroupName ?? defaultGroupNameRef.current,
+      inDefaultGroup: next?.inDefaultGroup ?? inDefaultGroupRef.current,
     };
     writeChatCache(payload);
   }, []);
@@ -246,6 +250,7 @@ export default function ChatPage() {
       const nextUnreadMap: Record<string, number> = data.unreadMap ?? {};
       const nextGroupUnread = data.groupUnread ?? 0;
       const nextDefaultGroupName: string | null = data.defaultGroupName ?? null;
+      const nextInDefaultGroup: boolean = data.inDefaultGroup ?? true;
       const msgs: Message[] = data.messages ?? [];
       userRef.current = me;
       contactsRef.current = nextContacts;
@@ -259,11 +264,18 @@ export default function ChatPage() {
       setUnreadMap(nextUnreadMap);
       setGroupUnread(nextGroupUnread);
       setDefaultGroupName(nextDefaultGroupName);
+      inDefaultGroupRef.current = nextInDefaultGroup;
+      setInDefaultGroup(nextInDefaultGroup);
+      // Client outside the default group: land on the DM with the coach instead
+      if (!nextInDefaultGroup && modeRef.current.type === "group") {
+        const coachContact = nextContacts.find((c) => c.role === "coach");
+        if (coachContact) setMode({ type: "private", contact: coachContact });
+      }
       lastMsgId.current = msgs[msgs.length - 1]?.id ?? null;
       msgs.forEach((message) => initialMessageIds.current.add(message.id));
       messagesRef.current = msgs;
       setMessages(msgs);
-      persistCache({ user: me, contacts: nextContacts, namedGroups: nextNamedGroups, unreadMap: nextUnreadMap, groupUnread: nextGroupUnread, messages: msgs, defaultGroupName: nextDefaultGroupName });
+      persistCache({ user: me, contacts: nextContacts, namedGroups: nextNamedGroups, unreadMap: nextUnreadMap, groupUnread: nextGroupUnread, messages: msgs, defaultGroupName: nextDefaultGroupName, inDefaultGroup: nextInDefaultGroup });
       setLoading(false);
       setTimeout(() => scrollToBottom("auto"), 0);
     });
@@ -287,6 +299,17 @@ export default function ChatPage() {
     const nextUnreadMap = data.unreadMap ?? {};
     const nextGroupUnread = data.groupUnread ?? 0;
     const nextDefaultGroupName: string | null = data.defaultGroupName ?? null;
+    const nextInDefaultGroup: boolean = data.inDefaultGroup ?? true;
+    if (inDefaultGroupRef.current !== nextInDefaultGroup) {
+      inDefaultGroupRef.current = nextInDefaultGroup;
+      setInDefaultGroup(nextInDefaultGroup);
+      // Removed from the group while viewing it — move to the DM with the coach
+      if (!nextInDefaultGroup && modeRef.current.type === "group") {
+        const coachContact = (nextContacts as Contact[]).find((c) => c.role === "coach");
+        if (coachContact) setMode({ type: "private", contact: coachContact });
+      }
+      persistCache({ inDefaultGroup: nextInDefaultGroup });
+    }
     const contactsChanged = !contactsEqual(contactsRef.current, nextContacts);
     const namedGroupsChanged = !namedGroupsEqual(namedGroupsRef.current, nextNamedGroups);
     const unreadChanged = !unreadMapEqual(unreadMapRef.current, nextUnreadMap);
@@ -534,7 +557,10 @@ export default function ChatPage() {
     }
   };
 
-  const groupRow = (
+  // Clients outside the default group don't see it at all; coaches always do
+  const showGroupRow = user.role === "coach" || inDefaultGroup;
+
+  const groupRow = showGroupRow && (
     <div
       key="group"
       role="button"

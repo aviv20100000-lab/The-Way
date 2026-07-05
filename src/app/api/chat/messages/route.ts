@@ -4,7 +4,7 @@ import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
 import { sendSecurityAlert } from "@/lib/security-alerts";
 import { pushToUsers, setupVapid } from "@/lib/chat-push";
-import { isGroupMember, resolveCoachId } from "@/lib/chat-group";
+import { isGroupMember, isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
 
 type MessageRow = { id: string } & Record<string, unknown>;
@@ -111,6 +111,10 @@ export async function GET(req: NextRequest) {
     const coachId = resolveCoachId(user as Parameters<typeof resolveCoachId>[0]);
     if (!coachId) return NextResponse.json({ messages: [] });
 
+    if (!(await isInDefaultGroup(user))) {
+      return NextResponse.json({ error: "אינך חבר בקבוצה" }, { status: 403 });
+    }
+
     const result = await db.execute({
       sql: `SELECT m.id, m.content, m.image_url, m.is_read, m.pinned,
                    m.sender_id, u.name as sender_name, u.username as sender_username,
@@ -183,6 +187,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "המשתמש אינו משויך לקבוצה" }, { status: 403 });
     }
 
+    if (!hasReceiver && !hasGroup && !(await isInDefaultGroup(user))) {
+      return NextResponse.json({ error: "אינך חבר בקבוצה" }, { status: 403 });
+    }
+
     if (hasGroup && typeof group_id === "string" && !(await isGroupMember(group_id, user.id))) {
       await sendSecurityAlert({
         event: "chat_named_group_write_attempt",
@@ -248,7 +256,7 @@ export async function POST(req: NextRequest) {
         await pushToUsers(memberIds, payload);
       } else {
         const membersRes = await db.execute({
-          sql: `SELECT id FROM users WHERE id = ? OR coach_id = ?`,
+          sql: `SELECT id FROM users WHERE id = ? OR (coach_id = ? AND in_default_group = 1)`,
           args: [coachId, coachId],
         });
         const memberIds = (membersRes.rows as unknown as { id: string }[])

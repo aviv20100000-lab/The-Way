@@ -114,14 +114,16 @@ export async function createUser(data: { name: string; email: string; password: 
   const passwordHash = await bcrypt.hash(data.password, 10);
   const normalizedEmail = normalizeLoginValue(data.email);
   const username = normalizedEmail.split("@")[0];
-  await db.execute({ sql: "INSERT INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [id, data.name, normalizedEmail, username, passwordHash, data.role, data.coachId ?? null] });
+  // New clients start OUTSIDE the default chat group — the coach adds them explicitly.
+  const inDefaultGroup = data.role === "coach" ? 1 : 0;
+  await db.execute({ sql: "INSERT INTO users (id, name, email, username, password_hash, role, coach_id, in_default_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", args: [id, data.name, normalizedEmail, username, passwordHash, data.role, data.coachId ?? null, inDefaultGroup] });
   return { id, name: data.name, email: normalizedEmail, role: data.role, coach_id: data.coachId ?? null };
 }
 
-export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean })[]> {
+export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean })[]> {
   await ensureDb();
   const res = await db.execute({
-    sql: `SELECT u.id, u.name, u.email, u.role, u.coach_id,
+    sql: `SELECT u.id, u.name, u.email, u.role, u.coach_id, u.in_default_group,
             CASE WHEN g.user_id IS NOT NULL AND (
               g.target_weight_kg IS NOT NULL OR g.daily_calories IS NOT NULL OR
               g.daily_protein_g IS NOT NULL OR g.daily_water_ml IS NOT NULL OR
@@ -140,5 +142,6 @@ export async function getClientsByCoach(coachId: string): Promise<(User & { has_
     role: r.role as "coach" | "client",
     coach_id: r.coach_id as string | null,
     has_goals: Boolean(r.has_goals),
+    in_default_group: Boolean(r.in_default_group),
   }));
 }

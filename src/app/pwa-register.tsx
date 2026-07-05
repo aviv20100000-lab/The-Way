@@ -10,59 +10,131 @@ type NetworkInformation = {
   downlink?: number;
 };
 
-function reportSlowNavigation() {
-  window.setTimeout(() => {
-    try {
-      const navigation = performance.getEntriesByType("navigation")[0] as
-        | PerformanceNavigationTiming
-        | undefined;
-      if (!navigation || navigation.duration <= 8000) return;
+type VisibilityPoint = {
+  t: number;
+  state: string;
+  event: string;
+  persisted?: boolean;
+};
 
-      const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+const visibilityTimeline: VisibilityPoint[] = [];
+let stuckReportSent = false;
+let finalReportObserved = false;
+let stuckProbeTimer: ReturnType<typeof setTimeout> | undefined;
 
-      // Top slowest subresources — pinpoints WHICH file stalls the load
-      const slowResources = (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
-        .sort((a, b) => b.duration - a.duration)
-        .slice(0, 5)
-        .map((r) => ({
-          url: r.name.replace(window.location.origin, "").slice(0, 120),
-          duration: Math.round(r.duration),
-          start: Math.round(r.startTime),
-          bytes: r.transferSize,
-        }));
-      void (async () => {
-        try {
-          const headers: Record<string, string> = { "Content-Type": "application/json" };
-          const csrfToken = await getCsrfToken();
-          if (csrfToken) headers["x-csrf-token"] = csrfToken;
-          await fetch("/api/client-errors", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              type: "perf",
-              path: window.location.pathname,
-              userAgent: navigator.userAgent,
-              duration: Math.round(navigation.duration),
-              dns: Math.round(navigation.domainLookupEnd - navigation.domainLookupStart),
-              connect: Math.round(navigation.connectEnd - navigation.connectStart),
-              ttfb: Math.round(navigation.responseStart),
-              domContentLoaded: Math.round(navigation.domContentLoadedEventEnd),
-              loadEventEnd: Math.round(navigation.loadEventEnd),
-              transferSize: navigation.transferSize,
-              effectiveType: connection?.effectiveType,
-              downlink: connection?.downlink,
-              slowResources,
-            }),
-            keepalive: true,
-          });
-        } catch {
-          // Performance reporting must never affect the UI.
-        }
-      })();
-    } catch {
-      // Performance APIs are best-effort across browsers.
-    }
-  }, 0);
+function recordVisibility(event: string, persisted?: boolean) {
+  try {
+    visibilityTimeline.push({
+      t: Math.round(performance.now()),
+      state: document.visibilityState,
+      event,
+      ...(persisted === undefined ? {} : { persisted }),
+    });
+    if (visibilityTimeline.length > 20) visibilityTimeline.shift();
+  } catch {
+    // Visibility telemetry is best-effort.
+  }
+}
+
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+  recordVisibility("module-init");
+  document.addEventListener("visibilitychange", () => recordVisibility("visibilitychange"));
+  window.addEventListener("pagehide", (event) => recordVisibility("pagehide", event.persisted));
+  window.addEventListener("pageshow", (event) => recordVisibility("pageshow", event.persisted));
+}
+
+function reportNavigation(phase: "stuck" | "final") {
+  if (phase === "stuck") {
+    if (stuckReportSent || document.readyState === "complete") return;
+    stuckReportSent = true;
+  } else {
+    if (finalReportObserved) return;
+    finalReportObserved = true;
+    if (stuckProbeTimer !== undefined) clearTimeout(stuckProbeTimer);
+  }
+
+  try {
+    const navigation = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    const duration = Math.round(navigation?.duration || performance.now());
+    if (phase === "final" && (!navigation || duration <= 8000)) return;
+
+    const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+    const paints = performance.getEntriesByType("paint");
+    const firstPaint = paints.find((entry) => entry.name === "first-paint")?.startTime;
+    const firstContentfulPaint = paints.find(
+      (entry) => entry.name === "first-contentful-paint"
+    )?.startTime;
+    const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+    const slowResources = [...resources]
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 8)
+      .map((resource) => ({
+        url: resource.name.replace(window.location.origin, "").slice(0, 120),
+        initiatorType: resource.initiatorType,
+        duration: Math.round(resource.duration),
+        start: Math.round(resource.startTime),
+        bytes: resource.transferSize,
+      }));
+
+    void (async () => {
+      try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        const csrfToken = await getCsrfToken();
+        if (csrfToken) headers["x-csrf-token"] = csrfToken;
+        await fetch("/api/client-errors", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            type: "perf",
+            phase,
+            path: window.location.pathname,
+            userAgent: navigator.userAgent,
+            duration,
+            readyState: document.readyState,
+            visibilityState: document.visibilityState,
+            visibilityTimeline: visibilityTimeline.slice(-20),
+            dns: navigation
+              ? Math.round(navigation.domainLookupEnd - navigation.domainLookupStart)
+              : undefined,
+            connect: navigation
+              ? Math.round(navigation.connectEnd - navigation.connectStart)
+              : undefined,
+            ttfb: navigation ? Math.round(navigation.responseStart) : undefined,
+            domInteractive: navigation ? Math.round(navigation.domInteractive) : undefined,
+            domContentLoaded: navigation
+              ? Math.round(navigation.domContentLoadedEventEnd)
+              : undefined,
+            domComplete: navigation ? Math.round(navigation.domComplete) : undefined,
+            loadEventStart: navigation ? Math.round(navigation.loadEventStart) : undefined,
+            loadEventEnd: navigation ? Math.round(navigation.loadEventEnd) : undefined,
+            transferSize: navigation?.transferSize,
+            firstPaint: firstPaint === undefined ? undefined : Math.round(firstPaint),
+            firstContentfulPaint:
+              firstContentfulPaint === undefined ? undefined : Math.round(firstContentfulPaint),
+            effectiveType: connection?.effectiveType,
+            downlink: connection?.downlink,
+            resourceCount: resources.length,
+            slowResources,
+          }),
+          keepalive: true,
+        });
+      } catch {
+        // Performance reporting must never affect the UI.
+      }
+    })();
+  } catch {
+    // Performance APIs are best-effort across browsers.
+  }
+}
+
+function reportFinalNavigation() {
+  window.setTimeout(() => reportNavigation("final"), 0);
+}
+
+if (typeof window !== "undefined") {
+  stuckProbeTimer = setTimeout(() => reportNavigation("stuck"), 10_000);
 }
 
 // The manifest is injected after window load instead of living in the initial
@@ -89,15 +161,32 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function PwaRegister() {
   useEffect(() => {
-    if (document.readyState === "complete") {
+    let manifestInjected = false;
+    let manifestTimer: ReturnType<typeof setTimeout> | undefined;
+    const injectManifestOnce = () => {
+      if (manifestInjected) return;
+      manifestInjected = true;
+      window.removeEventListener("load", injectManifestOnce);
+      if (manifestTimer !== undefined) clearTimeout(manifestTimer);
       injectManifest();
-      reportSlowNavigation();
+    };
+
+    if (document.readyState === "complete") {
+      injectManifestOnce();
+      reportFinalNavigation();
     } else {
-      window.addEventListener("load", injectManifest, { once: true });
-      window.addEventListener("load", reportSlowNavigation, { once: true });
+      window.addEventListener("load", injectManifestOnce, { once: true });
+      window.addEventListener("load", reportFinalNavigation, { once: true });
+      manifestTimer = setTimeout(injectManifestOnce, 5000);
     }
 
-    if (!("serviceWorker" in navigator)) return;
+    const cleanup = () => {
+      window.removeEventListener("load", injectManifestOnce);
+      window.removeEventListener("load", reportFinalNavigation);
+      if (manifestTimer !== undefined) clearTimeout(manifestTimer);
+    };
+
+    if (!("serviceWorker" in navigator)) return cleanup;
 
     (async () => {
       try {
@@ -151,10 +240,7 @@ export default function PwaRegister() {
         // ignore
       }
     })();
-    return () => {
-      window.removeEventListener("load", injectManifest);
-      window.removeEventListener("load", reportSlowNavigation);
-    };
+    return cleanup;
   }, []);
 
   return null;

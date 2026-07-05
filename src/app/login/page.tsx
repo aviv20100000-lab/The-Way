@@ -185,25 +185,43 @@ export default function LoginPage() {
     return () => mediaQuery.removeEventListener("change", updateMotionPreference);
   }, []);
 
-  // The 2.3MB background video must not compete with the JS/CSS the page needs
-  // to become interactive — on cellular it froze the login for ~30s. Mount it
-  // only after the window finished loading everything critical.
+  // Prefer window load, but never let a stalled iOS load event hide the video.
   useEffect(() => {
-    if (document.readyState === "complete") {
+    let revealed = false;
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+    const revealVideo = () => {
+      if (revealed) return;
+      revealed = true;
+      window.removeEventListener("load", revealVideo);
+      if (timerId !== undefined) clearTimeout(timerId);
       setShowVideo(true);
-      return;
+    };
+
+    if (document.readyState === "complete") revealVideo();
+    else {
+      window.addEventListener("load", revealVideo, { once: true });
+      timerId = setTimeout(revealVideo, 1500);
     }
-    const onLoad = () => setShowVideo(true);
-    window.addEventListener("load", onLoad);
-    return () => window.removeEventListener("load", onLoad);
+
+    return () => {
+      window.removeEventListener("load", revealVideo);
+      if (timerId !== undefined) clearTimeout(timerId);
+    };
   }, []);
 
-  // Warm up both dashboards only after critical loading has finished, so the
-  // downloads do not compete with the login page on cellular connections.
+  // Prefer window load, with a fallback so a stalled iOS load event cannot
+  // postpone dashboard prefetch indefinitely.
   useEffect(() => {
     let idleId: number | undefined;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let idleFallbackId: ReturnType<typeof setTimeout> | undefined;
+    let loadFallbackId: ReturnType<typeof setTimeout> | undefined;
+    let scheduled = false;
     const prefetchDashboards = () => {
+      if (scheduled) return;
+      scheduled = true;
+      window.removeEventListener("load", prefetchDashboards);
+      if (loadFallbackId !== undefined) clearTimeout(loadFallbackId);
+
       const run = () => {
         router.prefetch("/client");
         router.prefetch("/coach");
@@ -211,17 +229,21 @@ export default function LoginPage() {
       if ("requestIdleCallback" in window) {
         idleId = window.requestIdleCallback(run, { timeout: 3000 });
       } else {
-        timeoutId = setTimeout(run, 1000);
+        idleFallbackId = setTimeout(run, 1000);
       }
     };
 
     if (document.readyState === "complete") prefetchDashboards();
-    else window.addEventListener("load", prefetchDashboards, { once: true });
+    else {
+      window.addEventListener("load", prefetchDashboards, { once: true });
+      loadFallbackId = setTimeout(prefetchDashboards, 3000);
+    }
 
     return () => {
       window.removeEventListener("load", prefetchDashboards);
+      if (loadFallbackId !== undefined) clearTimeout(loadFallbackId);
       if (idleId !== undefined) window.cancelIdleCallback(idleId);
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      if (idleFallbackId !== undefined) clearTimeout(idleFallbackId);
     };
   }, [router]);
 

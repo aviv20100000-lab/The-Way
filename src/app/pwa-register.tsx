@@ -5,6 +5,54 @@ import { getCsrfToken } from "@/lib/csrf-client";
 
 const SW_VERSION = "v6";
 
+type NetworkInformation = {
+  effectiveType?: string;
+  downlink?: number;
+};
+
+function reportSlowNavigation() {
+  window.setTimeout(() => {
+    try {
+      const navigation = performance.getEntriesByType("navigation")[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+      if (!navigation || navigation.duration <= 8000) return;
+
+      const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+      void (async () => {
+        try {
+          const headers: Record<string, string> = { "Content-Type": "application/json" };
+          const csrfToken = await getCsrfToken();
+          if (csrfToken) headers["x-csrf-token"] = csrfToken;
+          await fetch("/api/client-errors", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              type: "perf",
+              path: window.location.pathname,
+              userAgent: navigator.userAgent,
+              duration: Math.round(navigation.duration),
+              dns: Math.round(navigation.domainLookupEnd - navigation.domainLookupStart),
+              connect: Math.round(navigation.connectEnd - navigation.connectStart),
+              ttfb: Math.round(navigation.responseStart),
+              domContentLoaded: Math.round(navigation.domContentLoadedEventEnd),
+              loadEventEnd: Math.round(navigation.loadEventEnd),
+              transferSize: navigation.transferSize,
+              effectiveType: connection?.effectiveType,
+              downlink: connection?.downlink,
+            }),
+            keepalive: true,
+          });
+        } catch {
+          // Performance reporting must never affect the UI.
+        }
+      })();
+    } catch {
+      // Performance APIs are best-effort across browsers.
+    }
+  }, 0);
+}
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -16,6 +64,12 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function PwaRegister() {
   useEffect(() => {
+    if (document.readyState === "complete") {
+      reportSlowNavigation();
+    } else {
+      window.addEventListener("load", reportSlowNavigation, { once: true });
+    }
+
     if (!("serviceWorker" in navigator)) return;
 
     (async () => {
@@ -70,6 +124,7 @@ export default function PwaRegister() {
         // ignore
       }
     })();
+    return () => window.removeEventListener("load", reportSlowNavigation);
   }, []);
 
   return null;

@@ -15,16 +15,13 @@ function clean(value: unknown, maxLength: number): string {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
+function cleanNumber(value: unknown, max: number): number | null {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.min(value, max))
+    : null;
+}
+
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
-
-  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rateLimit = await checkPersistentRateLimit(`client-error:${user.id}:${clientIp}`, "auth");
-  if (!rateLimit.allowed) {
-    return NextResponse.json({ accepted: true }, { status: 202 });
-  }
-
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -32,12 +29,61 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "דיווח לא תקין" }, { status: 400 });
   }
 
+  const isPerfReport = body.type === "perf";
+  const user = await getSessionUser();
+  if (!user && !isPerfReport) {
+    return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+  }
+
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rateLimit = await checkPersistentRateLimit(
+    `client-${isPerfReport ? "perf" : "error"}:${user?.id || "anonymous"}:${clientIp}`,
+    "auth"
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ accepted: true }, { status: 202 });
+  }
+
+  const path = clean(body.path, 300) || "unknown";
+  const userAgent = clean(body.userAgent, 300) || "unknown";
+
+  if (isPerfReport) {
+    const duration = cleanNumber(body.duration, 300_000);
+    if (duration === null || duration <= 8000) {
+      return NextResponse.json({ error: "דיווח לא תקין" }, { status: 400 });
+    }
+
+    const timing = (label: string, value: unknown, max = 300_000) => {
+      const number = cleanNumber(value, max);
+      return `${label}: <code>${number === null ? "unknown" : Math.round(number)}</code>`;
+    };
+    const details = [
+      "🐢 <b>Slow page load</b>",
+      `User: <b>${escapeHtml(user?.name || "Anonymous")}</b>${user ? ` (${escapeHtml(user.role)})` : ""}`,
+      `Path: <code>${escapeHtml(path)}</code>`,
+      timing("Duration ms", duration),
+      timing("DNS ms", body.dns),
+      timing("Connect ms", body.connect),
+      timing("TTFB ms", body.ttfb),
+      timing("DOMContentLoaded ms", body.domContentLoaded),
+      timing("Load event end ms", body.loadEventEnd),
+      timing("Transfer bytes", body.transferSize, 100_000_000),
+      `Connection: <code>${escapeHtml(clean(body.effectiveType, 30) || "unknown")}</code>`,
+      `Downlink Mbps: <code>${cleanNumber(body.downlink, 10_000) ?? "unknown"}</code>`,
+      `Device: <code>${escapeHtml(userAgent)}</code>`,
+    ];
+
+    await sendTelegramAlert(details.join("\n"));
+    return NextResponse.json(
+      { accepted: true },
+      { status: 202, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   const name = clean(body.name, 80) || "Error";
   const message = clean(body.message, 600);
   const stack = clean(body.stack, 1400);
   const componentStack = clean(body.componentStack, 1000);
-  const path = clean(body.path, 300) || "unknown";
-  const userAgent = clean(body.userAgent, 300) || "unknown";
 
   if (!message) {
     return NextResponse.json({ error: "דיווח לא תקין" }, { status: 400 });
@@ -70,7 +116,7 @@ export async function POST(req: NextRequest) {
 
   const details = [
     "🚨 <b>Client app error</b>",
-    `User: <b>${escapeHtml(user.name)}</b> (${escapeHtml(user.role)})`,
+    `User: <b>${escapeHtml(user!.name)}</b> (${escapeHtml(user!.role)})`,
     `Path: <code>${escapeHtml(path)}</code>`,
     `Error: <code>${escapeHtml(`${name}: ${message}`)}</code>`,
     `Device: <code>${escapeHtml(userAgent)}</code>`,

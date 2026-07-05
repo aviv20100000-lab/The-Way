@@ -198,10 +198,31 @@ export default function LoginPage() {
     return () => window.removeEventListener("load", onLoad);
   }, []);
 
-  // Warm up both dashboards so the post-login redirect is instant
+  // Warm up both dashboards only after critical loading has finished, so the
+  // downloads do not compete with the login page on cellular connections.
   useEffect(() => {
-    router.prefetch("/client");
-    router.prefetch("/coach");
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const prefetchDashboards = () => {
+      const run = () => {
+        router.prefetch("/client");
+        router.prefetch("/coach");
+      };
+      if ("requestIdleCallback" in window) {
+        idleId = window.requestIdleCallback(run, { timeout: 3000 });
+      } else {
+        timeoutId = setTimeout(run, 1000);
+      }
+    };
+
+    if (document.readyState === "complete") prefetchDashboards();
+    else window.addEventListener("load", prefetchDashboards, { once: true });
+
+    return () => {
+      window.removeEventListener("load", prefetchDashboards);
+      if (idleId !== undefined) window.cancelIdleCallback(idleId);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    };
   }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {

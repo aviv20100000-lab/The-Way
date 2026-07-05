@@ -30,6 +30,9 @@ const db = {
   batch: (stmts: any, mode?: any) => getDb().batch(stmts, mode),
 };
 
+// Bump this whenever a migration is added below.
+const SCHEMA_VERSION = 1;
+
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
 // request. Concurrent callers all await the same in-flight promise.
@@ -46,7 +49,24 @@ export async function initDb() {
 }
 
 async function runInit() {
+  // On an initialized database this is the only remote round-trip needed.
+  // A missing table means this is the first run after introducing versioning.
+  try {
+    const schemaMeta = await db.execute({
+      sql: "SELECT version FROM schema_meta WHERE id = 1",
+      args: [],
+    });
+    if (Number(schemaMeta.rows[0]?.version) === SCHEMA_VERSION) return;
+  } catch {
+    // schema_meta does not exist yet; the idempotent setup below creates it.
+  }
+
   await db.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS schema_meta (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      version INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -320,6 +340,13 @@ async function runInit() {
          OR username = lower(trim(name));
     `,
     args: [],
+  });
+
+  await db.execute({
+    sql: `INSERT INTO schema_meta (id, version)
+          VALUES (1, ?)
+          ON CONFLICT(id) DO UPDATE SET version = excluded.version`,
+    args: [SCHEMA_VERSION],
   });
 }
 

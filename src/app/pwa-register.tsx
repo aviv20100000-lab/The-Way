@@ -180,6 +180,8 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function PwaRegister() {
   useEffect(() => {
+    const presentationWasForced =
+      (window as Window & { __theWayPresentationForced?: boolean }).__theWayPresentationForced === true;
     let manifestInjected = false;
     const injectManifestOnce = () => {
       if (manifestInjected) return;
@@ -188,7 +190,7 @@ export default function PwaRegister() {
       injectManifest();
     };
 
-    if (document.readyState === "complete") {
+    if (document.readyState === "complete" || presentationWasForced) {
       injectManifestOnce();
       reportFinalNavigation();
     } else {

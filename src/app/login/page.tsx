@@ -174,6 +174,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean | null>(null);
   const [showVideo, setShowVideo] = useState(false);
+  const presentationWasForced = () =>
+    (window as Window & { __theWayPresentationForced?: boolean }).__theWayPresentationForced === true;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -196,7 +198,7 @@ export default function LoginPage() {
       setShowVideo(true);
     };
 
-    if (document.readyState === "complete") revealVideo();
+    if (document.readyState === "complete" || presentationWasForced()) revealVideo();
     else window.addEventListener("load", revealVideo, { once: true });
 
     return () => window.removeEventListener("load", revealVideo);
@@ -223,7 +225,7 @@ export default function LoginPage() {
       }
     };
 
-    if (document.readyState === "complete") prefetchDashboards();
+    if (document.readyState === "complete" || presentationWasForced()) prefetchDashboards();
     else window.addEventListener("load", prefetchDashboards, { once: true });
 
     return () => {

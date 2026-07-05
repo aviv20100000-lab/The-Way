@@ -19,6 +19,27 @@ const beVietnamPro = Be_Vietnam_Pro({
 
 const earlyLoginProbe = `
 (() => {
+  const isIphoneSafari = /iP(?:hone|ad|od)/.test(navigator.userAgent) &&
+    /Safari/.test(navigator.userAgent) &&
+    !/(?:CriOS|FxiOS|EdgiOS)/.test(navigator.userAgent);
+
+  if (location.pathname === "/login" && isIphoneSafari) {
+    document.addEventListener("DOMContentLoaded", () => {
+      try {
+        const completed = new Set(
+          performance.getEntriesByType("resource").map((entry) => entry.name)
+        );
+        const requiredScripts = Array.from(document.scripts).filter(
+          (script) => script.src && !script.noModule
+        );
+        if (requiredScripts.length > 0 && requiredScripts.every((script) => completed.has(script.src))) {
+          window.__theWayPresentationForced = true;
+          window.stop();
+        }
+      } catch {}
+    }, { once: true });
+  }
+
   const moduleCapable = "noModule" in document.createElement("script");
   if (moduleCapable) {
     const removeLegacyPolyfill = (node) => {
@@ -42,7 +63,11 @@ const earlyLoginProbe = `
 
   setTimeout(async () => {
     try {
-      if (location.pathname !== "/login" || document.readyState === "complete") return;
+      if (
+        location.pathname !== "/login" ||
+        document.readyState === "complete" ||
+        window.__theWayPresentationForced
+      ) return;
       const resources = performance.getEntriesByType("resource");
       const resourceByUrl = new Map(resources.map((entry) => [entry.name, entry]));
       const scriptStates = Array.from(document.scripts)

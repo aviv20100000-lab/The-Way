@@ -155,6 +155,18 @@ function injectManifest() {
     icon.href = "/icon-192.png";
     document.head.appendChild(icon);
   }
+  const appleMeta = [
+    ["apple-mobile-web-app-capable", "yes"],
+    ["apple-mobile-web-app-status-bar-style", "default"],
+    ["apple-mobile-web-app-title", "THE WAY"],
+  ];
+  for (const [name, content] of appleMeta) {
+    if (document.querySelector(`meta[name="${name}"]`)) continue;
+    const meta = document.createElement("meta");
+    meta.name = name;
+    meta.content = content;
+    document.head.appendChild(meta);
+  }
 }
 
 function urlBase64ToUint8Array(base64String: string) {

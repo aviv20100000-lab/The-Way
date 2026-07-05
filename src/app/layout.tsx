@@ -81,11 +81,6 @@ const earlyLoginProbe = `
 export const metadata: Metadata = {
   title: "THE WAY",
   description: "מעקב תזונה וכושר בגובה העיניים",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "THE WAY",
-  },
 };
 
 export const viewport: Viewport = {
@@ -102,8 +97,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Keep manifest and touch-icon links out of the initial head. iOS Safari
             can fetch them internally without Resource Timing entries and hold
             window load for ~21s on cellular. PwaRegister injects both later. */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <script dangerouslySetInnerHTML={{ __html: earlyLoginProbe }} />
       </head>
       <body className="min-h-screen antialiased dark">

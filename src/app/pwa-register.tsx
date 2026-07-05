@@ -186,6 +186,7 @@ export default function PwaRegister() {
       manifestInjected = true;
       window.removeEventListener("load", injectManifestOnce);
       injectManifest();
+      registerServiceWorker();
     };
 
     if (document.readyState === "complete") {
@@ -201,9 +202,20 @@ export default function PwaRegister() {
       window.removeEventListener("load", reportFinalNavigation);
     };
 
-    if (!("serviceWorker" in navigator)) return cleanup;
+    return cleanup;
+  }, []);
 
-    (async () => {
+  return null;
+}
+
+// Runs strictly after window load: navigator.serviceWorker.register() downloads
+// /sw.js over a separate connection with NO Resource Timing entry — exactly the
+// kind of invisible pre-load network work that can hold the load event on iOS
+// cellular (consistent ~21s = the iOS TCP connect timeout).
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+
+  (async () => {
       try {
         const regs = await navigator.serviceWorker.getRegistrations();
 
@@ -254,9 +266,5 @@ export default function PwaRegister() {
       } catch {
         // ignore
       }
-    })();
-    return cleanup;
-  }, []);
-
-  return null;
+  })();
 }

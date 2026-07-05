@@ -142,12 +142,19 @@ if (typeof window !== "undefined") {
 // cellular and holds the load event hostage. Injected this late it can't block
 // anything, and it's still in place by the time the user taps "add to home screen".
 function injectManifest() {
-  if (document.querySelector('link[rel="manifest"]')) return;
-  const link = document.createElement("link");
-  link.rel = "manifest";
-  link.href = "/manifest.json";
-  link.crossOrigin = "use-credentials";
-  document.head.appendChild(link);
+  if (!document.querySelector('link[rel="manifest"]')) {
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = "/manifest.json";
+    link.crossOrigin = "use-credentials";
+    document.head.appendChild(link);
+  }
+  if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+    const icon = document.createElement("link");
+    icon.rel = "apple-touch-icon";
+    icon.href = "/icon-192.png";
+    document.head.appendChild(icon);
+  }
 }
 
 function urlBase64ToUint8Array(base64String: string) {

@@ -38,12 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} ${beVietnamPro.variable}`} suppressHydrationWarning>
       <head>
-        {/* NOTE: no <link rel="manifest"> here on purpose. iOS Safari fetches the
-            manifest on a separate connection that stalls ~21s on cellular and
-            blocks the window load event (confirmed twice by perf telemetry,
-            2026-07-05 — even with crossOrigin="use-credentials"). PwaRegister
-            injects the link after window load instead. */}
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* Keep manifest and touch-icon links out of the initial head. iOS Safari
+            can fetch them internally without Resource Timing entries and hold
+            window load for ~21s on cellular. PwaRegister injects both later. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>

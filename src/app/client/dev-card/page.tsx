@@ -15,27 +15,20 @@ interface CardCase {
 }
 
 const BASE_CASES = [
-  { id: "streak-3", value: 3, suffix: "ימים", message: "3 ימים ברצף" },
-  { id: "streak-7", value: 7, suffix: "ימים", message: "7 ימים ברצף" },
-  { id: "streak-30", value: 30, suffix: "ימים", message: "30 ימים ברצף" },
-  { id: "streak-100", value: 100, suffix: "ימים", message: "100 ימים ברצף" },
-  { id: "weight-3", value: 3, suffix: "ק״ג", message: "3 ק״ג פחות" },
-  { id: "weight-15", value: 15, suffix: "ק״ג", message: "15 ק״ג פחות" },
+  { id: "weight-5", value: 5, suffix: "ק״ג", message: "5 ק״ג פחות" },
+  { id: "weight-25", value: 25, suffix: "ק״ג", message: "25 ק״ג פחות" },
+  { id: "days-25", value: 25, suffix: "ימים", message: "תודה על 25 ימים" },
+  { id: "days-100", value: 100, suffix: "ימים", message: "תודה על 100 ימים" },
+  { id: "steps-100", value: 100, suffix: "אלף צעדים", message: "100 אלף צעדים!" },
+  { id: "steps-300", value: 300, suffix: "אלף צעדים", message: "300 אלף צעדים!" },
 ] satisfies MilestoneShareImageInput[];
 
-const CARD_CASES: CardCase[] = BASE_CASES.flatMap((milestone) => [
-  {
-    key: `${milestone.id}-anonymous`,
-    label: `${milestone.id} · ללא שם`,
-    milestone,
-  },
-  {
-    key: `${milestone.id}-aviv`,
-    label: `${milestone.id} · אביב`,
-    milestone,
-    firstName: "אביב",
-  },
-]);
+const CARD_CASES: CardCase[] = BASE_CASES.map((milestone) => ({
+  key: `${milestone.id}-aviv`,
+  label: `${milestone.id} · אביב`,
+  milestone,
+  firstName: "אביב",
+}));
 
 export default function MilestoneCardLabPage() {
   const [images, setImages] = useState<Record<string, string>>({});

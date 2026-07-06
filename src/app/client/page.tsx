@@ -96,7 +96,7 @@ export default function ClientPage() {
 
   // Hooks
   const { user, isLoading, logout } = useAuth();
-  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, streak, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
+  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, daysSinceSignup, totalSteps, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
   const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, uploadingSteps, stepsSuccess, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
@@ -133,32 +133,45 @@ export default function ClientPage() {
     : 0;
 
   useEffect(() => {
-    const reachedMilestones: MilestoneCelebrationData[] = [];
+    if (!homeLoaded) return;
 
-    if (homeLoaded && [3, 7, 14, 30, 50, 100].includes(streak)) {
-      reachedMilestones.push({
-        id: `streak-${streak}`,
-        value: streak,
-        suffix: "ימים",
-        message: `${streak} ימים ברצף`,
-      });
-    }
-
+    const weightMilestones: MilestoneCelebrationData[] = [];
     if (weightLogs.length >= 2) {
-      [3, 5, 10, 15].forEach((kilograms) => {
-        if (totalWeightLost >= kilograms) {
-          reachedMilestones.push({
-            id: `weight-${kilograms}`,
-            value: kilograms,
-            suffix: "ק״ג",
-            message: `${kilograms} ק״ג פחות`,
-          });
-        }
+      for (let kg = 5; kg <= totalWeightLost; kg += 5) {
+        weightMilestones.push({
+          id: `weight-${kg}`,
+          value: kg,
+          suffix: "ק״ג",
+          message: `${kg} ק״ג פחות`,
+        });
+      }
+    }
+
+    const daysMilestones: MilestoneCelebrationData[] = [];
+    for (let d = 25; d <= daysSinceSignup; d += 25) {
+      daysMilestones.push({
+        id: `days-${d}`,
+        value: d,
+        suffix: "ימים",
+        message: `תודה על ${d} ימים`,
       });
     }
 
+    const stepsThousands = Math.floor(totalSteps / 100000) * 100;
+    const stepsMilestones: MilestoneCelebrationData[] = [];
+    for (let thousands = 100; thousands <= stepsThousands; thousands += 100) {
+      stepsMilestones.push({
+        id: `steps-${thousands}`,
+        value: thousands,
+        suffix: "אלף צעדים",
+        message: `${thousands} אלף צעדים!`,
+      });
+    }
+
+    const reachedMilestones = [...weightMilestones, ...daysMilestones, ...stepsMilestones];
     if (reachedMilestones.length === 0) return;
 
+    const isFirstEverInit = celebratedMilestonesRef.current === null;
     if (!celebratedMilestonesRef.current) {
       let storedMilestones: string[] = [];
       try {
@@ -172,15 +185,40 @@ export default function ClientPage() {
     }
 
     const celebratedMilestones = celebratedMilestonesRef.current;
-    const newMilestones = reachedMilestones.filter((milestone) => !celebratedMilestones.has(milestone.id));
-    if (newMilestones.length === 0) return;
+    const hasNoHistory = isFirstEverInit && celebratedMilestones.size === 0;
+
+    let newMilestones = reachedMilestones.filter((milestone) => !celebratedMilestones.has(milestone.id));
+
+    if (hasNoHistory) {
+      // Rollout safety: don't spam a user who already has a lot of history
+      // with a stack of popups the first time this feature runs for them —
+      // silently seed all but the single highest milestone per group as
+      // already-celebrated, and only queue the most recent one per group.
+      const lastOf = (list: MilestoneCelebrationData[]) => list[list.length - 1];
+      const keepIds = new Set(
+        [lastOf(weightMilestones), lastOf(daysMilestones), lastOf(stepsMilestones)]
+          .filter((m): m is MilestoneCelebrationData => Boolean(m))
+          .map((m) => m.id)
+      );
+      newMilestones.forEach((milestone) => {
+        if (!keepIds.has(milestone.id)) celebratedMilestones.add(milestone.id);
+      });
+      newMilestones = newMilestones.filter((milestone) => keepIds.has(milestone.id));
+    }
+
+    if (newMilestones.length === 0) {
+      try {
+        localStorage.setItem(CELEBRATED_MILESTONES_KEY, JSON.stringify([...celebratedMilestones]));
+      } catch {}
+      return;
+    }
 
     newMilestones.forEach((milestone) => celebratedMilestones.add(milestone.id));
     try {
       localStorage.setItem(CELEBRATED_MILESTONES_KEY, JSON.stringify([...celebratedMilestones]));
     } catch {}
     setMilestoneQueue((current) => [...current, ...newMilestones]);
-  }, [homeLoaded, streak, totalWeightLost, weightLogs.length]);
+  }, [homeLoaded, daysSinceSignup, totalSteps, totalWeightLost, weightLogs.length]);
 
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     if (refreshing || !["home", "food", "steps"].includes(tab)) return;
@@ -464,11 +502,6 @@ export default function ClientPage() {
                   <p className="text-xs font-light tracking-wide text-[#6e7564] mb-0.5">{greeting}</p>
                   <div className="flex items-center gap-2 pb-1">
                     <h2 className="greet-name min-w-0 truncate text-3xl font-black leading-none">{user.name || "אלוף"}</h2>
-                    {streak >= 2 && (
-                      <span className="shrink-0 rounded-full border border-[#c3f400]/25 bg-black/30 px-2.5 py-1 text-[11px] font-bold text-[#c3f400] shadow-[0_0_14px_rgba(195,244,0,0.08)] backdrop-blur-sm">
-                        🔥 {streak} ימים ברצף
-                      </span>
-                    )}
                   </div>
                   {/* HUD underline that draws in, with a sweeping light dot */}
                   <motion.div

@@ -1,0 +1,606 @@
+export interface MilestoneShareImageInput {
+  id?: string;
+  value: number;
+  suffix: string;
+  message: string;
+}
+
+export function milestoneBlobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Failed to read milestone image"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read milestone image"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+interface MilestoneShareImageOptions {
+  firstName?: string;
+}
+
+type MilestoneType = "streak" | "weight";
+
+export const CARD = {
+  canvas: { width: 1080, height: 1920 },
+  safeArea: { top: 300, bottom: 1560 },
+  colors: {
+    backgroundTop: "#0a0c09",
+    backgroundMiddle: "#10140e",
+    backgroundBottom: "#161a14",
+    lime: "#c3f400",
+    limeDeep: "#9be000",
+    limeSoft: "#dcffa0",
+    white: "#ffffff",
+    copy: "#aab0a0",
+    muted: "#8e9379",
+    subtle: "#6e7362",
+    ring: "#2a3025",
+    line: "#2e3030",
+    limeRgb: "195,244,0",
+    whiteRgb: "255,255,255",
+    blackRgb: "0,0,0",
+  },
+  background: {
+    middleStop: 0.52,
+    glow: { x: 540, y: 870, innerRadius: 0, outerRadius: 680, alpha: 0.13 },
+    horizonGlow: { x: 540, y: 1650, innerRadius: 0, outerRadius: 760, alpha: 0.075 },
+    beam: {
+      x: 540,
+      topY: 430,
+      bottomY: 535,
+      topHalfWidth: 5,
+      bottomHalfWidth: 62,
+      color: "rgba(195,244,0,0.032)",
+    },
+    stripes: {
+      angle: -12 * (Math.PI / 180),
+      color: "rgba(255,255,255,0.008)",
+      items: [
+        { x: -820, y: -470, width: 1640, height: 118 },
+        { x: -850, y: 60, width: 1700, height: 72 },
+        { x: -780, y: 470, width: 1560, height: 146 },
+      ],
+    },
+    grain: {
+      count: 2200,
+      pixelSize: 1,
+      whiteAlphaMin: 0.02,
+      whiteAlphaRange: 0.025,
+      blackAlphaMin: 0.02,
+      blackAlphaRange: 0.02,
+      alternatingDivisor: 2,
+    },
+    vignette: {
+      x: 540,
+      y: 960,
+      innerRadius: 0,
+      outerRadius: 1120,
+      clearStop: 0.55,
+      edgeAlpha: 0.34,
+    },
+  },
+  badge: {
+    wordmarkX: 540,
+    wordmarkY: 390,
+    wordmarkSize: 82,
+    wordmarkWeight: 900,
+    wordmarkSpacing: 16,
+    customAWidth: 62,
+    customAHeight: 66,
+    customAStrokeWidth: 9,
+    customAGlowWidth: 18,
+    customAGlowColor: "rgba(195,244,0,0.18)",
+    customADotRadius: 6,
+    customADotOffsetY: -7,
+  },
+  ring: {
+    x: 540,
+    y: 835,
+    radius: 310,
+    baseWidth: 8,
+    progressWidth: 16,
+    startAngle: -Math.PI / 2,
+    fullAngle: Math.PI * 2,
+    glowBlur: 27,
+    glowColor: "rgba(195,244,0,0.5)",
+    endpointRadius: 10,
+    endpointGlowBlur: 24,
+    surface: {
+      innerRadius: 16,
+      outerRadius: 296,
+      highlightX: 448,
+      highlightY: 730,
+      centerColor: "rgba(195,244,0,0.06)",
+      edgeColor: "rgba(195,244,0,0)",
+      borderColor: "rgba(255,255,255,0.045)",
+      borderWidth: 2,
+    },
+  },
+  progress: {
+    streakTargets: [3, 7, 14, 30, 50, 100],
+    weightTarget: 15,
+    minimum: 0.25,
+    maximum: 1,
+  },
+  value: {
+    x: 540,
+    baselineY: 895,
+    singleDigitSize: 350,
+    doubleDigitSize: 320,
+    tripleDigitSize: 270,
+    fontWeight: 900,
+    gradientTopY: 650,
+    gradientBottomY: 960,
+    glowBlur: 60,
+    glowColor: "rgba(195,244,0,0.25)",
+    labelY: 608,
+    labelSize: 42,
+    labelWeight: 700,
+    weightLabel: "ירדתי",
+  },
+  unit: {
+    x: 540,
+    baselineY: 998,
+    fontSize: 62,
+    fontWeight: 700,
+    letterSpacing: 2,
+  },
+  copy: {
+    x: 540,
+    titleY: 1238,
+    titleSize: 52,
+    titleWeight: 600,
+    titleWidth: 820,
+    titleLineHeight: 60,
+    firstNameGap: 54,
+    weightFirstNameY: 1238,
+    firstNameSize: 36,
+    firstNameWeight: 500,
+    firstNamePrefix: "הדרך של",
+  },
+  brand: {
+    x: 540,
+    lineY: 1445,
+    leftLine: { startX: 150, endX: 452 },
+    rightLine: { startX: 628, endX: 930 },
+    lineWidth: 2,
+    centerDotRadius: 5,
+    dateY: 1508,
+    dateSize: 26,
+    dateWeight: 500,
+  },
+  fontLoads: [
+    { weight: 900, size: 360, sample: "100 WAY" },
+    { weight: 900, size: 82, sample: "THE WY" },
+    { weight: 600, size: 36, sample: "ירדתי" },
+    { weight: 700, size: 64, sample: "ימים ק״ג ברצף פחות" },
+    { weight: 600, size: 58, sample: "ימים ברצף ק״ג פחות" },
+    { weight: 500, size: 34, sample: "אביב" },
+  ],
+} as const;
+
+function resolveFontFamily(): string {
+  const fromVariable = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-rubik")
+    .trim();
+  return fromVariable ? `${fromVariable}, Rubik, sans-serif` : "Rubik, sans-serif";
+}
+
+function font(weight: number, size: number, family: string): string {
+  return `${weight} ${size}px ${family}`;
+}
+
+function drawSpacedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  y: number,
+  spacing: number
+) {
+  const characters = [...text];
+  const widths = characters.map((character) => ctx.measureText(character).width);
+  const totalWidth = widths.reduce((sum, width) => sum + width, 0) + spacing * (characters.length - 1);
+  let x = centerX - totalWidth / 2;
+
+  ctx.textAlign = "left";
+  ctx.direction = "ltr";
+  characters.forEach((character, index) => {
+    ctx.fillText(character, x, y);
+    x += widths[index] + spacing;
+  });
+  ctx.textAlign = "center";
+  ctx.direction = "rtl";
+}
+
+function measureSpacedText(ctx: CanvasRenderingContext2D, text: string, spacing: number): number {
+  const characters = [...text];
+  return characters.reduce((sum, character) => sum + ctx.measureText(character).width, 0)
+    + spacing * (characters.length - 1);
+}
+
+function drawSpacedTextFromLeft(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  startX: number,
+  y: number,
+  spacing: number
+): number {
+  let x = startX;
+  ctx.textAlign = "left";
+  ctx.direction = "ltr";
+  [...text].forEach((character) => {
+    ctx.fillText(character, x, y);
+    x += ctx.measureText(character).width + spacing;
+  });
+  return x - spacing;
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.trim().split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = "";
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (currentLine && ctx.measureText(candidate).width > maxWidth) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = candidate;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+function getMilestoneType(milestone: MilestoneShareImageInput): MilestoneType {
+  return milestone.id?.startsWith("weight-") || milestone.suffix.includes("ק") ? "weight" : "streak";
+}
+
+function getProgress(type: MilestoneType, value: number): number {
+  const target = type === "weight"
+    ? CARD.progress.weightTarget
+    : CARD.progress.streakTargets.find((milestone) => milestone > value) ?? value;
+  const rawProgress = target === value && type === "streak" ? CARD.progress.maximum : value / target;
+  return Math.max(CARD.progress.minimum, Math.min(CARD.progress.maximum, rawProgress));
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D) {
+  const { width, height } = CARD.canvas;
+  const gradient = ctx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, CARD.colors.backgroundTop);
+  gradient.addColorStop(CARD.background.middleStop, CARD.colors.backgroundMiddle);
+  gradient.addColorStop(1, CARD.colors.backgroundBottom);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  const glowToken = CARD.background.glow;
+  const glow = ctx.createRadialGradient(
+    glowToken.x, glowToken.y, glowToken.innerRadius,
+    glowToken.x, glowToken.y, glowToken.outerRadius
+  );
+  glow.addColorStop(0, `rgba(${CARD.colors.limeRgb},${glowToken.alpha})`);
+  glow.addColorStop(1, `rgba(${CARD.colors.limeRgb},0)`);
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, width, height);
+
+  const horizonToken = CARD.background.horizonGlow;
+  const horizonGlow = ctx.createRadialGradient(
+    horizonToken.x, horizonToken.y, horizonToken.innerRadius,
+    horizonToken.x, horizonToken.y, horizonToken.outerRadius
+  );
+  horizonGlow.addColorStop(0, `rgba(${CARD.colors.limeRgb},${horizonToken.alpha})`);
+  horizonGlow.addColorStop(1, `rgba(${CARD.colors.limeRgb},0)`);
+  ctx.fillStyle = horizonGlow;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(CARD.background.stripes.angle);
+  ctx.fillStyle = CARD.background.stripes.color;
+  CARD.background.stripes.items.forEach((stripe) => {
+    ctx.fillRect(stripe.x, stripe.y, stripe.width, stripe.height);
+  });
+  ctx.restore();
+
+  const beam = CARD.background.beam;
+  ctx.beginPath();
+  ctx.moveTo(beam.x - beam.topHalfWidth, beam.topY);
+  ctx.lineTo(beam.x + beam.topHalfWidth, beam.topY);
+  ctx.lineTo(beam.x + beam.bottomHalfWidth, beam.bottomY);
+  ctx.lineTo(beam.x - beam.bottomHalfWidth, beam.bottomY);
+  ctx.closePath();
+  ctx.fillStyle = beam.color;
+  ctx.fill();
+
+  const grain = CARD.background.grain;
+  for (let index = 0; index < grain.count; index += 1) {
+    const isLight = index % grain.alternatingDivisor === 0;
+    const alpha = isLight
+      ? grain.whiteAlphaMin + Math.random() * grain.whiteAlphaRange
+      : grain.blackAlphaMin + Math.random() * grain.blackAlphaRange;
+    ctx.fillStyle = isLight
+      ? `rgba(${CARD.colors.whiteRgb},${alpha})`
+      : `rgba(${CARD.colors.blackRgb},${alpha})`;
+    ctx.fillRect(
+      Math.random() * width,
+      Math.random() * height,
+      grain.pixelSize,
+      grain.pixelSize
+    );
+  }
+
+  const vignetteToken = CARD.background.vignette;
+  const vignette = ctx.createRadialGradient(
+    vignetteToken.x, vignetteToken.y, vignetteToken.innerRadius,
+    vignetteToken.x, vignetteToken.y, vignetteToken.outerRadius
+  );
+  vignette.addColorStop(vignetteToken.clearStop, `rgba(${CARD.colors.blackRgb},0)`);
+  vignette.addColorStop(1, `rgba(${CARD.colors.blackRgb},${vignetteToken.edgeAlpha})`);
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+}
+
+function drawBadge(ctx: CanvasRenderingContext2D, fontFamily: string) {
+  const badge = CARD.badge;
+  const prefix = "THE W";
+  const suffix = "Y";
+  ctx.fillStyle = CARD.colors.white;
+  ctx.font = font(badge.wordmarkWeight, badge.wordmarkSize, fontFamily);
+  const prefixWidth = measureSpacedText(ctx, prefix, badge.wordmarkSpacing);
+  const suffixWidth = measureSpacedText(ctx, suffix, badge.wordmarkSpacing);
+  const totalWidth = prefixWidth + badge.wordmarkSpacing + badge.customAWidth
+    + badge.wordmarkSpacing + suffixWidth;
+  const startX = badge.wordmarkX - totalWidth / 2;
+  const prefixEndX = drawSpacedTextFromLeft(
+    ctx,
+    prefix,
+    startX,
+    badge.wordmarkY,
+    badge.wordmarkSpacing
+  );
+  const customACenterX = prefixEndX + badge.wordmarkSpacing + badge.customAWidth / 2;
+  const customABottomY = badge.wordmarkY;
+  const customATopY = customABottomY - badge.customAHeight;
+
+  const drawCustomA = () => {
+    ctx.beginPath();
+    ctx.moveTo(customACenterX - badge.customAWidth / 2, customABottomY);
+    ctx.lineTo(customACenterX, customATopY);
+    ctx.lineTo(customACenterX + badge.customAWidth / 2, customABottomY);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+  };
+
+  ctx.save();
+  ctx.strokeStyle = badge.customAGlowColor;
+  ctx.lineWidth = badge.customAGlowWidth;
+  drawCustomA();
+  ctx.strokeStyle = CARD.colors.lime;
+  ctx.lineWidth = badge.customAStrokeWidth;
+  drawCustomA();
+  ctx.beginPath();
+  ctx.arc(
+    customACenterX,
+    customATopY + badge.customADotOffsetY,
+    badge.customADotRadius,
+    0,
+    CARD.ring.fullAngle
+  );
+  ctx.fillStyle = CARD.colors.white;
+  ctx.fill();
+  ctx.restore();
+
+  const suffixStartX = customACenterX + badge.customAWidth / 2 + badge.wordmarkSpacing;
+  drawSpacedTextFromLeft(ctx, suffix, suffixStartX, badge.wordmarkY, badge.wordmarkSpacing);
+  ctx.textAlign = "center";
+  ctx.direction = "rtl";
+}
+
+function drawProgressRing(ctx: CanvasRenderingContext2D, progress: number) {
+  const ring = CARD.ring;
+  const endAngle = ring.startAngle + ring.fullAngle * progress;
+  const ringGradient = ctx.createLinearGradient(
+    ring.x - ring.radius, ring.y, ring.x + ring.radius, ring.y
+  );
+  ringGradient.addColorStop(0, CARD.colors.lime);
+  ringGradient.addColorStop(1, CARD.colors.limeDeep);
+
+  const surfaceGradient = ctx.createRadialGradient(
+    ring.surface.highlightX,
+    ring.surface.highlightY,
+    ring.surface.innerRadius,
+    ring.x,
+    ring.y,
+    ring.surface.outerRadius
+  );
+  surfaceGradient.addColorStop(0, ring.surface.centerColor);
+  surfaceGradient.addColorStop(1, ring.surface.edgeColor);
+  ctx.beginPath();
+  ctx.arc(ring.x, ring.y, ring.surface.outerRadius, ring.startAngle, ring.startAngle + ring.fullAngle);
+  ctx.fillStyle = surfaceGradient;
+  ctx.fill();
+  ctx.strokeStyle = ring.surface.borderColor;
+  ctx.lineWidth = ring.surface.borderWidth;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(ring.x, ring.y, ring.radius, ring.startAngle, ring.startAngle + ring.fullAngle);
+  ctx.strokeStyle = CARD.colors.ring;
+  ctx.lineWidth = ring.baseWidth;
+  ctx.lineCap = "round";
+  ctx.stroke();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(ring.x, ring.y, ring.radius, ring.startAngle, endAngle);
+  ctx.strokeStyle = ringGradient;
+  ctx.lineWidth = ring.progressWidth;
+  ctx.shadowColor = ring.glowColor;
+  ctx.shadowBlur = ring.glowBlur;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(ring.x, ring.y, ring.radius, ring.startAngle, endAngle);
+  ctx.strokeStyle = ringGradient;
+  ctx.lineWidth = ring.progressWidth;
+  ctx.stroke();
+
+  const endpointX = ring.x + Math.cos(endAngle) * ring.radius;
+  const endpointY = ring.y + Math.sin(endAngle) * ring.radius;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(endpointX, endpointY, ring.endpointRadius, 0, ring.fullAngle);
+  ctx.fillStyle = CARD.colors.lime;
+  ctx.shadowColor = ring.glowColor;
+  ctx.shadowBlur = ring.endpointGlowBlur;
+  ctx.fill();
+  ctx.restore();
+
+}
+
+function drawValue(
+  ctx: CanvasRenderingContext2D,
+  milestone: MilestoneShareImageInput,
+  type: MilestoneType,
+  fontFamily: string
+) {
+  const value = CARD.value;
+  const valueText = String(milestone.value);
+  const valueSize = valueText.length === 1
+    ? value.singleDigitSize
+    : valueText.length === 2
+      ? value.doubleDigitSize
+      : value.tripleDigitSize;
+  const valueGradient = ctx.createLinearGradient(
+    value.x, value.gradientTopY, value.x, value.gradientBottomY
+  );
+  valueGradient.addColorStop(0, CARD.colors.white);
+  valueGradient.addColorStop(1, CARD.colors.limeSoft);
+
+  if (type === "weight") {
+    ctx.direction = "rtl";
+    ctx.textAlign = "center";
+    ctx.fillStyle = CARD.colors.lime;
+    ctx.font = font(value.labelWeight, value.labelSize, fontFamily);
+    ctx.fillText(value.weightLabel, value.x, value.labelY);
+  }
+
+  ctx.save();
+  ctx.direction = "ltr";
+  ctx.textAlign = "center";
+  ctx.font = font(value.fontWeight, valueSize, fontFamily);
+  ctx.fillStyle = valueGradient;
+  ctx.shadowColor = value.glowColor;
+  ctx.shadowBlur = value.glowBlur;
+  ctx.fillText(valueText, value.x, value.baselineY);
+  ctx.restore();
+
+  ctx.direction = "rtl";
+  ctx.textAlign = "center";
+  ctx.font = font(CARD.unit.fontWeight, CARD.unit.fontSize, fontFamily);
+  ctx.letterSpacing = `${CARD.unit.letterSpacing}px`;
+  ctx.fillStyle = CARD.colors.lime;
+  ctx.fillText(milestone.suffix, CARD.unit.x, CARD.unit.baselineY);
+  ctx.letterSpacing = "0px";
+}
+
+function drawCopy(
+  ctx: CanvasRenderingContext2D,
+  milestone: MilestoneShareImageInput,
+  type: MilestoneType,
+  firstName: string | undefined,
+  fontFamily: string
+) {
+  const copy = CARD.copy;
+  ctx.direction = "rtl";
+  ctx.textAlign = "center";
+  ctx.fillStyle = CARD.colors.white;
+  ctx.font = font(copy.titleWeight, copy.titleSize, fontFamily);
+  const lines = type === "weight" ? [] : wrapText(ctx, milestone.message, copy.titleWidth);
+  lines.forEach((line, index) => {
+    ctx.fillText(line, copy.x, copy.titleY + index * copy.titleLineHeight);
+  });
+
+  if (firstName) {
+    ctx.fillStyle = CARD.colors.muted;
+    ctx.font = font(copy.firstNameWeight, copy.firstNameSize, fontFamily);
+    const firstNameY = type === "weight"
+      ? copy.weightFirstNameY
+      : copy.titleY + (lines.length - 1) * copy.titleLineHeight + copy.firstNameGap;
+    ctx.fillText(`${copy.firstNamePrefix} ${firstName}`, copy.x, firstNameY);
+  }
+}
+
+function drawBrand(ctx: CanvasRenderingContext2D, fontFamily: string) {
+  const brand = CARD.brand;
+  ctx.beginPath();
+  ctx.moveTo(brand.leftLine.startX, brand.lineY);
+  ctx.lineTo(brand.leftLine.endX, brand.lineY);
+  ctx.moveTo(brand.rightLine.startX, brand.lineY);
+  ctx.lineTo(brand.rightLine.endX, brand.lineY);
+  ctx.lineWidth = brand.lineWidth;
+  ctx.strokeStyle = CARD.colors.line;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(brand.x, brand.lineY, brand.centerDotRadius, 0, CARD.ring.fullAngle);
+  ctx.fillStyle = CARD.colors.lime;
+  ctx.fill();
+
+  ctx.direction = "rtl";
+  ctx.textAlign = "center";
+  ctx.fillStyle = CARD.colors.subtle;
+  ctx.font = font(brand.dateWeight, brand.dateSize, fontFamily);
+  const date = new Date().toLocaleDateString("he-IL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  ctx.fillText(date, brand.x, brand.dateY);
+}
+
+export async function generateMilestoneShareImage(
+  milestone: MilestoneShareImageInput,
+  options: MilestoneShareImageOptions = {}
+): Promise<Blob> {
+  const fontFamily = resolveFontFamily();
+  await document.fonts.ready;
+  try {
+    await Promise.all(CARD.fontLoads.map(({ weight, size, sample }) =>
+      document.fonts.load(font(weight, size, fontFamily), sample)
+    ));
+  } catch {}
+
+  const canvas = document.createElement("canvas");
+  canvas.width = CARD.canvas.width;
+  canvas.height = CARD.canvas.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas is not supported in this browser");
+
+  ctx.direction = "rtl";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
+  const type = getMilestoneType(milestone);
+  drawBackground(ctx);
+  drawBadge(ctx, fontFamily);
+  drawProgressRing(ctx, getProgress(type, milestone.value));
+  drawValue(ctx, milestone, type, fontFamily);
+  drawCopy(ctx, milestone, type, options.firstName?.trim() || undefined, fontFamily);
+  drawBrand(ctx, fontFamily);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Failed to create milestone image"));
+    }, "image/png");
+  });
+}
+

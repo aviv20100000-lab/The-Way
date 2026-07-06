@@ -12,7 +12,8 @@ type HomeCache = {
   todayCalories: number;
   calorieGoal: number | null;
   proteinGoal: number | null;
-  streak: number;
+  daysSinceSignup: number;
+  totalSteps: number;
 };
 
 function readCache(): HomeCache | null {
@@ -44,7 +45,8 @@ export function useClientHome() {
   const [todayCalories, setTodayCalories] = useState(cached?.todayCalories ?? 0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(cached?.calorieGoal ?? null);
   const [proteinGoal, setProteinGoal] = useState<number | null>(cached?.proteinGoal ?? null);
-  const [streak, setStreak] = useState(cached?.streak ?? 0);
+  const [daysSinceSignup, setDaysSinceSignup] = useState(cached?.daysSinceSignup ?? 0);
+  const [totalSteps, setTotalSteps] = useState(cached?.totalSteps ?? 0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
   const [isPwa, setIsPwa] = useState(false);
@@ -66,7 +68,8 @@ export function useClientHome() {
       setTodayCalories(data.calories?.total ?? 0);
       setCalorieGoal(data.calories?.goal ?? null);
       setProteinGoal(data.protein_goal ?? null);
-      setStreak(data.streak ?? 0);
+      setDaysSinceSignup(data.days_since_signup ?? 0);
+      setTotalSteps(data.total_steps ?? 0);
       writeCache({
         quotes: data.quotes ?? [],
         waterTotal: data.water?.total ?? 0,
@@ -76,7 +79,8 @@ export function useClientHome() {
         todayCalories: data.calories?.total ?? 0,
         calorieGoal: data.calories?.goal ?? null,
         proteinGoal: data.protein_goal ?? null,
-        streak: data.streak ?? 0,
+        daysSinceSignup: data.days_since_signup ?? 0,
+        totalSteps: data.total_steps ?? 0,
       });
     } catch (e) {
       console.error("Error loading home data:", e);
@@ -164,7 +168,8 @@ export function useClientHome() {
     todayCalories,
     calorieGoal,
     proteinGoal,
-    streak,
+    daysSinceSignup,
+    totalSteps,
     isLoaded,
     notifStatus,
     isPwa,

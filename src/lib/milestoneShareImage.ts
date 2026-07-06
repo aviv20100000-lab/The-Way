@@ -21,7 +21,7 @@ interface MilestoneShareImageOptions {
   firstName?: string;
 }
 
-type MilestoneType = "streak" | "weight";
+type MilestoneType = "weight" | "days" | "steps";
 
 export const CARD = {
   canvas: { width: 1080, height: 1920 },
@@ -34,7 +34,7 @@ export const CARD = {
     white: "#ffffff",
     valueMiddle: "#f7ffe8",
     valueBottom: "#dcffa3",
-    date: "#727866",
+    date: "#a3ac8f",
     limeRgb: "195,244,0",
     whiteRgb: "255,255,255",
     blackRgb: "0,0,0",
@@ -67,14 +67,17 @@ export const CARD = {
     },
   },
   cut: {
-    startX: -100,
-    startY: 1320,
-    endX: 1180,
-    endY: 700,
+    // Direction preserves the original (-100,1320)→(1180,700) diagonal angle
+    // (dx=1280, dy=-620). The line is centered on the number's actual
+    // measured bounding box at render time (not a hardcoded anchor), and
+    // extends symmetrically in both directions, fading out at both ends.
+    directionDx: 1280,
+    directionDy: -620,
+    halfLength: 1600,
     layers: [
-      { width: 116, color: "rgba(0,0,0,0.24)" },
-      { width: 24, color: "rgba(195,244,0,0.075)" },
-      { width: 3, color: "rgba(195,244,0,0.62)" },
+      { width: 140, color: "rgba(0,0,0,0.24)" },
+      { width: 32, color: "rgba(195,244,0,0.09)" },
+      { width: 6, color: "rgba(195,244,0,0.55)" },
     ],
   },
   badge: {
@@ -86,10 +89,12 @@ export const CARD = {
     customA: {
       padding: 16,
       cutWidth: 8,
-      lightWidth: 2,
-      cutStartXRatio: 0.37,
-      cutEndXRatio: 0.63,
-      lightAlpha: 0.9,
+      sheenWidth: 26,
+      sheenAlpha: 0.45,
+      lightWidth: 5,
+      lightAlpha: 0.98,
+      cutStartXRatio: 0.3,
+      cutEndXRatio: 0.7,
     },
     signature: {
       whitePoints: [[90, 432], [154, 432], [149, 439], [90, 439]],
@@ -100,22 +105,31 @@ export const CARD = {
   value: {
     x: 930,
     baselineY: 1080,
-    singleDigitSize: 660,
+    singleDigitSize: 630,
     doubleDigitSize: 560,
     tripleDigitSize: 440,
     fontWeight: 900,
     gradientTopRatio: 0.82,
     gradientMiddleStop: 0.58,
-    shadowBlur: 36,
-    shadowOffsetY: 16,
-    shadowColor: "rgba(0,0,0,0.42)",
+    shadowBlur: 18,
+    shadowOffsetY: 9,
+    shadowColor: "rgba(0,0,0,0.4)",
+    glassPadding: 24,
+    glassStrokeWidth: 2.5,
+    glassStrokeColor: "rgba(255,255,255,0.4)",
+    glassHighlightTopAlpha: 0.6,
+    glassHighlightMidAlpha: 0.14,
+    glassHighlightMidStop: 0.32,
+    glassHighlightFadeStop: 0.55,
+    fadeStartStop: 0,
+    fadeBottomAlpha: 0,
     labelY: 560,
     labelSize: 60,
     labelWeight: 800,
-    labelUnderlineOffset: 18,
-    labelUnderlineWidth: 4,
     weightLabel: "ירדתי",
-    streakLabel: "רצף של",
+    daysLabel: "תודה על",
+    stepsLabel: "הלכתי",
+    numberCenterX: 540,
   },
   unit: {
     x: 930,
@@ -125,23 +139,25 @@ export const CARD = {
   },
   copy: {
     x: 930,
-    firstNameY: 1390,
+    firstNameY: 1300,
     firstNameSize: 54,
     firstNameWeight: 700,
     firstNamePrefix: "הדרך של",
+    maxWidth: 860,
   },
   brand: {
     x: 930,
     dateY: 1490,
-    dateSize: 28,
-    dateWeight: 500,
+    dateSize: 34,
+    dateWeight: 600,
   },
   fontLoads: [
     { weight: 900, size: 660, sample: "100" },
     { weight: 900, size: 80, sample: "THE WAY" },
-    { weight: 800, size: 72, sample: "ירדתי רצף של ימים ק״ג" },
+    { weight: 800, size: 72, sample: "ק״ג אלף צעדים ימים" },
+    { weight: 800, size: 60, sample: "ירדתי תודה על הלכתי" },
     { weight: 700, size: 54, sample: "הדרך של אביב" },
-    { weight: 500, size: 28, sample: "6 ביולי 2026" },
+    { weight: 600, size: 34, sample: "6 ביולי 2026" },
   ],
 } as const;
 
@@ -193,7 +209,9 @@ function drawSpacedTextFromLeft(
 }
 
 function getMilestoneType(milestone: MilestoneShareImageInput): MilestoneType {
-  return milestone.id?.startsWith("weight-") || milestone.suffix.includes("ק") ? "weight" : "streak";
+  if (milestone.id?.startsWith("steps-")) return "steps";
+  if (milestone.id?.startsWith("days-")) return "days";
+  return "weight";
 }
 
 function createSeededRandom(seed: number): () => number {
@@ -229,14 +247,38 @@ function drawPolygon(
   ctx.fill();
 }
 
-function drawCut(ctx: CanvasRenderingContext2D) {
+function fadeColor(color: string, alphaMultiplier: number): string {
+  const match = color.match(/rgba?\(([^)]+)\)/);
+  if (!match) return color;
+  const parts = match[1].split(",").map((part) => part.trim());
+  const [r, g, b, a = "1"] = parts;
+  return `rgba(${r},${g},${b},${Number(a) * alphaMultiplier})`;
+}
+
+function drawCut(ctx: CanvasRenderingContext2D, center: { x: number; y: number }) {
+  const cut = CARD.cut;
+  const magnitude = Math.hypot(cut.directionDx, cut.directionDy);
+  const unitX = cut.directionDx / magnitude;
+  const unitY = cut.directionDy / magnitude;
+  const startX = center.x - unitX * cut.halfLength;
+  const startY = center.y - unitY * cut.halfLength;
+  const endX = center.x + unitX * cut.halfLength;
+  const endY = center.y + unitY * cut.halfLength;
+
   ctx.save();
-  ctx.lineCap = "butt";
-  CARD.cut.layers.forEach((layer) => {
+  ctx.lineCap = "round";
+  cut.layers.forEach((layer) => {
+    const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+    gradient.addColorStop(0, fadeColor(layer.color, 0));
+    gradient.addColorStop(0.16, fadeColor(layer.color, 0.85));
+    gradient.addColorStop(0.5, layer.color);
+    gradient.addColorStop(0.84, fadeColor(layer.color, 0.85));
+    gradient.addColorStop(1, fadeColor(layer.color, 0));
+
     ctx.beginPath();
-    ctx.moveTo(CARD.cut.startX, CARD.cut.startY);
-    ctx.lineTo(CARD.cut.endX, CARD.cut.endY);
-    ctx.strokeStyle = layer.color;
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.strokeStyle = gradient;
     ctx.lineWidth = layer.width;
     ctx.stroke();
   });
@@ -294,6 +336,8 @@ function drawCustomA(
   const cutEndX = token.padding + glyphWidth * token.cutEndXRatio;
   layerCtx.font = font(badge.wordmarkWeight, badge.wordmarkSize, fontFamily);
   layerCtx.textBaseline = "alphabetic";
+
+  // Full, unbroken glyph first — legibility comes before decoration.
   layerCtx.fillStyle = createTextSplitGradient(
     layerCtx,
     "A",
@@ -302,25 +346,35 @@ function drawCustomA(
   );
   layerCtx.fillText("A", token.padding, localBaselineY);
 
+  // Broken-line cut through the letter: a real gap in the ink, so the
+  // diagonal reads as a physical notch, not just a light reflection.
   layerCtx.globalCompositeOperation = "destination-out";
+  layerCtx.lineCap = "butt";
   layerCtx.beginPath();
   layerCtx.moveTo(cutStartX, localBaselineY);
   layerCtx.lineTo(cutEndX, token.padding);
-  layerCtx.lineCap = "butt";
   layerCtx.lineWidth = token.cutWidth;
   layerCtx.stroke();
 
-  layerCtx.globalCompositeOperation = "source-over";
+  // Mirror-like reflection: a soft white sheen plus a crisp lime line,
+  // both clipped to the letter's existing ink (source-atop) so the "A"
+  // stays fully readable — the diagonal reads as light glinting off glass,
+  // not a cut through the letterform.
+  layerCtx.globalCompositeOperation = "source-atop";
+  layerCtx.lineCap = "round";
+  layerCtx.beginPath();
+  layerCtx.moveTo(cutStartX, localBaselineY);
+  layerCtx.lineTo(cutEndX, token.padding);
+  layerCtx.strokeStyle = `rgba(255,255,255,${token.sheenAlpha})`;
+  layerCtx.lineWidth = token.sheenWidth;
+  layerCtx.stroke();
+
   layerCtx.beginPath();
   layerCtx.moveTo(cutStartX, localBaselineY);
   layerCtx.lineTo(cutEndX, token.padding);
   layerCtx.strokeStyle = `rgba(${CARD.colors.limeRgb},${token.lightAlpha})`;
   layerCtx.lineWidth = token.lightWidth;
   layerCtx.stroke();
-
-  layerCtx.globalCompositeOperation = "destination-in";
-  layerCtx.fillStyle = CARD.colors.white;
-  layerCtx.fillText("A", token.padding, localBaselineY);
   layerCtx.globalCompositeOperation = "source-over";
 
   ctx.drawImage(layer, startX - token.padding, baselineY - localBaselineY);
@@ -354,6 +408,110 @@ function drawBadge(ctx: CanvasRenderingContext2D, fontFamily: string) {
   ctx.direction = "rtl";
 }
 
+function drawGlassValue(
+  ctx: CanvasRenderingContext2D,
+  valueText: string,
+  valueSize: number,
+  valueGradient: CanvasGradient,
+  x: number,
+  baselineY: number,
+  fontFamily: string
+) {
+  const value = CARD.value;
+  const font_ = font(value.fontWeight, valueSize, fontFamily);
+  ctx.font = font_;
+  const metrics = ctx.measureText(valueText);
+  const width = metrics.width;
+  const ascent = metrics.actualBoundingBoxAscent || valueSize;
+  const descent = metrics.actualBoundingBoxDescent || 0;
+  const padding = value.glassPadding;
+
+  const layer = document.createElement("canvas");
+  layer.width = Math.ceil(width + padding * 2);
+  layer.height = Math.ceil(ascent + descent + padding * 2);
+  const layerCtx = layer.getContext("2d");
+  if (!layerCtx) return;
+
+  const localX = padding + width / 2;
+  const localBaselineY = padding + ascent;
+
+  layerCtx.direction = "ltr";
+  layerCtx.textAlign = "center";
+  layerCtx.textBaseline = "alphabetic";
+  layerCtx.font = font_;
+  layerCtx.fillStyle = valueGradient;
+  layerCtx.fillText(valueText, localX, localBaselineY);
+
+  layerCtx.strokeStyle = value.glassStrokeColor;
+  layerCtx.lineWidth = value.glassStrokeWidth;
+  layerCtx.strokeText(valueText, localX, localBaselineY);
+
+  const highlight = layerCtx.createLinearGradient(0, 0, 0, layer.height);
+  highlight.addColorStop(0, `rgba(255,255,255,${value.glassHighlightTopAlpha})`);
+  highlight.addColorStop(value.glassHighlightMidStop, `rgba(255,255,255,${value.glassHighlightMidAlpha})`);
+  highlight.addColorStop(value.glassHighlightFadeStop, "rgba(255,255,255,0)");
+  highlight.addColorStop(1, "rgba(255,255,255,0)");
+
+  layerCtx.globalCompositeOperation = "source-atop";
+  layerCtx.fillStyle = highlight;
+  layerCtx.fillRect(0, 0, layer.width, layer.height);
+  layerCtx.globalCompositeOperation = "source-over";
+
+  const fade = layerCtx.createLinearGradient(0, 0, 0, layer.height);
+  fade.addColorStop(0, "rgba(0,0,0,1)");
+  fade.addColorStop(value.fadeStartStop, "rgba(0,0,0,1)");
+  fade.addColorStop(1, `rgba(0,0,0,${value.fadeBottomAlpha})`);
+  layerCtx.globalCompositeOperation = "destination-in";
+  layerCtx.fillStyle = fade;
+  layerCtx.fillRect(0, 0, layer.width, layer.height);
+  layerCtx.globalCompositeOperation = "source-over";
+
+  ctx.drawImage(layer, x - width / 2 - padding, baselineY - ascent - padding);
+}
+
+function getValueSize(valueText: string): number {
+  const value = CARD.value;
+  return valueText.length === 1
+    ? value.singleDigitSize
+    : valueText.length === 2
+      ? value.doubleDigitSize
+      : value.tripleDigitSize;
+}
+
+function getValueMetrics(
+  ctx: CanvasRenderingContext2D,
+  milestone: MilestoneShareImageInput,
+  fontFamily: string
+) {
+  const value = CARD.value;
+  const valueText = String(milestone.value);
+  const valueSize = getValueSize(valueText);
+  ctx.save();
+  ctx.font = font(value.fontWeight, valueSize, fontFamily);
+  const metrics = ctx.measureText(valueText);
+  ctx.restore();
+  return {
+    valueText,
+    valueSize,
+    width: metrics.width,
+    ascent: metrics.actualBoundingBoxAscent || valueSize,
+    descent: metrics.actualBoundingBoxDescent || 0,
+  };
+}
+
+function getValueCenter(
+  ctx: CanvasRenderingContext2D,
+  milestone: MilestoneShareImageInput,
+  fontFamily: string
+): { x: number; y: number } {
+  const value = CARD.value;
+  const { ascent, descent } = getValueMetrics(ctx, milestone, fontFamily);
+  return {
+    x: value.numberCenterX,
+    y: value.baselineY - (ascent - descent) / 2,
+  };
+}
+
 function drawValue(
   ctx: CanvasRenderingContext2D,
   milestone: MilestoneShareImageInput,
@@ -362,15 +520,11 @@ function drawValue(
 ) {
   const value = CARD.value;
   const valueText = String(milestone.value);
-  const valueSize = valueText.length === 1
-    ? value.singleDigitSize
-    : valueText.length === 2
-      ? value.doubleDigitSize
-      : value.tripleDigitSize;
+  const valueSize = getValueSize(valueText);
   const valueGradient = ctx.createLinearGradient(
-    value.x,
+    value.numberCenterX,
     value.baselineY - valueSize * value.gradientTopRatio,
-    value.x,
+    value.numberCenterX,
     value.baselineY
   );
   valueGradient.addColorStop(0, CARD.colors.white);
@@ -381,32 +535,24 @@ function drawValue(
   ctx.textAlign = "right";
   ctx.fillStyle = CARD.colors.lime;
   ctx.font = font(value.labelWeight, value.labelSize, fontFamily);
-  const label = type === "weight" ? value.weightLabel : value.streakLabel;
+  const label = type === "weight" ? value.weightLabel : type === "steps" ? value.stepsLabel : value.daysLabel;
   ctx.fillText(label, value.x, value.labelY);
-  if (type === "weight") {
-    const labelWidth = ctx.measureText(label).width;
-    ctx.beginPath();
-    ctx.moveTo(value.x - labelWidth, value.labelY + value.labelUnderlineOffset);
-    ctx.lineTo(value.x, value.labelY + value.labelUnderlineOffset);
-    ctx.strokeStyle = CARD.colors.lime;
-    ctx.lineWidth = value.labelUnderlineWidth;
-    ctx.stroke();
-  }
 
   ctx.save();
   ctx.direction = "ltr";
-  ctx.textAlign = "right";
+  ctx.textAlign = "center";
   ctx.font = font(value.fontWeight, valueSize, fontFamily);
   ctx.fillStyle = valueGradient;
   ctx.shadowColor = value.shadowColor;
   ctx.shadowBlur = value.shadowBlur;
   ctx.shadowOffsetY = value.shadowOffsetY;
-  ctx.fillText(valueText, value.x, value.baselineY);
+  ctx.fillText(valueText, value.numberCenterX, value.baselineY);
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
-  ctx.fillText(valueText, value.x, value.baselineY);
   ctx.restore();
+
+  drawGlassValue(ctx, valueText, valueSize, valueGradient, value.numberCenterX, value.baselineY, fontFamily);
 
   ctx.direction = "rtl";
   ctx.textAlign = "right";
@@ -424,12 +570,21 @@ function drawCopy(
   ctx.direction = "rtl";
   ctx.textAlign = "right";
 
-  if (firstName) {
-    ctx.font = font(copy.firstNameWeight, copy.firstNameSize, fontFamily);
-    const text = `${copy.firstNamePrefix} ${firstName}`;
-    ctx.fillStyle = createTextSplitGradient(ctx, text, copy.firstNameY, copy.firstNameSize);
-    ctx.fillText(text, copy.x, copy.firstNameY);
+  if (!firstName) return;
+
+  const text = `${copy.firstNamePrefix} ${firstName}`;
+  let size = copy.firstNameSize;
+
+  ctx.font = font(copy.firstNameWeight, size, fontFamily);
+  let width = ctx.measureText(text).width;
+  while (width > copy.maxWidth && size > 28) {
+    size -= 2;
+    ctx.font = font(copy.firstNameWeight, size, fontFamily);
+    width = ctx.measureText(text).width;
   }
+
+  ctx.fillStyle = createTextSplitGradient(ctx, text, copy.firstNameY, size);
+  ctx.fillText(text, copy.x, copy.firstNameY);
 }
 
 function drawBrand(ctx: CanvasRenderingContext2D, fontFamily: string) {
@@ -469,8 +624,9 @@ export async function generateMilestoneShareImage(
   ctx.textBaseline = "alphabetic";
 
   const type = getMilestoneType(milestone);
+  const valueCenter = getValueCenter(ctx, milestone, fontFamily);
   drawBackgroundBase(ctx);
-  drawCut(ctx);
+  drawCut(ctx, valueCenter);
   drawBackgroundTexture(ctx);
   drawBadge(ctx, fontFamily);
   drawValue(ctx, milestone, type, fontFamily);

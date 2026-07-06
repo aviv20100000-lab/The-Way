@@ -135,7 +135,7 @@ export default function ClientPage() {
   useEffect(() => {
     const reachedMilestones: MilestoneCelebrationData[] = [];
 
-    if (homeLoaded && [7, 30, 100].includes(streak)) {
+    if (homeLoaded && [3, 7, 14, 30, 50, 100].includes(streak)) {
       reachedMilestones.push({
         id: `streak-${streak}`,
         value: streak,
@@ -145,7 +145,7 @@ export default function ClientPage() {
     }
 
     if (weightLogs.length >= 2) {
-      [5, 10].forEach((kilograms) => {
+      [3, 5, 10, 15].forEach((kilograms) => {
         if (totalWeightLost >= kilograms) {
           reachedMilestones.push({
             id: `weight-${kilograms}`,

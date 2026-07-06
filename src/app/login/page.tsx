@@ -266,6 +266,12 @@ export default function LoginPage() {
       dir="rtl"
       style={{ background: "#0c0f0f" }}
     >
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:right-4 focus:z-50 focus:rounded-lg focus:bg-[#c3f400] focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-[#161e00]"
+      >
+        דלג לתוכן הראשי
+      </a>
       {prefersReducedMotion === false && showVideo && (
         <>
           <video
@@ -348,7 +354,7 @@ export default function LoginPage() {
 
 
       {/* Login form */}
-      <main className="relative z-10 w-full max-w-md px-6 pb-12">
+      <main id="main-content" className="relative z-10 w-full max-w-md px-6 pb-12">
         <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-7 space-y-5">
           <h2 className="text-2xl font-bold text-white">כניסה</h2>
 
@@ -408,6 +414,12 @@ export default function LoginPage() {
           האפליקציה שלך לעקוב אחרי תזונה וכושר בדרך העילאית
         </p>
       </main>
+
+      <footer className="relative z-10 pb-6 text-center">
+        <a href="/accessibility" className="text-xs text-[#8e9379] hover:text-[#c3f400] hover:underline">
+          הצהרת נגישות
+        </a>
+      </footer>
     </div>
   );
 }

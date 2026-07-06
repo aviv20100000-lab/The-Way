@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password"];
+// /accessibility is public per Israeli law (IS 5568) — the accessibility
+// statement must be reachable without logging in.
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/accessibility"];
 
 async function getAuthRedirect(request: NextRequest): Promise<NextResponse | null> {
   const { pathname } = request.nextUrl;

@@ -13,7 +13,7 @@ export function useStepsTracking() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
-  const [lbView, setLbView] = useState<"today" | "week">("today");
+  const [lbView, setLbView] = useState<"today" | "week">("week");
   const [todaySteps, setTodaySteps] = useState(0);
   const [lbLoaded, setLbLoaded] = useState(false);
   const loadedRef = useRef(false);

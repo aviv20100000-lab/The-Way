@@ -12,6 +12,10 @@
     {
       "path": "/api/cron/health-check",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/weigh-in-reminder",
+      "schedule": "0 6 * * 0"
     }
   ]
 }

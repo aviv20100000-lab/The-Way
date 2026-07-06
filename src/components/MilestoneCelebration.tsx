@@ -147,19 +147,19 @@ export default function MilestoneCelebration({ milestone, onDismiss, firstName }
             onClick={(event) => event.stopPropagation()}
             className="glass-card relative w-full max-w-sm rounded-2xl border border-[#2e3030] px-6 py-8 text-center shadow-2xl"
           >
-            <div className="flex h-[230px] items-center justify-center">
+            <div className="flex h-[400px] items-center justify-center">
               {previewImage?.milestoneId === milestone.id ? (
                 // Canvas previews are generated locally and cannot be optimized by next/image.
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={previewImage.url}
                   alt="תצוגה מקדימה של כרטיס ההתקדמות"
-                  className="h-[230px] w-auto rounded-xl border border-[#2e3030] object-cover shadow-[0_18px_45px_rgba(0,0,0,0.35)]"
+                  className="h-[400px] w-auto rounded-xl border border-[#2e3030] object-cover shadow-[0_18px_45px_rgba(0,0,0,0.35)]"
                 />
               ) : (
                 <div
                   aria-label="מכין תצוגה מקדימה"
-                  className="h-[230px] aspect-[9/16] animate-pulse rounded-xl border border-[#2e3030] bg-white/[0.06]"
+                  className="h-[400px] aspect-[9/16] animate-pulse rounded-xl border border-[#2e3030] bg-white/[0.06]"
                 />
               )}
             </div>

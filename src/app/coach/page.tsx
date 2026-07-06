@@ -39,6 +39,7 @@ interface Goals {
   daily_protein_g: number | null;
   daily_water_ml: number;
   daily_steps: number | null;
+  weigh_in_frequency_weeks: number | null;
 }
 
 interface ClientSummary {
@@ -61,7 +62,7 @@ export default function CoachPage() {
   const [newClient, setNewClient] = useState({ name: "", email: "", password: "" });
   const [addError, setAddError] = useState("");
   const [selectedClient, setSelectedClient] = useState<CoachClient | null>(null);
-  const [clientGoals, setClientGoals] = useState<Goals>({ target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null });
+  const [clientGoals, setClientGoals] = useState<Goals>({ target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null });
   const [savingGoals, setSavingGoals] = useState(false);
   const [wizardClient, setWizardClient] = useState<CoachClient | null>(null);
   const [dataClient, setDataClient] = useState<CoachClient | null>(null);
@@ -84,7 +85,7 @@ export default function CoachPage() {
 
   // Leaderboard
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [lbView, setLbView] = useState<"today" | "week">("today");
+  const [lbView, setLbView] = useState<"today" | "week">("week");
 
   // Push notifications
   const [pushTitle, setPushTitle] = useState("");
@@ -238,6 +239,7 @@ export default function CoachPage() {
       daily_protein_g: data.daily_protein_g,
       daily_water_ml: data.daily_water_ml ?? 2000,
       daily_steps: data.daily_steps,
+      weigh_in_frequency_weeks: data.weigh_in_frequency_weeks ?? null,
     });
   }
 
@@ -594,6 +596,19 @@ export default function CoachPage() {
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_steps: e.target.value ? parseInt(e.target.value) : null })}
                       className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
                       placeholder="לדוגמה: 10000" />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">תזכורת שקילה (כל יום ראשון, 8:00)</span>
+                    <select
+                      value={clientGoals.weigh_in_frequency_weeks ?? 0}
+                      onChange={(e) => setClientGoals({ ...clientGoals, weigh_in_frequency_weeks: parseInt(e.target.value) || null })}
+                      className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
+                    >
+                      <option value={0}>ללא תזכורת</option>
+                      <option value={1}>כל שבוע</option>
+                      <option value={2}>כל שבועיים</option>
+                    </select>
                   </label>
 
                   <div className="flex gap-3 pt-2">

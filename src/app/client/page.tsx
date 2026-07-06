@@ -127,9 +127,13 @@ export default function ClientPage() {
   }, [homeLoaded, prefersReducedMotion, waterGoal, waterTotal]);
 
   const latestWeight = weightLogs[0]?.weight_kg ?? null;
-  const oldestWeight = weightLogs[weightLogs.length - 1]?.weight_kg ?? latestWeight;
-  const totalWeightLost = latestWeight !== null && oldestWeight !== null
-    ? Math.max(0, oldestWeight - latestWeight)
+  // Peak (not just the oldest log) so a regain-then-reloss still unlocks new
+  // milestones — losing 5kg from any past high point counts, not just from day one.
+  const peakWeight = weightLogs.length > 0
+    ? Math.max(...weightLogs.map((log) => log.weight_kg))
+    : latestWeight;
+  const totalWeightLost = latestWeight !== null && peakWeight !== null
+    ? Math.max(0, peakWeight - latestWeight)
     : 0;
 
   useEffect(() => {

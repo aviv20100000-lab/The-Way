@@ -324,6 +324,14 @@ async function runInit() {
     // Column already exists — ignore
   }
 
+  // Weigh-in reminder cadence, set per client by their coach.
+  // NULL = no reminder. 1 = every Sunday, 2 = every other Sunday.
+  try {
+    await db.execute({ sql: "ALTER TABLE goals ADD COLUMN weigh_in_frequency_weeks INTEGER", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
   await db.execute({
     sql: "CREATE INDEX IF NOT EXISTS idx_chat_messages_group_id ON chat_messages(group_id)",
     args: [],

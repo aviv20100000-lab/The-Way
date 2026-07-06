@@ -48,6 +48,7 @@ interface MealScannerProps {
   shareMealToGroup: (mealId: string) => void;
   dismissSharePrompt: () => void;
   resetAiResult: () => void;
+  startManualEntry: () => void;
   updateItemName: (index: number, name: string) => void;
   updateItemCalories: (index: number, calories: number) => void;
   updateItemGrams: (index: number, grams: number) => void;
@@ -84,7 +85,7 @@ export default function MealScanner(props: MealScannerProps) {
   const {
     compact = false,
     analyzing, aiResult, foodError, mealSaved, estimatingIndex,
-    analyzeFood, logMeal, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, shareMealToGroup, dismissSharePrompt, resetAiResult,
+    analyzeFood, logMeal, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry,
     updateItemName, updateItemCalories, updateItemGrams,
     estimateItemNutrition, deleteItem, addItem,
   } = props;
@@ -424,6 +425,13 @@ export default function MealScanner(props: MealScannerProps) {
                   style={{ background: "rgba(195,244,0,0.06)", border: "1px solid rgba(195,244,0,0.18)", color: "#c3f400" }}
                 >
                   בחר מהגלריה
+                </button>
+                <button
+                  onClick={startManualEntry}
+                  className="w-full rounded-xl py-2.5 text-sm font-semibold transition-all"
+                  style={{ background: "rgba(196,201,172,0.04)", border: "1px solid rgba(196,201,172,0.18)", color: "#c4c9ac" }}
+                >
+                  הוספה ידנית
                 </button>
               </div>
             )}

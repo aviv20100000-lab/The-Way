@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -252,6 +252,53 @@ async function runInit() {
       PRIMARY KEY (coach_id, activity_id)
     );
 
+    CREATE TABLE IF NOT EXISTS menu_plans (
+      id TEXT PRIMARY KEY,
+      coach_id TEXT NOT NULL REFERENCES users(id),
+      client_id TEXT NOT NULL REFERENCES users(id),
+      title TEXT NOT NULL DEFAULT 'תפריט',
+      daily_calories_target INTEGER,
+      daily_protein_target INTEGER,
+      is_template INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL CHECK(status IN ('draft', 'published')) DEFAULT 'draft',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS menu_days (
+      id TEXT PRIMARY KEY,
+      menu_plan_id TEXT NOT NULL REFERENCES menu_plans(id) ON DELETE CASCADE,
+      day_index INTEGER NOT NULL CHECK(day_index BETWEEN 0 AND 6),
+      UNIQUE(menu_plan_id, day_index)
+    );
+
+    CREATE TABLE IF NOT EXISTS menu_meals (
+      id TEXT PRIMARY KEY,
+      menu_day_id TEXT NOT NULL REFERENCES menu_days(id) ON DELETE CASCADE,
+      meal_type TEXT NOT NULL CHECK(meal_type IN ('breakfast', 'lunch', 'dinner', 'snack')),
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(menu_day_id, meal_type)
+    );
+
+    CREATE TABLE IF NOT EXISTS menu_items (
+      id TEXT PRIMARY KEY,
+      menu_meal_id TEXT NOT NULL REFERENCES menu_meals(id) ON DELETE CASCADE,
+      tzameret_code TEXT REFERENCES tzameret_foods(code),
+      name_he TEXT NOT NULL,
+      grams REAL NOT NULL DEFAULT 100,
+      calories REAL NOT NULL DEFAULT 0,
+      protein REAL NOT NULL DEFAULT 0,
+      carbs REAL NOT NULL DEFAULT 0,
+      fat REAL NOT NULL DEFAULT 0,
+      checked INTEGER NOT NULL DEFAULT 0,
+      checked_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_menu_plans_coach_client ON menu_plans(coach_id, client_id, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_menu_plans_client_status ON menu_plans(client_id, status, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_menu_days_plan ON menu_days(menu_plan_id, day_index);
+    CREATE INDEX IF NOT EXISTS idx_menu_meals_day ON menu_meals(menu_day_id, sort_order);
+    CREATE INDEX IF NOT EXISTS idx_menu_items_meal ON menu_items(menu_meal_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON chat_messages(sender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_receiver ON chat_messages(receiver_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sent_at ON chat_messages(sent_at);

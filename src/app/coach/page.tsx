@@ -21,6 +21,10 @@ const ClientGoalsWizard = dynamic(() => import("@/components/coach/ClientGoalsWi
   loading: () => <div className="skeleton h-80 rounded-3xl" />,
 });
 
+const MenuBuilder = dynamic(() => import("@/components/coach/MenuBuilder"), {
+  loading: () => <div className="fixed inset-0 z-[70] bg-black/70 p-4"><div className="skeleton mx-auto h-full max-w-3xl rounded-3xl" /></div>,
+});
+
 type CoachTab = "clients" | "food" | "quotes" | "insights";
 
 interface Quote {
@@ -46,6 +50,11 @@ interface ClientSummary {
   goals: { target_weight_kg: number | null; daily_calories: number | null; daily_protein_g: number | null; daily_water_ml: number; daily_steps: number | null };
 }
 
+interface CoachGroupOption {
+  id: string;
+  name: string;
+}
+
 const EMPTY_GOALS: Goals = { target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null };
 
 export default function CoachPage() {
@@ -58,14 +67,17 @@ export default function CoachPage() {
   const [clients, setClients] = useState<CoachClient[]>([]);
   const [clientGroupFilter, setClientGroupFilter] = useState<"all" | "in" | "out">("all");
   const [showAddClient, setShowAddClient] = useState(false);
-  const [newClient, setNewClient] = useState({ name: "", email: "", password: "" });
+  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", groupIds: [] as string[] });
   const [addError, setAddError] = useState("");
+  const [addWarning, setAddWarning] = useState("");
+  const [groupOptions, setGroupOptions] = useState<CoachGroupOption[]>([{ id: "default", name: "קבוצה ראשית" }]);
   const [selectedClient, setSelectedClient] = useState<CoachClient | null>(null);
   const [clientGoals, setClientGoals] = useState<Goals>(EMPTY_GOALS);
   const [savingGoals, setSavingGoals] = useState(false);
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsError, setGoalsError] = useState("");
   const [wizardClient, setWizardClient] = useState<CoachClient | null>(null);
+  const [menuClient, setMenuClient] = useState<CoachClient | null>(null);
   const [dataClient, setDataClient] = useState<CoachClient | null>(null);
   const [clientData, setClientData] = useState<ClientSummary | null>(null);
   const [clientDataError, setClientDataError] = useState("");
@@ -109,6 +121,25 @@ export default function CoachPage() {
       setClients([]);
     }
   }, [router]);
+
+  const loadGroupOptions = useCallback(async () => {
+    try {
+      const [contactsResponse, groupsResponse] = await Promise.all([
+        fetch("/api/chat/contacts"),
+        fetch("/api/coach/chat-groups"),
+      ]);
+      const contactsData = contactsResponse.ok ? await contactsResponse.json() : {};
+      const groupsData = groupsResponse.ok ? await groupsResponse.json() : { groups: [] };
+      const defaultName = contactsData.defaultGroupName || "קבוצה ראשית";
+      const namedGroups = Array.isArray(groupsData.groups)
+        ? groupsData.groups.map((group: { id: string; name: string }) => ({ id: group.id, name: group.name }))
+        : [];
+      setGroupOptions([{ id: "default", name: defaultName }, ...namedGroups]);
+    } catch (error) {
+      console.error("Error loading coach groups:", error);
+      setGroupOptions([{ id: "default", name: "קבוצה ראשית" }]);
+    }
+  }, []);
 
   const toggleGroupMembership = useCallback(async (client: CoachClient) => {
     const nextInGroup = !client.in_default_group;
@@ -162,7 +193,8 @@ export default function CoachPage() {
       .then((d) => { if (d.name) setCoachName(d.name); })
       .catch(() => {});
     loadClients();
-  }, [loadClients]);
+    loadGroupOptions();
+  }, [loadClients, loadGroupOptions]);
 
   useEffect(() => {
     if (tab === "quotes") loadQuotes();
@@ -184,16 +216,41 @@ export default function CoachPage() {
 
   async function addClient() {
     setAddError("");
+    setAddWarning("");
+    const selectedGroupIds = [...newClient.groupIds];
     const res = await fetch("/api/users/clients", {
       method: "POST",
       headers: await withCsrf({ "Content-Type": "application/json" }),
-      body: JSON.stringify(newClient),
+      body: JSON.stringify({ name: newClient.name, email: newClient.email, password: newClient.password }),
     });
     const data = await res.json();
     if (!res.ok) { setAddError(data.error); return; }
     setShowAddClient(false);
-    setNewClient({ name: "", email: "", password: "" });
-    loadClients();
+    setNewClient({ name: "", email: "", password: "", groupIds: [] });
+    setSuccessMessage("המתאמן נוסף");
+    void loadClients();
+
+    void Promise.allSettled(selectedGroupIds.map(async (groupId) => {
+      const endpoint = groupId === "default"
+        ? "/api/coach/group-membership"
+        : `/api/coach/chat-groups/${encodeURIComponent(groupId)}/members`;
+      const body = groupId === "default"
+        ? { clientId: data.id, inGroup: true }
+        : { clientId: data.id };
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error(`group assignment failed: ${groupId}`);
+    })).then((results) => {
+      const failures = results.filter((result) => result.status === "rejected").length;
+      if (failures > 0) {
+        console.error(`Failed to assign new client to ${failures} group(s)`);
+        setAddWarning("המתאמן נוצר, אך חלק מהקבוצות לא עודכנו. אפשר לתקן זאת במסך הצ׳אט.");
+      }
+      void loadClients();
+    });
   }
 
   async function openClientGoals(client: CoachClient) {
@@ -461,7 +518,7 @@ export default function CoachPage() {
 
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">המתאמנים שלך</h2>
-              <button onClick={() => setShowAddClient(true)}
+              <button onClick={() => { setAddWarning(""); void loadGroupOptions(); setShowAddClient(true); }}
                 className="rounded-lg bg-[#c3f400] px-5 py-2.5 text-sm font-semibold text-[#161e00] hover:bg-[#d4ff26] transition-all duration-300">
                 + הוסף
               </button>
@@ -491,11 +548,16 @@ export default function CoachPage() {
             {showAddClient && (
               <AddClientForm
                 value={newClient}
+                groups={groupOptions}
                 error={addError}
                 onChange={setNewClient}
                 onCancel={() => setShowAddClient(false)}
                 onSubmit={() => void addClient()}
               />
+            )}
+
+            {addWarning && (
+              <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">{addWarning}</p>
             )}
 
             {clients.length === 0 && !showAddClient && (
@@ -507,16 +569,23 @@ export default function CoachPage() {
             )}
 
             {visibleClients.map((client) => (
-              <ClientListCard
-                key={client.id}
-                client={client}
-                onOpenData={(selected) => void openClientData(selected)}
-                onOpenGoals={(selected) => void openClientGoals(selected)}
-                onOpenWizard={setWizardClient}
-                onAvatarUploaded={(clientId, url) => setClients((current) => current.map((item) => item.id === clientId ? { ...item, avatar_url: url } : item))}
-                onToggleGroup={(selected) => void toggleGroupMembership(selected)}
-              />
+              <div key={client.id} className="space-y-2">
+                <ClientListCard
+                  client={client}
+                  onOpenData={(selected) => void openClientData(selected)}
+                  onOpenGoals={(selected) => void openClientGoals(selected)}
+                  onOpenWizard={setWizardClient}
+                  onAvatarUploaded={(clientId, url) => setClients((current) => current.map((item) => item.id === clientId ? { ...item, avatar_url: url } : item))}
+                  onToggleGroup={(selected) => void toggleGroupMembership(selected)}
+                />
+                <button type="button" onClick={() => setMenuClient(client)}
+                  className="w-full rounded-xl border border-[#c3f400]/25 bg-[#c3f400]/10 py-2.5 text-sm font-bold text-[#c3f400] transition hover:bg-[#c3f400]/15">
+                  🍽️ בניית תפריט
+                </button>
+              </div>
             ))}
+
+            {menuClient && <MenuBuilder client={menuClient} onClose={() => setMenuClient(null)} />}
 
             {wizardClient && (
               <ClientGoalsWizard

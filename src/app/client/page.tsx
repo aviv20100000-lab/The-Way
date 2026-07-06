@@ -54,6 +54,10 @@ const QuickMealLogger = dynamic(
   { loading: () => <div className="skeleton h-24 rounded-3xl" /> }
 );
 
+const ClientMenuView = dynamic(() => import("@/components/ClientMenuView"), {
+  loading: () => <div className="skeleton h-80 rounded-3xl" />,
+});
+
 const AvatarPhotoPicker = dynamic(() => import("@/components/AvatarPhotoPicker"), {
   loading: () => <div className="skeleton h-24 rounded-3xl" />,
 });
@@ -62,7 +66,7 @@ const ConnectSetup = dynamic(() => import("@/components/ConnectSetup"), {
   loading: () => null,
 });
 
-type Tab = "home" | "food" | "weight" | "steps" | "water";
+type Tab = "home" | "menu" | "weight" | "steps" | "water";
 
 export default function ClientPage() {
   const router = useRouter();
@@ -71,9 +75,9 @@ export default function ClientPage() {
   const [clientNow, setClientNow] = useState<Date | null>(null);
   const [weightLoaded, setWeightLoaded] = useState(false);
   const [showHomeContent, setShowHomeContent] = useState(false);
-  const [showFoodContent, setShowFoodContent] = useState(false);
   const [showWeightContent, setShowWeightContent] = useState(false);
   const [showStepsContent, setShowStepsContent] = useState(false);
+  const [showFullMealHistory, setShowFullMealHistory] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
   const [showGoalEdit, setShowGoalEdit] = useState(false);
@@ -97,7 +101,7 @@ export default function ClientPage() {
   // Hooks
   const { user, isLoading, logout } = useAuth();
   const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, daysSinceSignup, totalSteps, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
-  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
+  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, uploadingSteps, stepsSuccess, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
@@ -225,24 +229,23 @@ export default function ClientPage() {
   }, [homeLoaded, daysSinceSignup, totalSteps, totalWeightLost, weightLogs.length]);
 
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (refreshing || !["home", "food", "steps"].includes(tab)) return;
+    if (refreshing || !["home", "steps"].includes(tab)) return;
     touchStartY.current = event.touches[0].clientY;
     setPullDistance(0);
   };
 
   const handleTouchMove = (event: TouchEvent<HTMLDivElement>) => {
-    if (refreshing || !["home", "food", "steps"].includes(tab) || touchStartY.current === 0) return;
+    if (refreshing || !["home", "steps"].includes(tab) || touchStartY.current === 0) return;
     const distance = event.touches[0].clientY - touchStartY.current;
     if (distance > 0 && window.scrollY <= 0) setPullDistance(distance);
   };
 
   const handleTouchEnd = async () => {
-    if (pullDistance > 80 && ["home", "food", "steps"].includes(tab)) {
+    if (pullDistance > 80 && ["home", "steps"].includes(tab)) {
       try { navigator.vibrate?.(15); } catch {}
       setRefreshing(true);
       try {
         if (tab === "home") await loadHome();
-        if (tab === "food") await loadMyMeals(true);
         if (tab === "steps") await loadLeaderboard(true);
       } finally {
         setRefreshing(false);
@@ -287,7 +290,7 @@ export default function ClientPage() {
 
   useEffect(() => {
     if (tab === "steps") loadLeaderboard();
-    if (tab === "home" || tab === "food") loadMyMeals();
+    if (tab === "home") loadMyMeals();
     // Refresh home stats when returning to the home tab (skip the initial
     // mount — useClientHome already fetches once on load).
     if (tab === "home") {
@@ -309,19 +312,6 @@ export default function ClientPage() {
     }
     setShowHomeContent(true);
   }, [tab, homeLoaded]);
-
-  useEffect(() => {
-    if (tab !== "food") return;
-    if (!mealsLoaded && loadingMeals) {
-      setShowFoodContent(false);
-      return;
-    }
-    if (!mealsLoaded && myMeals.length === 0) {
-      setShowFoodContent(false);
-      return;
-    }
-    setShowFoodContent(true);
-  }, [tab, mealsLoaded, loadingMeals, myMeals.length]);
 
   useEffect(() => {
     if (tab !== "weight") return;
@@ -540,6 +530,7 @@ export default function ClientPage() {
                 shareMealToGroup={shareMealToGroup}
                 dismissSharePrompt={dismissSharePrompt}
                 resetAiResult={resetAiResult}
+                startManualEntry={startManualEntry}
                 updateItemName={updateItemName}
                 updateItemCalories={updateItemCalories}
                 updateItemGrams={updateItemGrams}
@@ -549,15 +540,56 @@ export default function ClientPage() {
               />
             </motion.div>
 
+            <QuickMealLogger onSaved={() => {
+              loadHome();
+              loadMyMeals(true);
+            }} />
+
+            {!calorieGoalFromGoals && !showGoalEdit && (
+              <button onClick={() => { setGoalInput(""); setShowGoalEdit(true); }}
+                className="w-full rounded-xl border border-dashed border-[#444933] py-2 text-sm text-[#c3f400] font-medium hover:border-[#c3f400] transition-colors">
+                + הגדר יעד קלוריות יומי
+              </button>
+            )}
+            {showGoalEdit && (
+              <div className="glass-card rounded-xl border border-[#444933] p-4 flex items-center gap-3">
+                <input type="number" value={goalInput} onChange={e => setGoalInput(e.target.value)}
+                  placeholder="2000" min="500" max="5000"
+                  className="flex-1 rounded-lg border border-[#444933] bg-[#282a2b] px-3 py-2 text-center font-bold text-[#c3f400] focus:outline-none focus:ring-2 focus:ring-[#c3f400]/30" />
+                <span className="text-sm text-[#c4c9ac]">קל׳/יום</span>
+                <button onClick={async () => {
+                  const cal = parseInt(goalInput);
+                  if (!cal || cal < 500) return;
+                  const { withCsrf } = await import("@/lib/csrf-client");
+                  await fetch("/api/users/goals", { method: "POST", headers: await withCsrf({ "Content-Type": "application/json" }), body: JSON.stringify({ daily_calories: cal }) });
+                  loadHome();
+                  setShowGoalEdit(false);
+                }} className="rounded-full bg-[#c3f400] px-4 py-2 text-sm font-bold text-[#161e00]">שמור</button>
+                <button onClick={() => setShowGoalEdit(false)} className="text-[#8e9379] text-sm">ביטול</button>
+              </div>
+            )}
+            {calorieGoalFromGoals && (
+              <button onClick={() => { setGoalInput(String(calorieGoalFromGoals)); setShowGoalEdit(true); }}
+                className="text-xs text-[#8e9379] underline">
+                יעד: {calorieGoalFromGoals} קל׳/יום · שנה
+              </button>
+            )}
+            {proteinGoal && <p className="text-xs text-[#8e9379]">יעד חלבון: {proteinGoal} גרם ביום</p>}
+
             <MealHistory
               meals={myMeals}
-              title="הארוחות האחרונות"
+              title={showFullMealHistory ? "היסטוריית ארוחות" : "הארוחות האחרונות"}
               loading={loadingMeals && !mealsLoaded}
               onDelete={deleteMeal}
-              compact
+              compact={!showFullMealHistory}
               maxDays={3}
-              onShowAll={() => setTab("food")}
+              onShowAll={() => setShowFullMealHistory(true)}
             />
+            {showFullMealHistory && (
+              <button type="button" onClick={() => setShowFullMealHistory(false)} className="w-full text-center text-sm font-semibold text-[#c3f400]">
+                הצג פחות
+              </button>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
@@ -702,56 +734,8 @@ export default function ClientPage() {
         )}
 
 
-        {/* FOOD TAB */}
-        {tab === "food" && (
-          !showFoodContent ? (
-            <div className="space-y-4 pt-3">
-              <div className="skeleton h-28 w-full rounded-2xl" />
-              <div className="skeleton h-12 w-full rounded-xl" />
-              <div className="skeleton h-40 w-full rounded-2xl" />
-            </div>
-          ) : (
-          <div className="space-y-4">
-            <QuickMealLogger onSaved={() => {
-              loadHome();
-              loadMyMeals(true);
-            }} />
-
-            {!calorieGoalFromGoals && !showGoalEdit && (
-              <button onClick={() => { setGoalInput(""); setShowGoalEdit(true); }}
-                className="w-full rounded-xl border border-dashed border-[#444933] py-2 text-sm text-[#c3f400] font-medium hover:border-[#c3f400] transition-colors">
-                + הגדר יעד קלוריות יומי
-              </button>
-            )}
-            {showGoalEdit && (
-              <div className="glass-card rounded-xl border border-[#444933] p-4 flex items-center gap-3">
-                <input type="number" value={goalInput} onChange={e => setGoalInput(e.target.value)}
-                  placeholder="2000" min="500" max="5000"
-                  className="flex-1 rounded-lg border border-[#444933] bg-[#282a2b] px-3 py-2 text-center font-bold text-[#c3f400] focus:outline-none focus:ring-2 focus:ring-[#c3f400]/30" />
-                <span className="text-sm text-[#c4c9ac]">קל'/יום</span>
-                <button onClick={async () => {
-                  const cal = parseInt(goalInput);
-                  if (!cal || cal < 500) return;
-                  const { withCsrf } = await import("@/lib/csrf-client");
-                  await fetch("/api/users/goals", { method: "POST", headers: await withCsrf({ "Content-Type": "application/json" }), body: JSON.stringify({ daily_calories: cal }) });
-                  loadHome();
-                  setShowGoalEdit(false);
-                }} className="rounded-full bg-[#c3f400] px-4 py-2 text-sm font-bold text-[#161e00]">שמור</button>
-                <button onClick={() => setShowGoalEdit(false)} className="text-[#8e9379] text-sm">ביטול</button>
-              </div>
-            )}
-            {calorieGoalFromGoals && (
-              <button onClick={() => { setGoalInput(String(calorieGoalFromGoals)); setShowGoalEdit(true); }}
-                className="text-xs text-[#8e9379] underline">
-                יעד: {calorieGoalFromGoals} קל'/יום · שנה
-              </button>
-            )}
-            {proteinGoal && <p className="text-xs text-[#8e9379]">יעד חלבון: {proteinGoal} גרם ביום</p>}
-
-            <MealHistory meals={myMeals} loading={loadingMeals} onDelete={deleteMeal} />
-          </div>
-          )
-        )}
+        {/* MENU TAB */}
+        {tab === "menu" && <ClientMenuView />}
 
         {/* WEIGHT TAB */}
         {tab === "water" && (
@@ -1066,7 +1050,7 @@ export default function ClientPage() {
           {(() => {
             const navItems = [
               { id: "home" as Tab, icon: "🏠", label: "בית" },
-              { id: "food" as Tab, icon: "🍽️", label: "אוכל" },
+              { id: "menu" as Tab, icon: "🍽️", label: "תפריט" },
               { id: "water" as Tab, icon: "💧", label: "מים" },
               { id: "weight" as Tab, icon: "⚖️", label: "משקל" },
               { id: "steps" as Tab, icon: "👟", label: "תחרות" },

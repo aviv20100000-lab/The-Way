@@ -370,6 +370,22 @@ export function useFoodTracking() {
     setSharePromptDismissed(false);
   }, []);
 
+  const startManualEntry = useCallback(() => {
+    setAiResult({
+      items: [{ name: "", estimated_weight_g: 100, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }],
+      total_calories: 0,
+      notes: "",
+      photo_url: "",
+    });
+    setFoodError("");
+    setMealSaved("idle");
+    setLastPhotoBlob(null);
+    setLastSavedMealId(null);
+    setMealShared(false);
+    setShareMealError("");
+    setSharePromptDismissed(false);
+  }, []);
+
   return {
     analyzing,
     aiResult,
@@ -394,6 +410,7 @@ export function useFoodTracking() {
     loadMyMeals,
     deleteMeal,
     resetAiResult,
+    startManualEntry,
     updateItemName,
     updateItemCalories,
     updateItemGrams,

@@ -13,6 +13,10 @@ const ChatGroupCreator = dynamic(() => import("@/components/coach/ChatGroupCreat
   loading: () => <div className="skeleton h-80 rounded-3xl" />,
 });
 
+const EditGroupMembers = dynamic(() => import("@/components/coach/EditGroupMembers"), {
+  loading: () => <div className="skeleton h-80 rounded-3xl" />,
+});
+
 function Avatar({ username, name, avatarUrl, size = 44 }: { username?: string; name: string; avatarUrl?: string | null; size?: number }) {
   const [failed, setFailed] = useState(false);
   const initials = name.slice(0, 1);
@@ -196,6 +200,9 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [showGroupCreator, setShowGroupCreator] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; memberIds: string[] } | null>(null);
+  const [editingGroupLoadingId, setEditingGroupLoadingId] = useState<string | null>(null);
+  const [editingGroupError, setEditingGroupError] = useState("");
   const [defaultGroupName, setDefaultGroupName] = useState<string | null>(cached?.defaultGroupName ?? null);
   const [inDefaultGroup, setInDefaultGroup] = useState<boolean>(cached?.inDefaultGroup ?? true);
   const [renamingGroup, setRenamingGroup] = useState(false);
@@ -564,8 +571,33 @@ export default function ChatPage() {
     }
   };
 
+  const openEditGroupMembers = async (group: NamedGroup) => {
+    if (editingGroupLoadingId) return;
+    setEditingGroupLoadingId(group.id);
+    setEditingGroupError("");
+    try {
+      const response = await fetch("/api/coach/chat-groups", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "לא הצלחנו לטעון את חברי הקבוצה");
+      const freshGroup = Array.isArray(data.groups)
+        ? data.groups.find((entry: { id?: string }) => entry.id === group.id)
+        : null;
+      if (!freshGroup) throw new Error("הקבוצה לא נמצאה");
+      setEditingGroup({
+        id: group.id,
+        name: group.name,
+        memberIds: Array.isArray(freshGroup.memberIds) ? freshGroup.memberIds : [],
+      });
+    } catch (error) {
+      setEditingGroupError(error instanceof Error ? error.message : "לא הצלחנו לטעון את חברי הקבוצה");
+    } finally {
+      setEditingGroupLoadingId(null);
+    }
+  };
+
   // Clients outside the default group don't see it at all; coaches always do
   const showGroupRow = user.role === "coach" || inDefaultGroup;
+  const { coach: coachContact, regular: regularContacts } = partitionChatContacts(user.role, contacts);
 
   const groupRow = showGroupRow && (
     <div
@@ -598,9 +630,12 @@ export default function ChatPage() {
   const namedGroupRows = namedGroups.map((group) => {
     const isActive = mode.type === "namedGroup" && mode.group.id === group.id && showChat;
     return (
-      <button
+      <div
         key={group.id}
+        role="button"
+        tabIndex={0}
         onClick={() => selectChat({ type: "namedGroup", group })}
+        onKeyDown={(event) => { if (event.key === "Enter") selectChat({ type: "namedGroup", group }); }}
         className={`flex w-full items-center gap-3 px-4 py-3.5 text-right transition-colors ${isActive ? "border-r-2 border-[#c3f400] bg-[#c3f400]/8" : "hover:bg-[#1e2020]"}`}
       >
         <GroupPhoto imageUrl={group.imageUrl} name={group.name} />
@@ -608,11 +643,18 @@ export default function ChatPage() {
           <div className={`truncate text-sm font-semibold ${isActive ? "text-[#c3f400]" : "text-white"}`}>{group.name}</div>
           <div className="truncate text-xs text-[#8e9379]">קבוצה פרטית</div>
         </div>
-      </button>
+        {user.role === "coach" && (
+          <button type="button"
+            onClick={(event) => { event.stopPropagation(); void openEditGroupMembers(group); }}
+            disabled={editingGroupLoadingId === group.id}
+            aria-label="ערוך חברי קבוצה"
+            className="shrink-0 rounded-full p-1.5 text-[#8e9379] hover:bg-white/5 hover:text-[#c3f400] disabled:opacity-50">
+            ✏️
+          </button>
+        )}
+      </div>
     );
   });
-
-  const { coach: coachContact, regular: regularContacts } = partitionChatContacts(user.role, contacts);
 
   const coachRow = coachContact && (() => {
     const isActive = mode.type === "private" && mode.contact.id === coachContact.id && showChat;
@@ -961,6 +1003,22 @@ export default function ChatPage() {
             await loadContacts();
           }}
         />
+      )}
+
+      {editingGroup && (
+        <EditGroupMembers
+          groupId={editingGroup.id}
+          groupName={editingGroup.name}
+          clients={regularContacts.map((contact) => ({ id: contact.id, name: contact.name }))}
+          currentMemberIds={editingGroup.memberIds}
+          onClose={() => setEditingGroup(null)}
+        />
+      )}
+
+      {editingGroupError && (
+        <div className="fixed inset-x-4 bottom-4 z-[60] mx-auto max-w-sm rounded-xl border border-red-400/30 bg-[#291719] p-3 text-center text-sm text-red-200 shadow-xl">
+          {editingGroupError}
+        </div>
       )}
 
       {renamingGroup && (

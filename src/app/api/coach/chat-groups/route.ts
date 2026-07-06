@@ -9,6 +9,7 @@ type GroupRow = {
   name: string;
   member_count: number;
   member_names: string | null;
+  member_ids: string | null;
 };
 
 async function alertViolation(req: NextRequest, userId: string, details: string) {
@@ -33,7 +34,8 @@ export async function GET(req: NextRequest) {
   const result = await db.execute({
     sql: `SELECT g.id, g.name,
                  COUNT(gm.user_id) AS member_count,
-                 GROUP_CONCAT(u.name, '||') AS member_names
+                 GROUP_CONCAT(u.name, '||') AS member_names,
+                 GROUP_CONCAT(u.id, '||') AS member_ids
           FROM chat_groups g
           LEFT JOIN chat_group_members gm ON gm.group_id = g.id
           LEFT JOIN users u ON u.id = gm.user_id
@@ -47,6 +49,7 @@ export async function GET(req: NextRequest) {
     name: row.name,
     memberCount: Number(row.member_count),
     memberNames: row.member_names ? row.member_names.split("||") : [],
+    memberIds: row.member_ids ? row.member_ids.split("||") : [],
   }));
   return NextResponse.json({ groups });
 }

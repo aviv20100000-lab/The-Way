@@ -26,10 +26,13 @@ export async function createMeal(data: {
   userId: string; photoUrl?: string; mealType: MealType; notes?: string; items: { foodId: string; quantity: number }[];
 }): Promise<string> {
   const mealId = uuid();
-  await db.execute({ sql: "INSERT INTO meals (id, user_id, photo_url, meal_type, notes) VALUES (?, ?, ?, ?, ?)", args: [mealId, data.userId, data.photoUrl ?? null, data.mealType, data.notes ?? null] });
-  for (const item of data.items) {
-    await db.execute({ sql: "INSERT INTO meal_items (id, meal_id, food_id, quantity, unit) VALUES (?, ?, ?, ?, ?)", args: [uuid(), mealId, item.foodId, item.quantity, "גרם"] });
-  }
+  await db.batch([
+    { sql: "INSERT INTO meals (id, user_id, photo_url, meal_type, notes) VALUES (?, ?, ?, ?, ?)", args: [mealId, data.userId, data.photoUrl ?? null, data.mealType, data.notes ?? null] },
+    ...data.items.map((item) => ({
+      sql: "INSERT INTO meal_items (id, meal_id, food_id, quantity, unit) VALUES (?, ?, ?, ?, ?)",
+      args: [uuid(), mealId, item.foodId, item.quantity, "גרם"],
+    })),
+  ], "write");
   return mealId;
 }
 

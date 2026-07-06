@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import MealHistory from "@/components/MealHistory";
 import CoachDailySummary from "@/components/coach/CoachDailySummary";
+import CoachMealsPanel, { type CoachMealLog } from "@/components/coach/CoachMealsPanel";
 import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
 import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
@@ -47,8 +48,10 @@ interface ClientSummary {
   steps_today: number;
   water_today: number;
   meals: { id: string; total_calories: number; logged_at: string; items: { name: string; calories: number; estimated_weight_g: number }[] }[];
-  goals: { target_weight_kg: number | null; daily_calories: number | null; daily_water_ml: number };
+  goals: { target_weight_kg: number | null; daily_calories: number | null; daily_protein_g: number | null; daily_water_ml: number; daily_steps: number | null };
 }
+
+const EMPTY_GOALS: Goals = { target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null };
 
 export default function CoachPage() {
   const router = useRouter();
@@ -62,11 +65,16 @@ export default function CoachPage() {
   const [newClient, setNewClient] = useState({ name: "", email: "", password: "" });
   const [addError, setAddError] = useState("");
   const [selectedClient, setSelectedClient] = useState<CoachClient | null>(null);
-  const [clientGoals, setClientGoals] = useState<Goals>({ target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null });
+  const [clientGoals, setClientGoals] = useState<Goals>(EMPTY_GOALS);
   const [savingGoals, setSavingGoals] = useState(false);
+  const [goalsLoading, setGoalsLoading] = useState(false);
+  const [goalsError, setGoalsError] = useState("");
   const [wizardClient, setWizardClient] = useState<CoachClient | null>(null);
   const [dataClient, setDataClient] = useState<CoachClient | null>(null);
   const [clientData, setClientData] = useState<ClientSummary | null>(null);
+  const [clientDataError, setClientDataError] = useState("");
+  const goalsRequestRef = useRef(0);
+  const dataRequestRef = useRef(0);
 
   // Quotes
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -78,10 +86,9 @@ export default function CoachPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Food logs
-  interface FoodLog { id: string; client_name: string; photo_url: string; total_calories: number; logged_at: string; items: { name: string; calories: number; estimated_weight_g: number }[]; }
-  const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
+  const [foodLogs, setFoodLogs] = useState<CoachMealLog[]>([]);
   const [foodLoading, setFoodLoading] = useState(false);
-  const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [foodError, setFoodError] = useState("");
 
   // Leaderboard
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -90,6 +97,7 @@ export default function CoachPage() {
   // Push notifications
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
+  const [pushUserId, setPushUserId] = useState("");
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState("");
   const [testingPush, setTestingPush] = useState(false);
@@ -143,15 +151,20 @@ export default function CoachPage() {
 
   const loadFoodLogs = useCallback(async () => {
     setFoodLoading(true);
+    setFoodError("");
     try {
       const res = await fetch("/api/coach/meals");
+      if (!res.ok) throw new Error(`Meals request failed: ${res.status}`);
       const data = await res.json();
-      setFoodLogs(data || []);
+      if (!Array.isArray(data)) throw new Error("Invalid meals response");
+      setFoodLogs(data);
     } catch (e) {
       console.error("Error loading food logs:", e);
       setFoodLogs([]);
+      setFoodError("לא הצלחנו לטעון את הארוחות. אפשר לנסות שוב.");
+    } finally {
+      setFoodLoading(false);
     }
-    setFoodLoading(false);
   }, []);
 
   const loadLeaderboard = useCallback(async () => {
@@ -230,24 +243,44 @@ export default function CoachPage() {
   }
 
   async function openClientGoals(client: CoachClient) {
+    const requestId = ++goalsRequestRef.current;
     setSelectedClient(client);
-    const res = await fetch(`/api/users/goals?userId=${client.id}`);
-    const data = await res.json();
-    setClientGoals({
-      target_weight_kg: data.target_weight_kg,
-      daily_calories: data.daily_calories,
-      daily_protein_g: data.daily_protein_g,
-      daily_water_ml: data.daily_water_ml ?? 2000,
-      daily_steps: data.daily_steps,
-      weigh_in_frequency_weeks: data.weigh_in_frequency_weeks ?? null,
-    });
+    setClientGoals(EMPTY_GOALS);
+    setGoalsError("");
+    setGoalsLoading(true);
+    try {
+      const res = await fetch(`/api/users/goals?userId=${client.id}`);
+      if (!res.ok) throw new Error(`Goals request failed: ${res.status}`);
+      const data = await res.json();
+      if (requestId !== goalsRequestRef.current) return;
+      setClientGoals({
+        target_weight_kg: data.target_weight_kg ?? null,
+        daily_calories: data.daily_calories ?? null,
+        daily_protein_g: data.daily_protein_g ?? null,
+        daily_water_ml: data.daily_water_ml ?? 2000,
+        daily_steps: data.daily_steps ?? null,
+        weigh_in_frequency_weeks: data.weigh_in_frequency_weeks ?? null,
+      });
+    } catch {
+      if (requestId === goalsRequestRef.current) setGoalsError("לא הצלחנו לטעון את היעדים של המתאמן.");
+    } finally {
+      if (requestId === goalsRequestRef.current) setGoalsLoading(false);
+    }
   }
 
   async function openClientData(client: CoachClient) {
+    const requestId = ++dataRequestRef.current;
     setDataClient(client);
     setClientData(null);
-    const res = await fetch(`/api/client-summary?userId=${client.id}`);
-    if (res.ok) setClientData(await res.json());
+    setClientDataError("");
+    try {
+      const res = await fetch(`/api/client-summary?userId=${client.id}`);
+      if (!res.ok) throw new Error(`Summary request failed: ${res.status}`);
+      const data = await res.json();
+      if (requestId === dataRequestRef.current) setClientData(data);
+    } catch {
+      if (requestId === dataRequestRef.current) setClientDataError("לא הצלחנו לטעון את נתוני המתאמן.");
+    }
   }
 
   async function saveGoals() {
@@ -258,8 +291,12 @@ export default function CoachPage() {
       headers: await withCsrf({ "Content-Type": "application/json" }),
       body: JSON.stringify({ userId: selectedClient.id, ...clientGoals }),
     });
-    if (res.ok) setSuccessMessage("היעדים נשמרו");
     setSavingGoals(false);
+    if (!res.ok) {
+      setGoalsError("שמירת היעדים נכשלה. הנתונים לא שונו.");
+      return;
+    }
+    setSuccessMessage("היעדים נשמרו");
     setSelectedClient(null);
     loadClients();
   }
@@ -292,35 +329,26 @@ export default function CoachPage() {
     }
   }
 
-  async function sendGoodMorning() {
-    setTestingPush(true);
-    setPushResult("");
-    try {
-      const res = await fetch("/api/push/test?type=morning", {
-        method: "POST",
-        headers: await withCsrf(),
-      });
-      const data = await res.json();
-      setPushResult(data.ok ? `✅ ${data.message}` : `❌ ${data.error ?? data.message}`);
-    } finally {
-      setTestingPush(false);
-    }
-  }
-
   async function sendPush() {
     if (!pushTitle.trim() || !pushBody.trim()) return;
     setSendingPush(true);
     setPushResult("");
-    const res = await fetch("/api/push/send", {
-      method: "POST",
-      headers: await withCsrf({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ title: pushTitle, body: pushBody }),
-    });
-    const data = await res.json();
-    setPushResult(`נשלח ל-${data.sent} מתאמנים ✓`);
-    setPushTitle("");
-    setPushBody("");
-    setSendingPush(false);
+    try {
+      const res = await fetch("/api/push/send", {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ title: pushTitle, body: pushBody, ...(pushUserId ? { userId: pushUserId } : {}) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Push request failed");
+      setPushResult(`נשלח ל-${data.sent} ${pushUserId ? "מתאמן" : "מתאמנים"} ✓`);
+      setPushTitle("");
+      setPushBody("");
+    } catch {
+      setPushResult("❌ השליחה נכשלה. אפשר לנסות שוב.");
+    } finally {
+      setSendingPush(false);
+    }
   }
 
   function restoreQuote(pending: { quote: Quote; index: number }) {
@@ -554,6 +582,9 @@ export default function CoachPage() {
                 <div className="w-full max-w-lg rounded-t-lg glass-card p-6 shadow-xl space-y-5" onClick={(e) => e.stopPropagation()}>
                   <h3 className="text-lg font-semibold text-white">🎯 יעדים של {selectedClient.name}</h3>
 
+                  {goalsLoading && <p className="text-sm text-[#8e9379]">טוען את היעדים...</p>}
+                  {goalsError && <p className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{goalsError}</p>}
+
                   <label className="block">
                     <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד משקל (ק"ג)</span>
                     <input type="number" step="0.5"
@@ -614,7 +645,7 @@ export default function CoachPage() {
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => setSelectedClient(null)}
                       className="flex-1 rounded-lg border border-[#444933] py-3 text-white font-semibold hover:bg-[#1e2020] transition-all">ביטול</button>
-                    <button onClick={saveGoals} disabled={savingGoals}
+                    <button onClick={saveGoals} disabled={savingGoals || goalsLoading || Boolean(goalsError)}
                       className="flex-1 rounded-lg bg-[#c3f400] py-3 text-[#161e00] font-semibold hover:bg-[#d4ff26] disabled:opacity-50 transition-all">
                       {savingGoals ? "שומר..." : "שמור יעדים"}
                     </button>
@@ -631,7 +662,12 @@ export default function CoachPage() {
                     <button onClick={() => setDataClient(null)} className="text-[#8e9379] text-2xl leading-none">×</button>
                   </div>
 
-                  {!clientData ? (
+                  {clientDataError ? (
+                    <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-5 text-center">
+                      <p className="text-sm text-red-200">{clientDataError}</p>
+                      <button type="button" onClick={() => void openClientData(dataClient)} className="mt-3 text-sm font-semibold text-[#c3f400]">נסה שוב</button>
+                    </div>
+                  ) : !clientData ? (
                     <p className="text-center text-[#8e9379] py-8 font-normal">טוען נתונים...</p>
                   ) : (
                     <>
@@ -682,6 +718,24 @@ export default function CoachPage() {
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl glass-card p-4 text-center">
+                          <p className="text-xs text-[#8e9379] mb-1">קלוריות היום</p>
+                          <p className="text-2xl font-bold text-[#c3f400]">
+                            {clientData.meals
+                              .filter((meal) => new Date(meal.logged_at).toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }) === new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }))
+                              .reduce((sum, meal) => sum + (Number(meal.total_calories) || 0), 0)
+                              .toLocaleString()}
+                          </p>
+                          <p className="text-xs text-[#8e9379]">יעד {clientData.goals.daily_calories?.toLocaleString() ?? "לא הוגדר"}</p>
+                        </div>
+                        <div className="rounded-2xl glass-card p-4 text-center">
+                          <p className="text-xs text-[#8e9379] mb-1">יעד צעדים</p>
+                          <p className="text-2xl font-bold text-white">{clientData.goals.daily_steps?.toLocaleString() ?? "—"}</p>
+                          <p className="text-xs text-[#8e9379]">בפועל {clientData.steps_today.toLocaleString()}</p>
+                        </div>
+                      </div>
+
                       {/* Meals — day / week / month */}
                       <div className="rounded-2xl glass-card p-4 ">
                         <p className="text-sm font-medium text-[#8e9379] mb-3">🍽️ תזונה</p>
@@ -696,60 +750,13 @@ export default function CoachPage() {
         )}
 
         {tab === "food" && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">אוכל — 7 ימים אחרונים</h2>
-              <button onClick={loadFoodLogs} className="text-sm text-[#c3f400]">🔄 רענן</button>
-            </div>
-
-            {foodLoading && <p className="text-center text-[#8e9379] py-8">טוען...</p>}
-            {!foodLoading && foodLogs.length === 0 && (
-              <p className="text-center text-[#8e9379] py-8">אין ארוחות מצולמות עדיין</p>
-            )}
-
-            {foodLogs.map((log) => {
-              const date = new Date(log.logged_at);
-              const dateStr = date.toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "numeric", timeZone: "Asia/Jerusalem" });
-              const timeStr = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" });
-              const isExpanded = expandedLog === log.id;
-
-              return (
-                <div key={log.id} className="rounded-2xl glass-card  overflow-hidden">
-                  <button className="w-full text-right p-4" onClick={() => setExpandedLog(isExpanded ? null : log.id)}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-[#282a2b] flex items-center justify-center text-2xl overflow-hidden">
-                          {log.photo_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={log.photo_url} alt="ארוחה" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
-                          ) : "🍽️"}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-white">{log.client_name}</p>
-                          <p className="text-xs text-[#8e9379]">{dateStr} • {timeStr}</p>
-                        </div>
-                      </div>
-                      <div className="text-start">
-                        <p className="font-bold text-[#c3f400]">{log.total_calories}</p>
-                        <p className="text-xs text-[#8e9379]">קלוריות</p>
-                      </div>
-                    </div>
-
-                    {isExpanded && log.items.length > 0 && (
-                      <div className="mt-3 border-t pt-3 space-y-1">
-                        {log.items.map((item, i) => (
-                          <div key={i} className="flex justify-between text-sm">
-                            <span className="text-[#c4c9ac]">{item.name} ({item.estimated_weight_g}g)</span>
-                            <span className="text-[#8e9379]">{item.calories} קל׳</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          <CoachMealsPanel
+            clients={clients}
+            meals={foodLogs}
+            loading={foodLoading}
+            error={foodError}
+            onRetry={() => void loadFoodLogs()}
+          />
         )}
 
         {tab === "quotes" && (
@@ -779,6 +786,15 @@ export default function CoachPage() {
                   </button>
                 ))}
               </div>
+              <select
+                value={pushUserId}
+                onChange={(event) => setPushUserId(event.target.value)}
+                className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white"
+                aria-label="קהל לשליחת ההודעה"
+              >
+                <option value="">כל המתאמנים</option>
+                {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+              </select>
               <input
                 type="text"
                 value={pushTitle || ""}
@@ -795,11 +811,11 @@ export default function CoachPage() {
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => { try { sendPush(); } catch(e) { console.log(e); } }}
+                  onClick={() => void sendPush()}
                   disabled={sendingPush || !(pushTitle?.trim()) || !(pushBody?.trim())}
                   className="flex-1 rounded-lg bg-[#c3f400] py-3 font-semibold text-[#161e00] hover:bg-[#d4ff26] disabled:opacity-50"
                 >
-                  {sendingPush ? "שולח..." : "שלח לכולם"}
+                  {sendingPush ? "שולח..." : pushUserId ? "שלח למתאמן" : "שלח לכולם"}
                 </button>
                 <button
                   onClick={testPush}

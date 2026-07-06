@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -251,6 +251,10 @@ async function runInit() {
     CREATE INDEX IF NOT EXISTS idx_audit_log_event ON audit_log(event);
     CREATE INDEX IF NOT EXISTS idx_tzameret_foods_name ON tzameret_foods(name_he);
     CREATE INDEX IF NOT EXISTS idx_tzameret_portions_food ON tzameret_portions(food_code);
+    CREATE INDEX IF NOT EXISTS idx_users_coach_role ON users(coach_id, role);
+    CREATE INDEX IF NOT EXISTS idx_ai_meal_logs_user_logged ON ai_meal_logs(user_id, logged_at);
+    CREATE INDEX IF NOT EXISTS idx_meals_user_logged ON meals(user_id, logged_at);
+    CREATE INDEX IF NOT EXISTS idx_meal_items_meal ON meal_items(meal_id);
   `);
 
   // Migration: add username column if it doesn't exist

@@ -76,17 +76,28 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+  if (user.role !== "client") return NextResponse.json({ error: "רק מתאמנים יכולים לרשום ארוחות" }, { status: 403 });
 
   await initDb();
 
   try {
     const body = await req.json();
-    const items = Array.isArray(body.items) ? body.items : [];
-    const total = Math.round(Number(body.total_calories) || 0);
+    const rawItems = Array.isArray(body.items) ? body.items : [];
 
-    if (items.length === 0) {
+    if (rawItems.length === 0 || rawItems.length > 30) {
       return NextResponse.json({ error: "אין פריטים לשמירה" }, { status: 400 });
     }
+
+    const items: Array<Record<string, unknown> & { name: string; calories: number; estimated_weight_g: number }> = rawItems.map((item: Record<string, unknown>) => ({
+      ...item,
+      name: String(item.name || "").trim().slice(0, 120),
+      calories: Math.round(Number(item.calories) || 0),
+      estimated_weight_g: Math.round(Number(item.estimated_weight_g) || 0),
+    }));
+    if (items.some((item: { name: string; calories: number; estimated_weight_g: number }) => !item.name || item.calories < 0 || item.calories > 10000 || item.estimated_weight_g < 0 || item.estimated_weight_g > 10000)) {
+      return NextResponse.json({ error: "אחד מפריטי הארוחה אינו תקין" }, { status: 400 });
+    }
+    const total = items.reduce((sum: number, item: { calories: number }) => sum + item.calories, 0);
 
     const id = uuid();
     await db.execute({

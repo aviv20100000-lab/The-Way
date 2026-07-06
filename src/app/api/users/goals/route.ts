@@ -51,11 +51,11 @@ export async function POST(req: NextRequest) {
     sql: `INSERT INTO goals (user_id, target_weight_kg, daily_calories, daily_protein_g, daily_water_ml, daily_steps, weigh_in_frequency_weeks)
           VALUES (?,?,?,?,?,?,?)
           ON CONFLICT(user_id) DO UPDATE SET
-            target_weight_kg=COALESCE(excluded.target_weight_kg, goals.target_weight_kg),
-            daily_calories=COALESCE(excluded.daily_calories, goals.daily_calories),
-            daily_protein_g=COALESCE(excluded.daily_protein_g, goals.daily_protein_g),
-            daily_water_ml=CASE WHEN ? THEN COALESCE(?, goals.daily_water_ml) ELSE goals.daily_water_ml END,
-            daily_steps=COALESCE(excluded.daily_steps, goals.daily_steps),
+            target_weight_kg=CASE WHEN ? THEN excluded.target_weight_kg ELSE goals.target_weight_kg END,
+            daily_calories=CASE WHEN ? THEN excluded.daily_calories ELSE goals.daily_calories END,
+            daily_protein_g=CASE WHEN ? THEN excluded.daily_protein_g ELSE goals.daily_protein_g END,
+            daily_water_ml=CASE WHEN ? THEN excluded.daily_water_ml ELSE goals.daily_water_ml END,
+            daily_steps=CASE WHEN ? THEN excluded.daily_steps ELSE goals.daily_steps END,
             weigh_in_frequency_weeks=CASE WHEN ? THEN excluded.weigh_in_frequency_weeks ELSE goals.weigh_in_frequency_weeks END,
             updated_at=datetime('now')`,
     args: [
@@ -66,8 +66,11 @@ export async function POST(req: NextRequest) {
       body.daily_water_ml ?? 2000,
       body.daily_steps ?? null,
       body.weigh_in_frequency_weeks ?? null,
+      Object.prototype.hasOwnProperty.call(body, "target_weight_kg") ? 1 : 0,
+      Object.prototype.hasOwnProperty.call(body, "daily_calories") ? 1 : 0,
+      Object.prototype.hasOwnProperty.call(body, "daily_protein_g") ? 1 : 0,
       Object.prototype.hasOwnProperty.call(body, "daily_water_ml") ? 1 : 0,
-      body.daily_water_ml ?? null,
+      Object.prototype.hasOwnProperty.call(body, "daily_steps") ? 1 : 0,
       Object.prototype.hasOwnProperty.call(body, "weigh_in_frequency_weeks") ? 1 : 0,
     ],
   });

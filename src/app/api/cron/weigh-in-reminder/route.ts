@@ -54,7 +54,7 @@ async function handle(req: NextRequest) {
 
   const payload = JSON.stringify({
     title: "⚖️ זמן להישקל",
-    body: "בוקר יום ראשון — עדכנו את המשקל שלכם ב-The Way",
+    body: "מיד אחרי שקמת, לפני ששתית מים — ככה מקבלים את המספר הכי מדויק 💧🚽",
     icon: "/icon-192.png",
   });
 

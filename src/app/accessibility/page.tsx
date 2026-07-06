@@ -56,6 +56,8 @@ export default function AccessibilityStatementPage() {
           <p>תאריך ביקורת הנגישות האחרונה: {AUDIT_DATE}</p>
           <p>תאריך עדכון הצהרה זו: {STATEMENT_UPDATED}</p>
         </section>
+
+        <p className="mt-10 text-[11px] text-[#5a5f52]">© 2026 THE WAY. כל הזכויות שמורות.</p>
       </main>
     </div>
   );

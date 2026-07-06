@@ -415,10 +415,11 @@ export default function LoginPage() {
         </p>
       </main>
 
-      <footer className="relative z-10 pb-6 text-center">
-        <a href="/accessibility" className="text-xs text-[#8e9379] hover:text-[#c3f400] hover:underline">
+      <footer className="relative z-10 space-y-1.5 pb-6 text-center">
+        <a href="/accessibility" className="block text-xs text-[#8e9379] hover:text-[#c3f400] hover:underline">
           הצהרת נגישות
         </a>
+        <p className="text-[11px] text-[#5a5f52]">© 2026 THE WAY. כל הזכויות שמורות.</p>
       </footer>
     </div>
   );

@@ -103,7 +103,7 @@ export default function ClientPage() {
   const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, daysSinceSignup, totalSteps, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
   const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
-  const { leaderboard, uploadingSteps, stepsSuccess, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
+  const { leaderboard, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
   const handleSaveWeight = async () => {
     if (await saveWeight()) setSuccessMessage("המשקל נשמר");
@@ -905,7 +905,7 @@ export default function ClientPage() {
                     </div>
                     <svg className="w-3.5 h-3.5 text-[#444] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
                   </summary>
-                  <div className="pt-3"><PhotoUpload onFile={uploadStepsScreenshot} isLoading={uploadingSteps} error={undefined} /></div>
+                  <div className="pt-3"><PhotoUpload onFile={uploadStepsScreenshot} isLoading={uploadingSteps} error={stepsError} /></div>
                 </details>
               )}
             </motion.div>

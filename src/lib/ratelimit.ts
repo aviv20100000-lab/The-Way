@@ -15,7 +15,7 @@ const LIMITS = {
   admin: { requests: 10, windowMs: 60 * 1000 }, // 10 requests per minute
   assistant: { requests: 30, windowMs: DAY_MS }, // 30 bot messages per day
   mealScan: { requests: 3, windowMs: DAY_MS }, // 3 AI meal photo scans per day
-  stepsScan: { requests: 1, windowMs: DAY_MS }, // 1 AI steps screenshot per day
+  stepsScan: { requests: 2, windowMs: DAY_MS }, // 2 AI steps screenshots per day
   lowBalanceAlert: { requests: 1, windowMs: 6 * 60 * 60 * 1000 }, // 1 Telegram alert per 6 hours
 };
 

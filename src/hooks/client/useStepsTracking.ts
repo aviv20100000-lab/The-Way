@@ -13,6 +13,7 @@ export function useStepsTracking() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
+  const [stepsError, setStepsError] = useState("");
   const [lbView, setLbView] = useState<"today" | "week">("week");
   const [todaySteps, setTodaySteps] = useState(0);
   const [lbLoaded, setLbLoaded] = useState(false);
@@ -37,6 +38,7 @@ export function useStepsTracking() {
     async (file: File) => {
       setUploadingSteps(true);
       setStepsSuccess("");
+      setStepsError("");
       try {
         const jpeg = await compressImageToJpeg(file);
         const fd = new FormData();
@@ -50,9 +52,12 @@ export function useStepsTracking() {
           setTodaySteps(data.steps);
           setStepsSuccess(`זוהו ${data.steps.toLocaleString()} צעדים!`);
           await loadLeaderboard();
+        } else {
+          setStepsError(data.error || "שגיאה בעדכון הצעדים");
         }
       } catch (e) {
         console.error("Error uploading steps:", e);
+        setStepsError("שגיאה בעדכון הצעדים");
       } finally {
         setUploadingSteps(false);
       }
@@ -64,6 +69,7 @@ export function useStepsTracking() {
     leaderboard,
     uploadingSteps,
     stepsSuccess,
+    stepsError,
     lbView,
     todaySteps,
     lbLoaded,

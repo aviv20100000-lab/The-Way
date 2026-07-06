@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const rateLimit = await checkPersistentRateLimit(`steps-analyze:${user.id}`, "stepsScan");
   if (!rateLimit.allowed) {
     return NextResponse.json(
-      { error: `הגעת למגבלת סריקת צעדים אחת ליום. נסה שוב בעוד ${formatResetIn(rateLimit.resetIn)} 🙏` },
+      { error: `הגעת למגבלת 2 סריקות צעדים ליום. נסה שוב בעוד ${formatResetIn(rateLimit.resetIn)} 🙏` },
       { status: 429 }
     );
   }

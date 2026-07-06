@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AnimatedScore } from "@/components/AnimatedScore";
-import { generateMilestoneShareImage } from "@/lib/milestoneShareImage";
+import { generateMilestoneShareImage, milestoneBlobToDataUrl } from "@/lib/milestoneShareImage";
 
 export interface MilestoneCelebrationData {
   id: string;
@@ -15,11 +15,13 @@ export interface MilestoneCelebrationData {
 interface MilestoneCelebrationProps {
   milestone: MilestoneCelebrationData | null;
   onDismiss: () => void;
+  firstName?: string;
 }
 
-export default function MilestoneCelebration({ milestone, onDismiss }: MilestoneCelebrationProps) {
+export default function MilestoneCelebration({ milestone, onDismiss, firstName }: MilestoneCelebrationProps) {
   const prefersReducedMotion = useReducedMotion();
   const [shareImage, setShareImage] = useState<{ milestoneId: string; blob: Blob } | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ milestoneId: string; url: string } | null>(null);
   const [isPreparingShareImage, setIsPreparingShareImage] = useState(false);
   const confettiParticles = useMemo(
     () => Array.from({ length: prefersReducedMotion || !milestone ? 0 : 12 }, (_, index) => ({
@@ -41,8 +43,9 @@ export default function MilestoneCelebration({ milestone, onDismiss }: Milestone
     if (!milestone) return;
 
     let cancelled = false;
+    setShareImage(null);
     setIsPreparingShareImage(true);
-    generateMilestoneShareImage(milestone)
+    generateMilestoneShareImage(milestone, { firstName })
       .then((blob) => {
         if (!cancelled) setShareImage({ milestoneId: milestone.id, blob });
       })
@@ -56,7 +59,26 @@ export default function MilestoneCelebration({ milestone, onDismiss }: Milestone
     return () => {
       cancelled = true;
     };
-  }, [milestone]);
+  }, [firstName, milestone]);
+
+  useEffect(() => {
+    if (!shareImage) {
+      setPreviewImage(null);
+      return;
+    }
+
+    let cancelled = false;
+    milestoneBlobToDataUrl(shareImage.blob)
+      .then((url) => {
+        if (!cancelled) setPreviewImage({ milestoneId: shareImage.milestoneId, url });
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewImage(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shareImage]);
 
   const handleShare = async () => {
     if (!milestone || shareImage?.milestoneId !== milestone.id) return;
@@ -90,7 +112,7 @@ export default function MilestoneCelebration({ milestone, onDismiss }: Milestone
           key={milestone.id}
           role="dialog"
           aria-modal="true"
-          aria-label="חגיגת אבן דרך"
+          aria-label="חגיגת התקדמות"
           onClick={onDismiss}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -126,7 +148,7 @@ export default function MilestoneCelebration({ milestone, onDismiss }: Milestone
             onClick={(event) => event.stopPropagation()}
             className="glass-card relative w-full max-w-sm rounded-2xl border border-[#2e3030] px-6 py-8 text-center shadow-2xl"
           >
-            <p className="text-sm font-semibold text-[#c3f400]">אבן דרך חדשה</p>
+            <p className="text-sm font-bold tracking-[0.28em] text-[#c3f400]" dir="ltr">THE WAY</p>
             <div className="mt-4 flex items-baseline justify-center gap-2 text-white">
               <AnimatedScore
                 value={milestone.value}
@@ -136,6 +158,22 @@ export default function MilestoneCelebration({ milestone, onDismiss }: Milestone
               <span className="text-lg font-semibold text-[#c4c9ac]">{milestone.suffix}</span>
             </div>
             <p className="mt-5 text-base font-semibold text-white">{milestone.message}</p>
+            <div className="mt-6 flex h-[230px] items-center justify-center">
+              {previewImage?.milestoneId === milestone.id ? (
+                // Canvas previews are generated locally and cannot be optimized by next/image.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewImage.url}
+                  alt="תצוגה מקדימה של כרטיס ההתקדמות"
+                  className="h-[230px] w-auto rounded-xl border border-[#2e3030] object-cover shadow-[0_18px_45px_rgba(0,0,0,0.35)]"
+                />
+              ) : (
+                <div
+                  aria-label="מכין תצוגה מקדימה"
+                  className="h-[230px] aspect-[9/16] animate-pulse rounded-xl border border-[#2e3030] bg-white/[0.06]"
+                />
+              )}
+            </div>
             <div className="mt-7 flex gap-3" dir="rtl">
               <button
                 type="button"

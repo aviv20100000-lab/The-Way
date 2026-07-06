@@ -140,7 +140,7 @@ export default function ClientPage() {
         id: `streak-${streak}`,
         value: streak,
         suffix: "ימים",
-        message: `${streak} ימים של התמדה — כל הכבוד!`,
+        message: `${streak} ימים ברצף`,
       });
     }
 
@@ -151,7 +151,7 @@ export default function ClientPage() {
             id: `weight-${kilograms}`,
             value: kilograms,
             suffix: "ק״ג",
-            message: `ירדת ${kilograms} ק״ג — הישג נהדר!`,
+            message: `${kilograms} ק״ג פחות`,
           });
         }
       });
@@ -1078,6 +1078,7 @@ export default function ClientPage() {
       <SuccessToast message={successMessage} onDismiss={() => setSuccessMessage(null)} />
       <MilestoneCelebration
         milestone={milestoneQueue[0] ?? null}
+        firstName={user.name.trim().split(/\s+/)[0] || undefined}
         onDismiss={() => setMilestoneQueue((current) => current.slice(1))}
       />
       <ConnectSetup

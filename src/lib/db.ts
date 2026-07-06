@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 5;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -240,6 +240,18 @@ async function runInit() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS coach_activity_state (
+      coach_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      last_seen_at TEXT NOT NULL DEFAULT '1970-01-01 00:00:00'
+    );
+
+    CREATE TABLE IF NOT EXISTS coach_activity_reads (
+      coach_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      activity_id TEXT NOT NULL,
+      read_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (coach_id, activity_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON chat_messages(sender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_receiver ON chat_messages(receiver_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sent_at ON chat_messages(sent_at);
@@ -255,6 +267,11 @@ async function runInit() {
     CREATE INDEX IF NOT EXISTS idx_ai_meal_logs_user_logged ON ai_meal_logs(user_id, logged_at);
     CREATE INDEX IF NOT EXISTS idx_meals_user_logged ON meals(user_id, logged_at);
     CREATE INDEX IF NOT EXISTS idx_meal_items_meal ON meal_items(meal_id);
+    CREATE INDEX IF NOT EXISTS idx_coach_activity_state_seen ON coach_activity_state(last_seen_at);
+    CREATE INDEX IF NOT EXISTS idx_coach_activity_reads_coach ON coach_activity_reads(coach_id);
+    CREATE INDEX IF NOT EXISTS idx_weight_logs_user_logged ON weight_logs(user_id, logged_at);
+    CREATE INDEX IF NOT EXISTS idx_steps_logs_user_logged ON steps_logs(user_id, logged_at);
+    CREATE INDEX IF NOT EXISTS idx_water_logs_user_logged ON water_logs(user_id, logged_at);
   `);
 
   // Migration: add username column if it doesn't exist

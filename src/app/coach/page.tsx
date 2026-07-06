@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type TouchEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import MealHistory from "@/components/MealHistory";
 import CoachDailySummary from "@/components/coach/CoachDailySummary";
+import CoachActivityNotifications from "@/components/coach/CoachActivityNotifications";
+import CoachInsightsPanel from "@/components/coach/CoachInsightsPanel";
 import CoachMealsPanel, { type CoachMealLog } from "@/components/coach/CoachMealsPanel";
 import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
 import SuccessToast from "@/components/SuccessToast";
@@ -19,19 +21,12 @@ const ClientGoalsWizard = dynamic(() => import("@/components/coach/ClientGoalsWi
   loading: () => <div className="skeleton h-80 rounded-3xl" />,
 });
 
-type CoachTab = "clients" | "food" | "quotes" | "leaderboard";
+type CoachTab = "clients" | "food" | "quotes" | "insights";
 
 interface Quote {
   id: string;
   text: string;
   author: string | null;
-}
-
-interface LeaderboardEntry {
-  id: string;
-  name: string;
-  today: number;
-  week: number;
 }
 
 interface Goals {
@@ -61,6 +56,7 @@ export default function CoachPage() {
 
   // Clients
   const [clients, setClients] = useState<CoachClient[]>([]);
+  const [clientGroupFilter, setClientGroupFilter] = useState<"all" | "in" | "out">("all");
   const [showAddClient, setShowAddClient] = useState(false);
   const [newClient, setNewClient] = useState({ name: "", email: "", password: "" });
   const [addError, setAddError] = useState("");
@@ -90,10 +86,6 @@ export default function CoachPage() {
   const [foodLoading, setFoodLoading] = useState(false);
   const [foodError, setFoodError] = useState("");
 
-  // Leaderboard
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [lbView, setLbView] = useState<"today" | "week">("week");
-
   // Push notifications
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
@@ -102,9 +94,6 @@ export default function CoachPage() {
   const [pushResult, setPushResult] = useState("");
   const [testingPush, setTestingPush] = useState(false);
 
-  // Notifications for the coach himself
-  const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
-  const [isPwa, setIsPwa] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
@@ -167,53 +156,18 @@ export default function CoachPage() {
     }
   }, []);
 
-  const loadLeaderboard = useCallback(async () => {
-    try {
-      const res = await fetch("/api/health/steps?type=leaderboard");
-      const data = await res.json();
-      setLeaderboard(data || []);
-    } catch (e) {
-      console.error("Error loading leaderboard:", e);
-      setLeaderboard([]);
-    }
-  }, []);
-
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => r.json())
       .then((d) => { if (d.name) setCoachName(d.name); })
       .catch(() => {});
     loadClients();
-    setIsPwa(window.matchMedia("(display-mode: standalone)").matches);
-    if ("Notification" in window) {
-      const perm = Notification.permission as string;
-      setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
-    }
   }, [loadClients]);
-
-  async function enableNotifications() {
-    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
-    const permission = await Notification.requestPermission();
-    setNotifStatus(permission as "granted" | "denied");
-    if (permission !== "granted") return;
-
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    });
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: await withCsrf({ "Content-Type": "application/json" }),
-      body: JSON.stringify(sub),
-    });
-  }
 
   useEffect(() => {
     if (tab === "quotes") loadQuotes();
     if (tab === "food") loadFoodLogs();
-    if (tab === "leaderboard") loadLeaderboard();
-  }, [tab, loadQuotes, loadFoodLogs, loadLeaderboard]);
+  }, [tab, loadQuotes, loadFoodLogs]);
 
   // Prefetch the chat route bundle for instant navigation
   useEffect(() => {
@@ -426,7 +380,6 @@ export default function CoachPage() {
         if (tab === "clients") await loadClients();
         if (tab === "food") await loadFoodLogs();
         if (tab === "quotes") await loadQuotes();
-        if (tab === "leaderboard") await loadLeaderboard();
       } finally {
         setRefreshing(false);
       }
@@ -434,6 +387,15 @@ export default function CoachPage() {
     touchStartY.current = 0;
     setPullDistance(0);
   };
+
+  const visibleClients = useMemo(() => {
+    return [...clients]
+      .sort((a, b) => Number(b.in_default_group) - Number(a.in_default_group) || a.name.localeCompare(b.name, "he"))
+      .filter((client) => clientGroupFilter === "all" || (clientGroupFilter === "in" ? client.in_default_group : !client.in_default_group));
+  }, [clients, clientGroupFilter]);
+
+  const clientsInGroup = clients.filter((client) => client.in_default_group).length;
+  const clientsOutOfGroup = clients.length - clientsInGroup;
 
   return (
     <div
@@ -472,6 +434,12 @@ export default function CoachPage() {
             <p className="text-xs text-[#c4c9ac] font-normal">היי {coachName} 👋</p>
           </div>
           <div className="flex items-center gap-2">
+            <CoachActivityNotifications
+              onOpenClient={(clientId) => {
+                const client = clients.find((item) => item.id === clientId);
+                if (client) void openClientData(client);
+              }}
+            />
             <button onClick={logout} className="min-h-11 rounded-lg bg-[#282a2b] px-4 py-2 text-xs font-semibold text-white hover:bg-[#333535] transition-all duration-200">יציאה</button>
           </div>
         </div>
@@ -491,47 +459,6 @@ export default function CoachPage() {
           <div className="space-y-6">
             <CoachDailySummary />
 
-            {/* Notifications for the coach */}
-            {notifStatus === "granted" ? null : !isPwa ? (
-              <div className="glass-card rounded-2xl border border-[#444933] p-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#c3f400]/25 bg-[#c3f400]/10 text-[#c3f400]">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 18h.01M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-white">קבלת התראות באייפון</p>
-                    <p className="mt-0.5 text-[11px] text-[#8e9379]">שלושה צעדים קצרים להפעלת ההתראות</p>
-                  </div>
-                </div>
-
-                <div className="mt-3 space-y-1.5 text-xs leading-5 text-[#c4c9ac]">
-                  <div className="flex items-start gap-2.5 rounded-lg bg-[#1e2020] px-3 py-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[10px] font-bold text-[#c3f400]">1</span>
-                    <p>פתח ב־Safari ולחץ על <strong className="font-semibold text-white">סמל השיתוף</strong> בתחתית המסך.</p>
-                  </div>
-                  <div className="flex items-start gap-2.5 rounded-lg bg-[#1e2020] px-3 py-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[10px] font-bold text-[#c3f400]">2</span>
-                    <p>בחר באפשרות <strong className="font-semibold text-white">„הוספה למסך הבית”</strong>.</p>
-                  </div>
-                  <div className="flex items-start gap-2.5 rounded-lg bg-[#1e2020] px-3 py-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[10px] font-bold text-[#c3f400]">3</span>
-                    <p>פתח את <strong className="font-semibold text-white">THE WAY</strong> ממסך הבית ולחץ על „הפעל התראות”.</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <button onClick={enableNotifications}
-                className="flex w-full items-center gap-4 rounded-2xl bg-[#c3f400] p-6 text-right text-[#161e00] hover:bg-[#d4ff26] transition-all duration-300">
-                <span className="text-4xl">🔔</span>
-                <div>
-                  <p className="font-semibold text-base">הפעל התראות</p>
-                  <p className="text-xs text-[#161e00]/70 font-normal">כדי לקבל עדכונים מהאפליקציה</p>
-                </div>
-              </button>
-            )}
-
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">המתאמנים שלך</h2>
               <button onClick={() => setShowAddClient(true)}
@@ -539,6 +466,27 @@ export default function CoachPage() {
                 + הוסף
               </button>
             </div>
+
+            <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[#444933] bg-[#171919] p-1.5" aria-label="סינון מתאמנים לפי קבוצה">
+              {([
+                { id: "all", label: "כולם", count: clients.length },
+                { id: "in", label: "בקבוצה", count: clientsInGroup },
+                { id: "out", label: "מחוץ לקבוצה", count: clientsOutOfGroup },
+              ] as const).map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setClientGroupFilter(filter.id)}
+                  className={`rounded-xl px-2 py-2.5 text-xs font-bold transition-colors ${clientGroupFilter === filter.id ? "bg-[#c3f400] text-[#161e00]" : "text-[#c4c9ac] hover:bg-[#282a2b]"}`}
+                >
+                  {filter.label} <span className="opacity-70">({filter.count})</span>
+                </button>
+              ))}
+            </div>
+
+            {clientGroupFilter === "all" && clientsOutOfGroup > 0 && (
+              <p className="-mt-3 text-xs text-[#8e9379]">המתאמנים שבקבוצה מוצגים ראשונים; מי שמחוץ לקבוצה מופיע בתחתית.</p>
+            )}
 
             {showAddClient && (
               <AddClientForm
@@ -554,7 +502,11 @@ export default function CoachPage() {
               <p className="text-center text-[#8e9379] py-10 text-sm">עוד אין מתאמנים — לחץ על הוסף כדי להתחיל</p>
             )}
 
-            {clients.map((client) => (
+            {visibleClients.length === 0 && clients.length > 0 && (
+              <p className="py-8 text-center text-sm text-[#8e9379]">אין מתאמנים בסינון הזה</p>
+            )}
+
+            {visibleClients.map((client) => (
               <ClientListCard
                 key={client.id}
                 client={client}
@@ -869,45 +821,17 @@ export default function CoachPage() {
           </div>
         )}
 
-        {tab === "leaderboard" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white">דירוג צעדים 🏆</h2>
-
-            <div className="rounded-2xl glass-card  overflow-hidden">
-              <div className="flex border-b">
-                <button onClick={() => setLbView("today")}
-                  className={`flex-1 py-3 text-sm font-medium ${lbView === "today" ? "border-b-2 border-[#c3f400] text-[#c3f400]" : "text-[#8e9379]"}`}>
-                  יומי
-                </button>
-                <button onClick={() => setLbView("week")}
-                  className={`flex-1 py-3 text-sm font-medium ${lbView === "week" ? "border-b-2 border-[#c3f400] text-[#c3f400]" : "text-[#8e9379]"}`}>
-                  שבועי
-                </button>
-              </div>
-              <div className="p-4 space-y-2">
-                {leaderboard.length === 0 && <p className="text-center text-[#8e9379] py-4">עוד אף אחד לא העלה צעדים היום</p>}
-                {leaderboard
-                  .slice()
-                  .sort((a, b) => (lbView === "today" ? b.today - a.today : b.week - a.week))
-                  .map((entry, i) => (
-                    <div key={entry.id} className="flex items-center gap-3 rounded-lg bg-[#1e2020] px-4 py-3">
-                      <span className="text-lg font-bold w-6 text-center">
-                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
-                      </span>
-                      <span className="flex-1 font-medium text-white">{entry.name}</span>
-                      <span className="font-bold text-[#c3f400]">
-                        {(lbView === "today" ? entry.today : entry.week).toLocaleString()} 👟
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            <button onClick={loadLeaderboard}
-              className="w-full rounded-lg border border-[#444933] py-3 text-sm text-[#8e9379] hover:bg-[#1e2020]">
-              🔄 עדכן
-            </button>
-          </div>
+        {tab === "insights" && (
+          <CoachInsightsPanel
+            onViewClient={(clientId) => {
+              const client = clients.find((item) => item.id === clientId);
+              if (client) void openClientData(client);
+            }}
+            onEditGoals={(clientId) => {
+              const client = clients.find((item) => item.id === clientId);
+              if (client) void openClientGoals(client);
+            }}
+          />
         )}
         </motion.div>
         </AnimatePresence>
@@ -940,7 +864,7 @@ export default function CoachPage() {
             { id: "clients", icon: "👥", label: "מתאמנים" },
             { id: "food", icon: "🍽️", label: "אוכל" },
             { id: "quotes", icon: "💬", label: "ציטוטים" },
-            { id: "leaderboard", icon: "🏆", label: "תחרות" },
+            { id: "insights", icon: "📈", label: "תובנות" },
           ] as { id: CoachTab; icon: string; label: string }[]).map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex flex-1 flex-col items-center py-3 text-xs transition ${tab === t.id ? "text-[#c3f400]" : "text-[#8e9379]"}`}>

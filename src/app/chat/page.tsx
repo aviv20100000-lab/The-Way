@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { getCsrfToken } from "@/lib/csrf-client";
 import PageSkeleton from "@/components/PageSkeleton";
+import { partitionChatContacts } from "@/lib/chat-contacts";
 
 const ChatGroupCreator = dynamic(() => import("@/components/coach/ChatGroupCreator"), {
   loading: () => <div className="skeleton h-80 rounded-3xl" />,
@@ -270,6 +271,12 @@ export default function ChatPage() {
       if (!nextInDefaultGroup && modeRef.current.type === "group") {
         const coachContact = nextContacts.find((c) => c.role === "coach");
         if (coachContact) setMode({ type: "private", contact: coachContact });
+      }
+      const requestedContactId = new URLSearchParams(window.location.search).get("with");
+      const requestedContact = requestedContactId ? nextContacts.find((contact) => contact.id === requestedContactId) : null;
+      if (requestedContact) {
+        setMode({ type: "private", contact: requestedContact });
+        setShowChat(true);
       }
       lastMsgId.current = msgs[msgs.length - 1]?.id ?? null;
       msgs.forEach((message) => initialMessageIds.current.add(message.id));
@@ -605,7 +612,39 @@ export default function ChatPage() {
     );
   });
 
-  const dmRows = contacts.map((c) => {
+  const { coach: coachContact, regular: regularContacts } = partitionChatContacts(user.role, contacts);
+
+  const coachRow = coachContact && (() => {
+    const isActive = mode.type === "private" && mode.contact.id === coachContact.id && showChat;
+    const unread = unreadMap[coachContact.id] ?? 0;
+    return (
+      <button
+        type="button"
+        data-testid="featured-coach-chat"
+        onClick={() => selectChat({ type: "private", contact: coachContact })}
+        className={`mx-3 my-2 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border p-4 text-right shadow-lg transition-all ${isActive ? "border-[#c3f400] bg-[#c3f400]/15" : "border-[#c3f400]/40 bg-gradient-to-l from-[#c3f400]/12 to-[#1e2020] hover:border-[#c3f400]/70"}`}
+      >
+        <div className="relative shrink-0">
+          <Avatar username={coachContact.username} name={coachContact.name} avatarUrl={coachContact.avatar_url} size={52} />
+          <span className="absolute -bottom-1 -end-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#171919] bg-[#c3f400] text-xs">⭐</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-0.5 flex items-center gap-2">
+            <span className={`truncate text-base font-bold ${isActive ? "text-[#c3f400]" : "text-white"}`}>{coachContact.name}</span>
+            <span className="shrink-0 rounded-full bg-[#c3f400] px-2 py-0.5 text-[9px] font-black text-[#161e00]">המאמן שלך</span>
+          </div>
+          <p className="text-xs font-medium text-[#c4c9ac]">שיחה ישירה ואישית עם המאמן</p>
+        </div>
+        {unread > 0 ? (
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#c3f400] px-1.5 text-xs font-black text-[#161e00]">{unread}</span>
+        ) : (
+          <span className="text-lg text-[#c3f400]">‹</span>
+        )}
+      </button>
+    );
+  })();
+
+  const dmRows = regularContacts.map((c) => {
     const isActive = mode.type === "private" && mode.contact.id === c.id && showChat;
     return (
       <button
@@ -616,7 +655,7 @@ export default function ChatPage() {
         <Avatar username={c.username} name={c.name} avatarUrl={c.avatar_url} />
         <div className="flex-1 min-w-0">
           <div className={`font-semibold text-sm truncate ${isActive ? "text-[#c3f400]" : "text-white"}`}>{c.name}</div>
-          <div className="text-xs text-[#8e9379] truncate">{c.role === "coach" ? "קואץ׳" : "לקוח"}</div>
+          <div className="text-xs text-[#8e9379] truncate">{c.role === "coach" ? "מאמן" : "מתאמן"}</div>
         </div>
         {(unreadMap[c.id] ?? 0) > 0 && <span className="bg-[#c3f400] text-[#161e00] text-xs font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">{unreadMap[c.id]}</span>}
       </button>
@@ -884,11 +923,13 @@ export default function ChatPage() {
       <div className="flex flex-1 overflow-hidden md:hidden">
         {!showChat ? (
           <div className="flex-1 overflow-y-auto" style={{ background: "#0c0f0f" }}>
+            {coachRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">המאמן שלך</div>}
+            {coachRow}
             <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">שיחות</div>
             {groupRow}
             {groupsHeaderRow}
             {namedGroupRows}
-            {contacts.length > 0 && <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">פרטי</div>}
+            {regularContacts.length > 0 && <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">פרטי</div>}
             {dmRows}
           </div>
         ) : (
@@ -899,11 +940,13 @@ export default function ChatPage() {
       {/* DESKTOP */}
       <div className="hidden md:flex flex-1 overflow-hidden">
         <aside className="w-64 border-l border-[#1e2020] flex flex-col shrink-0 overflow-y-auto" style={{ background: "#0d1010" }}>
+          {coachRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">המאמן שלך</div>}
+          {coachRow}
           <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">שיחות</div>
           {groupRow}
           {groupsHeaderRow}
           {namedGroupRows}
-          {contacts.length > 0 && <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">פרטי</div>}
+          {regularContacts.length > 0 && <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">פרטי</div>}
           {dmRows}
         </aside>
         <main className="flex-1 flex flex-col overflow-hidden">{chatWindow}</main>

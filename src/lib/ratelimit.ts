@@ -7,15 +7,23 @@ interface RateLimitEntry {
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const LIMITS = {
   auth: { requests: 5, windowMs: 15 * 60 * 1000 }, // 5 requests per 15 minutes
   api: { requests: 100, windowMs: 60 * 1000 }, // 100 requests per minute
   admin: { requests: 10, windowMs: 60 * 1000 }, // 10 requests per minute
+  assistant: { requests: 30, windowMs: DAY_MS }, // 30 bot messages per day
+  mealScan: { requests: 3, windowMs: DAY_MS }, // 3 AI meal photo scans per day
+  stepsScan: { requests: 1, windowMs: DAY_MS }, // 1 AI steps screenshot per day
+  lowBalanceAlert: { requests: 1, windowMs: 6 * 60 * 60 * 1000 }, // 1 Telegram alert per 6 hours
 };
+
+export type RateLimitType = keyof typeof LIMITS;
 
 export function checkRateLimit(
   key: string,
-  type: "auth" | "api" | "admin" = "api"
+  type: RateLimitType = "api"
 ): { allowed: boolean; remaining: number; resetIn: number } {
   const limit = LIMITS[type];
   const now = Date.now();
@@ -53,13 +61,21 @@ export function checkRateLimit(
   };
 }
 
+// Friendly Hebrew "try again in..." phrase, scaling the unit to the wait length.
+export function formatResetIn(resetInMs: number): string {
+  const minutes = Math.max(1, Math.ceil(resetInMs / 60000));
+  if (minutes < 60) return `${minutes} דקות`;
+  const hours = Math.ceil(minutes / 60);
+  return hours === 1 ? "שעה" : `${hours} שעות`;
+}
+
 export function clearRateLimitEntry(key: string) {
   rateLimitStore.delete(key);
 }
 
 export async function checkPersistentRateLimit(
   key: string,
-  type: "auth" | "api" | "admin" = "api"
+  type: RateLimitType = "api"
 ): Promise<{ allowed: boolean; remaining: number; resetIn: number }> {
   const limit = LIMITS[type];
   const now = Date.now();

@@ -139,6 +139,21 @@ async function findCurated(term: string): Promise<TzameretFood | null> {
   };
 }
 
+// Broader lookup for the shopping assistant: returns up to 8 candidates so the
+// model can compare products, instead of the single best match the scanner needs.
+export async function searchTzameret(nameHe: string): Promise<TzameretFood[]> {
+  await initDb();
+  const cookingStates = cookingStatesOf(nameHe);
+  const normalized = normalizeTzameretName(nameHe);
+  if (normalized.length < 2) return [];
+
+  for (const mode of ["exact", "prefix", "contains"] as const) {
+    const results = await findBy(mode, normalized, cookingStates);
+    if (results.length > 0) return results;
+  }
+  return [];
+}
+
 export async function matchTzameret(nameHe: string): Promise<TzameretFood | null> {
   await initDb();
   const cookingStates = cookingStatesOf(nameHe);

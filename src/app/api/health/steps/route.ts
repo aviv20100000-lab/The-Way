@@ -3,15 +3,18 @@ import { getSessionUser } from "@/lib/auth";
 import { extractStepsFromScreenshotBase64 } from "@/lib/anthropic";
 import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
-import { checkPersistentRateLimit } from "@/lib/ratelimit";
+import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
 import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
-  const rateLimit = await checkPersistentRateLimit(`steps-analyze:${user.id}`, "api");
+  const rateLimit = await checkPersistentRateLimit(`steps-analyze:${user.id}`, "stepsScan");
   if (!rateLimit.allowed) {
-    return NextResponse.json({ error: "יותר מדי ניסיונות. נסה שוב בעוד דקה." }, { status: 429 });
+    return NextResponse.json(
+      { error: `הגעת למגבלת סריקת צעדים אחת ליום. נסה שוב בעוד ${formatResetIn(rateLimit.resetIn)} 🙏` },
+      { status: 429 }
+    );
   }
 
   await initDb();

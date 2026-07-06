@@ -5,7 +5,7 @@ import {
   isAnthropicImageMediaType,
   MAX_ANTHROPIC_IMAGE_BYTES,
 } from "@/lib/anthropic";
-import { checkPersistentRateLimit } from "@/lib/ratelimit";
+import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
 import { matchTzameret } from "@/lib/tzameret";
 
 export async function POST(req: NextRequest) {
@@ -13,9 +13,12 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
-    const rateLimit = await checkPersistentRateLimit(`foods-analyze:${user.id}`, "api");
+    const rateLimit = await checkPersistentRateLimit(`foods-analyze:${user.id}`, "mealScan");
     if (!rateLimit.allowed) {
-      return NextResponse.json({ error: "יותר מדי ניסיונות. נסה שוב בעוד דקה." }, { status: 429 });
+      return NextResponse.json(
+        { error: `הגעת למגבלת 3 סריקות ארוחה ליום. נסה שוב בעוד ${formatResetIn(rateLimit.resetIn)} 🙏` },
+        { status: 429 }
+      );
     }
 
     const formData = await req.formData();

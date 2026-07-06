@@ -1,8 +1,22 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { alertIfLowBalance } from "./low-balance-alert";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+// Thin wrapper so a "credit balance too low" failure pages Aviv on Telegram
+// once, instead of silently breaking meal scanning with a generic error.
+async function createMessage(
+  params: Anthropic.MessageCreateParamsNonStreaming
+): Promise<Anthropic.Message> {
+  try {
+    return await client.messages.create(params);
+  } catch (error) {
+    await alertIfLowBalance(error);
+    throw error;
+  }
+}
 
 export const MAX_ANTHROPIC_IMAGE_BYTES = 7.5 * 1024 * 1024; // 7.5MB
 
@@ -79,7 +93,7 @@ function parseFoodResponse(text: string) {
 }
 
 export async function analyzeFoodPhoto(imageUrl: string) {
-  const response = await client.messages.create({
+  const response = await createMessage({
     model: "claude-sonnet-4-6",
     max_tokens: 1024,
     messages: [
@@ -132,7 +146,7 @@ export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) 
     ? mediaType
     : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
-  const response = await client.messages.create({
+  const response = await createMessage({
     model: "claude-sonnet-4-6",
     max_tokens: 2048,
     temperature: 0.2,
@@ -171,7 +185,7 @@ Return ONLY a raw JSON object (no markdown, no explanation) with realistic estim
 {"calories": <number>, "protein": <number>, "carbs": <number>, "fat": <number>}
 All values are for the full ${grams}g portion. Round to whole numbers. Never return zeros for a real food — give your best estimate.`;
 
-  const response = await client.messages.create({
+  const response = await createMessage({
     model: "claude-sonnet-4-6",
     max_tokens: 256,
     temperature: 0,
@@ -206,7 +220,7 @@ function parseStepsResponse(text: string): number {
 }
 
 export async function extractStepsFromScreenshot(imageUrl: string): Promise<number> {
-  const response = await client.messages.create({
+  const response = await createMessage({
     model: "claude-sonnet-4-6",
     max_tokens: 256,
     messages: [{
@@ -227,7 +241,7 @@ export async function extractStepsFromScreenshotBase64(base64: string, mediaType
     ? mediaType
     : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
-  const response = await client.messages.create({
+  const response = await createMessage({
     model: "claude-sonnet-4-6",
     max_tokens: 256,
     messages: [{

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { AnimatedScore } from "@/components/AnimatedScore";
 import { generateMilestoneShareImage, milestoneBlobToDataUrl } from "@/lib/milestoneShareImage";
 
 export interface MilestoneCelebrationData {
@@ -86,7 +85,7 @@ export default function MilestoneCelebration({ milestone, onDismiss, firstName }
     const file = new File([shareImage.blob], "the-way-milestone.png", { type: "image/png" });
     if (navigator.canShare?.({ files: [file] }) && typeof navigator.share === "function") {
       try {
-        await navigator.share({ files: [file], text: `${milestone.message} 💪 The Way` });
+        await navigator.share({ files: [file] });
       } catch (error: unknown) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           console.error("Milestone sharing failed", error);
@@ -148,17 +147,7 @@ export default function MilestoneCelebration({ milestone, onDismiss, firstName }
             onClick={(event) => event.stopPropagation()}
             className="glass-card relative w-full max-w-sm rounded-2xl border border-[#2e3030] px-6 py-8 text-center shadow-2xl"
           >
-            <p className="text-sm font-bold tracking-[0.28em] text-[#c3f400]" dir="ltr">THE WAY</p>
-            <div className="mt-4 flex items-baseline justify-center gap-2 text-white">
-              <AnimatedScore
-                value={milestone.value}
-                animate={!prefersReducedMotion}
-                className="text-6xl font-black leading-none"
-              />
-              <span className="text-lg font-semibold text-[#c4c9ac]">{milestone.suffix}</span>
-            </div>
-            <p className="mt-5 text-base font-semibold text-white">{milestone.message}</p>
-            <div className="mt-6 flex h-[230px] items-center justify-center">
+            <div className="flex h-[230px] items-center justify-center">
               {previewImage?.milestoneId === milestone.id ? (
                 // Canvas previews are generated locally and cannot be optimized by next/image.
                 // eslint-disable-next-line @next/next/no-img-element

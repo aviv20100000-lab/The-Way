@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -46,6 +46,84 @@ export async function initDb() {
     throw e;
   });
   return initPromise;
+}
+
+async function hasColumn(table: "menu_meals" | "menu_items", column: string) {
+  const result = await db.execute({ sql: `PRAGMA table_info(${table})`, args: [] });
+  return result.rows.some((row) => String(row.name) === column);
+}
+
+async function addColumnIfMissing(table: "menu_meals" | "menu_items", column: string, definition: string) {
+  if (await hasColumn(table, column)) return;
+  await db.execute({ sql: `ALTER TABLE ${table} ADD COLUMN ${definition}`, args: [] });
+}
+
+async function migrateMenuOptionsSchema() {
+  await addColumnIfMissing("menu_meals", "label", "label TEXT");
+  await addColumnIfMissing("menu_meals", "selected_option_id", "selected_option_id TEXT");
+  await addColumnIfMissing("menu_meals", "selected_at", "selected_at TEXT");
+  await addColumnIfMissing("menu_items", "menu_meal_option_id", "menu_meal_option_id TEXT");
+
+  if (await hasColumn("menu_meals", "meal_type")) {
+    await db.execute({
+      sql: `UPDATE menu_meals
+            SET label = CASE meal_type
+              WHEN 'breakfast' THEN 'breakfast'
+              WHEN 'lunch' THEN 'lunch'
+              WHEN 'dinner' THEN 'dinner'
+              WHEN 'snack' THEN 'snack'
+              ELSE COALESCE(NULLIF(meal_type, ''), 'meal')
+            END
+            WHERE label IS NULL OR label = ''`,
+      args: [],
+    });
+  }
+
+  await db.execute({
+    sql: `UPDATE menu_meals
+          SET label = 'meal'
+          WHERE label IS NULL OR label = ''`,
+    args: [],
+  });
+
+  await db.execute({
+    sql: `CREATE TABLE IF NOT EXISTS menu_meal_options (
+      id TEXT PRIMARY KEY,
+      menu_meal_id TEXT NOT NULL REFERENCES menu_meals(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT 'אפשרות א׳',
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )`,
+    args: [],
+  });
+
+  await db.execute({
+    sql: `INSERT INTO menu_meal_options (id, menu_meal_id, label, sort_order)
+          SELECT 'default-' || m.id, m.id, 'אפשרות א׳', 0
+          FROM menu_meals m
+          WHERE NOT EXISTS (
+            SELECT 1 FROM menu_meal_options mo WHERE mo.menu_meal_id = m.id
+          )`,
+    args: [],
+  });
+
+  if (await hasColumn("menu_items", "menu_meal_id")) {
+    await db.execute({
+      sql: `UPDATE menu_items
+            SET menu_meal_option_id = (
+              SELECT mo.id
+              FROM menu_meal_options mo
+              WHERE mo.menu_meal_id = menu_items.menu_meal_id
+              ORDER BY mo.sort_order, mo.id
+              LIMIT 1
+            )
+            WHERE menu_meal_option_id IS NULL OR menu_meal_option_id = ''`,
+      args: [],
+    });
+  }
+
+  await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_meals_day ON menu_meals(menu_day_id, sort_order)", args: [] });
+  await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_meal_options_meal ON menu_meal_options(menu_meal_id, sort_order)", args: [] });
+  await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_items_option ON menu_items(menu_meal_option_id)", args: [] });
 }
 
 async function runInit() {
@@ -231,6 +309,14 @@ async function runInit() {
       reset_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS assistant_messages (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS audit_log (
       id TEXT PRIMARY KEY,
       event TEXT NOT NULL,
@@ -318,6 +404,7 @@ async function runInit() {
     CREATE INDEX IF NOT EXISTS idx_chat_group_members_user ON chat_group_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_message_reactions_message ON chat_message_reactions(message_id);
     CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_assistant_messages_user_created ON assistant_messages(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
     CREATE INDEX IF NOT EXISTS idx_audit_log_event ON audit_log(event);
     CREATE INDEX IF NOT EXISTS idx_tzameret_foods_name ON tzameret_foods(name_he);
@@ -417,55 +504,7 @@ async function runInit() {
     args: [],
   });
 
-  // Menu schema migration (2026-07-07): meal_type went from a fixed 4-value enum to a
-  // freeform label, and items now belong to an "option" (alternative) under a meal
-  // instead of directly to the meal. `menu_meals`/`menu_items` were empty in production
-  // at the time of this migration, so a drop+recreate is safe — this block is guarded
-  // by the presence of the new `label` column so it only ever runs once.
-  try {
-    await db.execute("SELECT label FROM menu_meals LIMIT 1");
-  } catch {
-    await db.execute({ sql: "DROP TABLE IF EXISTS menu_items", args: [] });
-    await db.execute({ sql: "DROP TABLE IF EXISTS menu_meal_options", args: [] });
-    await db.execute({ sql: "DROP TABLE IF EXISTS menu_meals", args: [] });
-    await db.execute({
-      sql: `CREATE TABLE menu_meals (
-        id TEXT PRIMARY KEY,
-        menu_day_id TEXT NOT NULL REFERENCES menu_days(id) ON DELETE CASCADE,
-        label TEXT NOT NULL DEFAULT 'ארוחה',
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        selected_option_id TEXT,
-        selected_at TEXT
-      )`,
-      args: [],
-    });
-    await db.execute({
-      sql: `CREATE TABLE menu_meal_options (
-        id TEXT PRIMARY KEY,
-        menu_meal_id TEXT NOT NULL REFERENCES menu_meals(id) ON DELETE CASCADE,
-        label TEXT NOT NULL DEFAULT 'אפשרות א׳',
-        sort_order INTEGER NOT NULL DEFAULT 0
-      )`,
-      args: [],
-    });
-    await db.execute({
-      sql: `CREATE TABLE menu_items (
-        id TEXT PRIMARY KEY,
-        menu_meal_option_id TEXT NOT NULL REFERENCES menu_meal_options(id) ON DELETE CASCADE,
-        tzameret_code TEXT REFERENCES tzameret_foods(code),
-        name_he TEXT NOT NULL,
-        grams REAL NOT NULL DEFAULT 100,
-        calories REAL NOT NULL DEFAULT 0,
-        protein REAL NOT NULL DEFAULT 0,
-        carbs REAL NOT NULL DEFAULT 0,
-        fat REAL NOT NULL DEFAULT 0
-      )`,
-      args: [],
-    });
-    await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_meals_day ON menu_meals(menu_day_id, sort_order)", args: [] });
-    await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_meal_options_meal ON menu_meal_options(menu_meal_id, sort_order)", args: [] });
-    await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_items_option ON menu_items(menu_meal_option_id)", args: [] });
-  }
+  await migrateMenuOptionsSchema();
 
   // Derive a plain username from the email address for existing users.
   await db.execute({

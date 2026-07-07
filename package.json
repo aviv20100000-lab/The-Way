@@ -13,7 +13,7 @@
     "db:seed": "tsx src/lib/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.105.0",
+    "@anthropic-ai/sdk": "^0.110.0",
     "@libsql/client": "^0.17.4",
     "@vercel/blob": "^2.5.0",
     "bcryptjs": "^3.0.2",

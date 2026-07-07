@@ -6,6 +6,16 @@ import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
 import { importMenuText } from "@/lib/menu-import";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    return await handleImport(req, params);
+  } catch (error) {
+    console.error("[coach/menus/:id/import POST]", error);
+    const message = error instanceof Error ? error.message : "ייבוא התפריט נכשל";
+    return NextResponse.json({ error: `ייבוא התפריט נכשל: ${message}` }, { status: 500 });
+  }
+}
+
+async function handleImport(req: NextRequest, paramsPromise: Promise<{ id: string }>) {
   const coach = await getSessionUser();
   if (!coach || coach.role !== "coach") return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
 
@@ -18,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   await initDb();
-  const { id: planId } = await params;
+  const { id: planId } = await paramsPromise;
   const body = await req.json().catch(() => ({}));
   const text = typeof body?.text === "string" ? body.text.trim().slice(0, 6000) : "";
   if (!text) return NextResponse.json({ error: "חסר טקסט לייבוא" }, { status: 400 });
@@ -93,7 +103,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await db.batch(statements, "write");
   } catch (error) {
     console.error("[coach/menus/:id/import POST batch]", error);
-    return NextResponse.json({ error: "שמירת התפריט המיובא נכשלה" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "שמירת התפריט המיובא נכשלה";
+    return NextResponse.json({ error: `שמירת התפריט המיובא נכשלה: ${message}` }, { status: 500 });
   }
 
   return NextResponse.json({ addedMeals, notFound: parsed.notFound });

@@ -1,11 +1,15 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { createMessage, SYSTEM_PROMPT as COACH_METHODOLOGY } from "./assistant";
-import { matchTzameret, type TzameretFood } from "./tzameret";
+import { searchTzameret, type TzameretFood } from "./tzameret";
 
 // Same principle as menu-suggest.ts: the AI never reports nutrition numbers itself.
 // It only reads the coach's messy free-text menu and extracts structure (days, meals,
 // alternative options, food names, grams) — every nutrition value in the result comes
-// from a real matchTzameret() lookup, scaled deterministically here.
+// from a real searchTzameret() lookup, scaled deterministically here. searchTzameret
+// (unlike matchTzameret) only ever returns rows from tzameret_foods, so the resulting
+// tzameret_code always satisfies menu_items' foreign key — matchTzameret can also
+// return Aviv's hand-curated foods table entries, whose ids aren't in tzameret_foods
+// and would violate that constraint and roll back the whole import.
 const MENU_IMPORT_SYSTEM_PROMPT = `${COACH_METHODOLOGY}
 
 ---
@@ -164,7 +168,8 @@ export async function importMenuText(text: string): Promise<{ dayGroups: Resolve
       for (const option of meal.options) {
         const items: ResolvedItem[] = [];
         for (const item of option.items) {
-          const match = await matchTzameret(item.query);
+          const matches = await searchTzameret(item.query);
+          const match = matches[0];
           if (!match) {
             notFound.push(item.query);
             continue;

@@ -14,9 +14,14 @@ ANTHROPIC_API_KEY=sk-ant-...
 TURSO_URL=libsql://...
 TURSO_TOKEN=...
 
+# Auth
+JWT_SECRET=<random 32+ chars>       # required — session signing, throws on startup if missing
+CRON_SECRET=<random string>         # required — Bearer token that protects /api/cron/* routes
+
 # Push Notifications
-VAPID_PUBLIC_KEY=...
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
+VAPID_EMAIL=mailto:...
 
 # Optional
 NEXT_PUBLIC_API_URL=https://the-way-app-two.vercel.app
@@ -33,19 +38,17 @@ Opens at [http://localhost:3000](http://localhost:3000)
 
 ## Production Deploy
 
-### Via Vercel CLI (Recommended)
+**Normal flow: commit → `git push` to `main`.** GitHub is connected to the Vercel
+project `the-way-app`; every push to `main` triggers an automatic production
+deployment to `https://the-way-app-two.vercel.app`. Do not run a manual `vercel deploy`
+unless you have a specific reason to bypass the normal flow — `git push` alone is
+enough, and a stray manual deploy can create a confusing second deployment.
 
 ```bash
-# Ensure you have the token
-export VERCEL_TOKEN="..."
-
-# Deploy
-vercel deploy --prod --yes --token "$VERCEL_TOKEN"
+git add <files>
+git commit -m "..."
+git push
 ```
-
-### Via GitHub (Broken)
-
-⚠️ **GitHub → Vercel webhook is currently broken.** Use the CLI method above.
 
 ## Database Migrations
 
@@ -74,11 +77,9 @@ Creates optimized build in `.next/`
 1. **Check health:** `https://the-way-app-two.vercel.app/api/auth/me`
    - Should redirect to `/login` (expected)
 
-2. **Test login:** Use demo credentials
-   ```
-   Coach: coach@theway.com / 123456
-   Client: dani@theway.com / 123456
-   ```
+2. **Test login:** demo credentials only exist in local dev (`npm run db:seed`,
+   guarded by `NODE_ENV !== "production"` in `src/lib/seed.ts`). They are never
+   created in production — log in with a real coach/client account there.
 
 3. **Test features:**
    - [ ] Upload meal photo (Food tab)
@@ -157,7 +158,6 @@ vercel env ls
 
 ## Future Improvements
 
-- [ ] Set up GitHub → Vercel auto-deploy (fix webhook)
 - [ ] Add staging environment
 - [ ] Implement database backups
 - [ ] Set up error tracking (Sentry)

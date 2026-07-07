@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { withCsrf } from "@/lib/csrf-client";
 
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 type FoodSuggestion = { id: string; name_he: string; calories: number };
+type AiSuggestion = { id: string; name_he: string; grams: number; calories: number; protein: number; carbs: number; fat: number };
 type MenuItem = { id: string; name_he: string; grams: number; calories: number };
-type MenuMeal = { id: string; meal_type: MealType; items: MenuItem[] };
+type MenuOption = { id: string; menu_meal_id: string; label: string; sort_order: number; items: MenuItem[] };
+type MenuMeal = { id: string; menu_day_id: string; label: string; sort_order: number; selected_option_id: string | null; options: MenuOption[] };
 type MenuDay = { id: string; day_index: number; meals: MenuMeal[] };
 type MenuPlan = {
   id: string;
@@ -19,12 +20,6 @@ type MenuPlan = {
 type MenuSummary = Pick<MenuPlan, "id" | "title" | "daily_calories_target" | "daily_protein_target" | "status">;
 
 const DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-const MEALS: Array<{ type: MealType; label: string }> = [
-  { type: "breakfast", label: "בוקר" },
-  { type: "lunch", label: "צהריים" },
-  { type: "dinner", label: "ערב" },
-  { type: "snack", label: "נשנוש" },
-];
 
 export default function MenuBuilder({ client, onClose }: { client: { id: string; name: string }; onClose: () => void }) {
   const [plans, setPlans] = useState<MenuSummary[]>([]);
@@ -38,10 +33,15 @@ export default function MenuBuilder({ client, onClose }: { client: { id: string;
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [copyTarget, setCopyTarget] = useState(1);
-  const [queries, setQueries] = useState<Partial<Record<MealType, string>>>({});
-  const [grams, setGrams] = useState<Partial<Record<MealType, string>>>({});
-  const [suggestions, setSuggestions] = useState<Partial<Record<MealType, FoodSuggestion[]>>>({});
-  const [selectedFoods, setSelectedFoods] = useState<Partial<Record<MealType, FoodSuggestion>>>({});
+  const [newMealLabel, setNewMealLabel] = useState("");
+  const [queries, setQueries] = useState<Record<string, string>>({});
+  const [grams, setGrams] = useState<Record<string, string>>({});
+  const [suggestions, setSuggestions] = useState<Record<string, FoodSuggestion[]>>({});
+  const [selectedFoods, setSelectedFoods] = useState<Record<string, FoodSuggestion | undefined>>({});
+  const [aiQueries, setAiQueries] = useState<Record<string, string>>({});
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, AiSuggestion[]>>({});
+  const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+  const [aiError, setAiError] = useState<Record<string, string>>({});
 
   const loadPlan = useCallback(async (planId: string) => {
     const response = await fetch(`/api/coach/menus/${planId}`, { cache: "no-store" });
@@ -74,7 +74,7 @@ export default function MenuBuilder({ client, onClose }: { client: { id: string;
 
   const day = plan?.days.find((entry) => Number(entry.day_index) === activeDay);
   const dayCalories = useMemo(
-    () => day?.meals.flatMap((meal) => meal.items).reduce((sum, item) => sum + Number(item.calories || 0), 0) ?? 0,
+    () => day?.meals.flatMap((meal) => meal.options.flatMap((option) => option.items)).reduce((sum, item) => sum + Number(item.calories || 0), 0) ?? 0,
     [day]
   );
   const numericTarget = Number(caloriesTarget || 0);
@@ -134,40 +134,170 @@ export default function MenuBuilder({ client, onClose }: { client: { id: string;
     }
   };
 
-  const findFoods = async (mealType: MealType, query: string) => {
-    setQueries((current) => ({ ...current, [mealType]: query }));
-    setSelectedFoods((current) => ({ ...current, [mealType]: undefined }));
+  const addMeal = async () => {
+    if (!plan || !day || !newMealLabel.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/coach/menus/${plan.id}/meals`, {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ dayId: day.id, label: newMealLabel.trim() }),
+      });
+      if (!response.ok) throw new Error("הוספת הארוחה נכשלה");
+      await loadPlan(plan.id);
+      setNewMealLabel("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "הוספת הארוחה נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const renameMeal = async (mealId: string, label: string) => {
+    if (!plan || !label.trim()) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/coach/menus/meals/${mealId}`, {
+        method: "PATCH",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ label: label.trim() }),
+      });
+      if (!response.ok) throw new Error("שינוי שם הארוחה נכשל");
+      await loadPlan(plan.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "שינוי שם הארוחה נכשל");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteMeal = async (mealId: string) => {
+    if (!plan) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/coach/menus/meals/${mealId}`, { method: "DELETE", headers: await withCsrf() });
+      if (!response.ok) throw new Error("מחיקת הארוחה נכשלה");
+      await loadPlan(plan.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "מחיקת הארוחה נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addOption = async (mealId: string) => {
+    if (!plan) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/coach/menus/meals/${mealId}/options`, {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error("הוספת האפשרות נכשלה");
+      await loadPlan(plan.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "הוספת האפשרות נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteOption = async (optionId: string) => {
+    if (!plan) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/coach/menus/options/${optionId}`, { method: "DELETE", headers: await withCsrf() });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "מחיקת האפשרות נכשלה");
+      }
+      await loadPlan(plan.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "מחיקת האפשרות נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const findFoods = async (optionId: string, query: string) => {
+    setQueries((current) => ({ ...current, [optionId]: query }));
+    setSelectedFoods((current) => ({ ...current, [optionId]: undefined }));
     if (query.trim().length < 2) {
-      setSuggestions((current) => ({ ...current, [mealType]: [] }));
+      setSuggestions((current) => ({ ...current, [optionId]: [] }));
       return;
     }
     try {
       const response = await fetch(`/api/foods?q=${encodeURIComponent(query)}`);
       const data: FoodSuggestion[] = await response.json();
-      setSuggestions((current) => ({ ...current, [mealType]: Array.isArray(data) ? data.filter((food) => food.id.startsWith("tz-")).slice(0, 6) : [] }));
+      setSuggestions((current) => ({ ...current, [optionId]: Array.isArray(data) ? data.filter((food) => food.id.startsWith("tz-")).slice(0, 6) : [] }));
     } catch {
-      setSuggestions((current) => ({ ...current, [mealType]: [] }));
+      setSuggestions((current) => ({ ...current, [optionId]: [] }));
     }
   };
 
-  const addFood = async (mealType: MealType) => {
-    const food = selectedFoods[mealType];
-    const amount = Number(grams[mealType] || 100);
-    if (!plan || !day || !food || !Number.isFinite(amount) || amount <= 0) return;
+  const addFood = async (optionId: string) => {
+    const food = selectedFoods[optionId];
+    const amount = Number(grams[optionId] || 100);
+    if (!plan || !food || !Number.isFinite(amount) || amount <= 0) return;
     setSaving(true);
     setError("");
     try {
-      const response = await fetch(`/api/coach/menus/${plan.id}/items`, {
+      const response = await fetch(`/api/coach/menus/options/${optionId}/items`, {
         method: "POST",
         headers: await withCsrf({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ dayId: day.id, mealType, tzameretCode: food.id, grams: amount }),
+        body: JSON.stringify({ tzameretCode: food.id, grams: amount }),
       });
       if (!response.ok) throw new Error("הוספת המזון נכשלה");
       await loadPlan(plan.id);
-      setQueries((current) => ({ ...current, [mealType]: "" }));
-      setGrams((current) => ({ ...current, [mealType]: "" }));
-      setSuggestions((current) => ({ ...current, [mealType]: [] }));
-      setSelectedFoods((current) => ({ ...current, [mealType]: undefined }));
+      setQueries((current) => ({ ...current, [optionId]: "" }));
+      setGrams((current) => ({ ...current, [optionId]: "" }));
+      setSuggestions((current) => ({ ...current, [optionId]: [] }));
+      setSelectedFoods((current) => ({ ...current, [optionId]: undefined }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "הוספת המזון נכשלה");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const askAi = async (optionId: string) => {
+    const request = aiQueries[optionId]?.trim();
+    if (!request) return;
+    setAiLoading((current) => ({ ...current, [optionId]: true }));
+    setAiError((current) => ({ ...current, [optionId]: "" }));
+    try {
+      const response = await fetch("/api/coach/menus/suggest", {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          request,
+          dailyCalories: caloriesTarget ? Number(caloriesTarget) : null,
+          dailyProtein: proteinTarget ? Number(proteinTarget) : null,
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "לא הצלחנו לקבל הצעות");
+      setAiSuggestions((current) => ({ ...current, [optionId]: body.suggestions ?? [] }));
+    } catch (cause) {
+      setAiError((current) => ({ ...current, [optionId]: cause instanceof Error ? cause.message : "לא הצלחנו לקבל הצעות" }));
+    } finally {
+      setAiLoading((current) => ({ ...current, [optionId]: false }));
+    }
+  };
+
+  const addAiSuggestion = async (optionId: string, suggestion: AiSuggestion) => {
+    if (!plan) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/coach/menus/options/${optionId}/items`, {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ tzameretCode: suggestion.id, grams: suggestion.grams }),
+      });
+      if (!response.ok) throw new Error("הוספת המזון נכשלה");
+      await loadPlan(plan.id);
+      setAiSuggestions((current) => ({ ...current, [optionId]: (current[optionId] ?? []).filter((entry) => entry.id !== suggestion.id) }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "הוספת המזון נכשלה");
     } finally {
@@ -244,27 +374,82 @@ export default function MenuBuilder({ client, onClose }: { client: { id: string;
                 </div>
 
                 <div className="rounded-2xl border border-[#444933] bg-[#171a15] p-4">
-                  <div className="mb-2 flex justify-between text-sm"><span className="font-semibold text-white">סה״כ ליום</span><span className="text-[#c3f400]">{Math.round(dayCalories)}{numericTarget > 0 ? ` / ${numericTarget}` : ""} קל׳</span></div>
+                  <div className="mb-2 flex justify-between text-sm"><span className="font-semibold text-white">סה״כ ליום (כל האפשרויות)</span><span className="text-[#c3f400]">{Math.round(dayCalories)}{numericTarget > 0 ? ` / ${numericTarget}` : ""} קל׳</span></div>
                   <div className="h-2 overflow-hidden rounded-full bg-[#282a2b]"><div className="h-full rounded-full bg-[#c3f400]" style={{ width: `${targetProgress}%` }} /></div>
                 </div>
 
-                {MEALS.map(({ type, label }) => {
-                  const meal = day?.meals.find((entry) => entry.meal_type === type);
-                  return (
-                    <div key={type} className="rounded-2xl border border-[#33372b] bg-[#171a15] p-4">
-                      <h3 className="mb-3 font-bold text-white">{label}</h3>
-                      <div className="mb-3 space-y-2">
-                        {meal?.items.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl bg-[#10130f] p-3"><div className="min-w-0 flex-1"><p className="truncate font-medium text-white">{item.name_he}</p><p className="text-xs text-[#8e9379]">{Math.round(Number(item.grams))} ג׳ · {Math.round(Number(item.calories))} קל׳</p></div><button type="button" disabled={saving} onClick={() => void removeItem(item.id)} aria-label={`הסר ${item.name_he}`} className="text-sm text-red-300">הסר</button></div>)}
-                        {!meal?.items.length && <p className="text-sm text-[#6e7564]">עוד לא נוספו מזונות</p>}
-                      </div>
-                      <div className="relative">
-                        <input value={queries[type] ?? ""} onChange={(event) => void findFoods(type, event.target.value)} placeholder="חפש מזון בצמרת" className="w-full rounded-xl border border-[#444933] bg-[#10130f] px-3 py-2 text-sm text-white" />
-                        {(suggestions[type]?.length ?? 0) > 0 && <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-[#444933] bg-[#1e2020] shadow-xl">{suggestions[type]?.map((food) => <button key={food.id} type="button" onMouseDown={() => { setSelectedFoods((current) => ({ ...current, [type]: food })); setQueries((current) => ({ ...current, [type]: food.name_he })); setSuggestions((current) => ({ ...current, [type]: [] })); }} className="flex w-full justify-between px-3 py-2 text-right text-sm text-white hover:bg-[#c3f400]/10"><span>{food.name_he}</span><span className="text-xs text-[#8e9379]">{food.calories} קל׳/100ג׳</span></button>)}</div>}
-                      </div>
-                      <div className="mt-2 flex gap-2"><input type="number" min="1" max="5000" value={grams[type] ?? ""} onChange={(event) => setGrams((current) => ({ ...current, [type]: event.target.value }))} placeholder="100 גרם" className="w-28 rounded-xl border border-[#444933] bg-[#10130f] px-3 py-2 text-sm text-white" /><button type="button" disabled={saving || !selectedFoods[type]} onClick={() => void addFood(type)} className="flex-1 rounded-xl border border-[#c3f400]/30 bg-[#c3f400]/10 py-2 text-sm font-bold text-[#c3f400] disabled:opacity-40">+ הוסף מזון</button></div>
+                {(day?.meals ?? []).map((meal) => (
+                  <div key={meal.id} className="rounded-2xl border border-[#33372b] bg-[#171a15] p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <input
+                        defaultValue={meal.label}
+                        onBlur={(event) => { if (event.target.value.trim() !== meal.label) void renameMeal(meal.id, event.target.value); }}
+                        className="flex-1 rounded-lg border border-transparent bg-transparent px-1 font-bold text-white hover:border-[#444933] focus:border-[#c3f400] focus:bg-[#10130f] focus:outline-none"
+                      />
+                      <button type="button" disabled={saving} onClick={() => void deleteMeal(meal.id)} className="text-sm text-red-300">מחק ארוחה</button>
                     </div>
-                  );
-                })}
+
+                    {meal.options.map((option) => (
+                      <div key={option.id} className="mb-3 rounded-xl border border-[#282b22] bg-[#10130f] p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-sm font-semibold text-[#c3f400]">{option.label}</span>
+                          {meal.options.length > 1 && (
+                            <button type="button" disabled={saving} onClick={() => void deleteOption(option.id)} className="text-xs text-red-300">הסר אפשרות</button>
+                          )}
+                        </div>
+                        <div className="mb-3 space-y-2">
+                          {option.items.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl bg-[#171a15] p-3"><div className="min-w-0 flex-1"><p className="truncate font-medium text-white">{item.name_he}</p><p className="text-xs text-[#8e9379]">{Math.round(Number(item.grams))} ג׳ · {Math.round(Number(item.calories))} קל׳</p></div><button type="button" disabled={saving} onClick={() => void removeItem(item.id)} aria-label={`הסר ${item.name_he}`} className="text-sm text-red-300">הסר</button></div>)}
+                          {!option.items.length && <p className="text-sm text-[#6e7564]">עוד לא נוספו מזונות</p>}
+                        </div>
+                        <div className="relative">
+                          <input value={queries[option.id] ?? ""} onChange={(event) => void findFoods(option.id, event.target.value)} placeholder="חפש מזון בצמרת" className="w-full rounded-xl border border-[#444933] bg-[#171a15] px-3 py-2 text-sm text-white" />
+                          {(suggestions[option.id]?.length ?? 0) > 0 && <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-[#444933] bg-[#1e2020] shadow-xl">{suggestions[option.id]?.map((food) => <button key={food.id} type="button" onMouseDown={() => { setSelectedFoods((current) => ({ ...current, [option.id]: food })); setQueries((current) => ({ ...current, [option.id]: food.name_he })); setSuggestions((current) => ({ ...current, [option.id]: [] })); }} className="flex w-full justify-between px-3 py-2 text-right text-sm text-white hover:bg-[#c3f400]/10"><span>{food.name_he}</span><span className="text-xs text-[#8e9379]">{food.calories} קל׳/100ג׳</span></button>)}</div>}
+                        </div>
+                        <div className="mt-2 flex gap-2"><input type="number" min="1" max="5000" value={grams[option.id] ?? ""} onChange={(event) => setGrams((current) => ({ ...current, [option.id]: event.target.value }))} placeholder="100 גרם" className="w-28 rounded-xl border border-[#444933] bg-[#171a15] px-3 py-2 text-sm text-white" /><button type="button" disabled={saving || !selectedFoods[option.id]} onClick={() => void addFood(option.id)} className="flex-1 rounded-xl border border-[#c3f400]/30 bg-[#c3f400]/10 py-2 text-sm font-bold text-[#c3f400] disabled:opacity-40">+ הוסף מזון</button></div>
+
+                        <div className="mt-3 rounded-xl border border-dashed border-[#33372b] p-3">
+                          <div className="flex gap-2">
+                            <input
+                              value={aiQueries[option.id] ?? ""}
+                              onChange={(event) => setAiQueries((current) => ({ ...current, [option.id]: event.target.value }))}
+                              onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void askAi(option.id); } }}
+                              placeholder="תאר מה אתה מחפש (למשל: חלבון גבוה מתחת ל-400 קלוריות)"
+                              className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#10130f] px-3 py-2 text-sm text-white"
+                            />
+                            <button
+                              type="button"
+                              disabled={aiLoading[option.id] || !aiQueries[option.id]?.trim()}
+                              onClick={() => void askAi(option.id)}
+                              className="shrink-0 rounded-xl border border-[#c3f400]/30 bg-[#c3f400]/10 px-4 py-2 text-sm font-bold text-[#c3f400] disabled:opacity-40"
+                            >
+                              {aiLoading[option.id] ? "חושב..." : "הצע לי מ-AI"}
+                            </button>
+                          </div>
+                          {aiError[option.id] && <p className="mt-2 text-xs text-red-300">{aiError[option.id]}</p>}
+                          {(aiSuggestions[option.id]?.length ?? 0) > 0 && (
+                            <div className="mt-2 space-y-2">
+                              {aiSuggestions[option.id]?.map((suggestion) => (
+                                <div key={suggestion.id} className="flex items-center gap-3 rounded-xl bg-[#171a15] p-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium text-white">{suggestion.name_he}</p>
+                                    <p className="text-xs text-[#8e9379]">{Math.round(suggestion.grams)} ג׳ · {Math.round(suggestion.calories)} קל׳ · {Math.round(suggestion.protein)} חלבון</p>
+                                  </div>
+                                  <button type="button" disabled={saving} onClick={() => void addAiSuggestion(option.id, suggestion)} className="shrink-0 text-sm font-bold text-[#c3f400]">+ הוסף</button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" disabled={saving} onClick={() => void addOption(meal.id)} className="w-full rounded-xl border border-dashed border-[#444933] py-2 text-sm text-[#8e9379]">+ הוסף אפשרות חלופית לארוחה זו</button>
+                  </div>
+                ))}
+
+                <div className="flex gap-2 rounded-2xl border border-dashed border-[#444933] p-3">
+                  <input value={newMealLabel} onChange={(event) => setNewMealLabel(event.target.value)} placeholder="שם ארוחה חדשה (למשל: ארוחת ביניים)" className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-sm text-white" />
+                  <button type="button" disabled={saving || !newMealLabel.trim()} onClick={() => void addMeal()} className="rounded-xl bg-[#c3f400]/10 border border-[#c3f400]/30 px-4 py-2 text-sm font-bold text-[#c3f400] disabled:opacity-40">+ הוסף ארוחה</button>
+                </div>
 
                 <div className="flex items-center gap-2 rounded-2xl border border-[#33372b] p-3"><select value={copyTarget} onChange={(event) => setCopyTarget(Number(event.target.value))} className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white">{DAYS.map((label, index) => index !== activeDay && <option key={label} value={index}>העתק ליום {label}</option>)}</select><button type="button" disabled={saving || copyTarget === activeDay} onClick={() => void duplicateDay()} className="rounded-xl border border-[#444933] px-4 py-2 font-semibold text-[#c4c9ac]">העתק יום</button></div>
                 {error && <p className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}

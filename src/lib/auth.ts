@@ -30,7 +30,7 @@ export async function verifyPassword(password: string, hash: string) {
 export async function createToken(user: User, version = 1) {
   return new SignJWT({ sub: user.id, role: user.role, name: user.name, ver: version })
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("7d")
+    .setExpirationTime("3650d") // effectively unbounded — stay logged in until explicit logout or password reset
     .sign(SECRET);
 }
 
@@ -49,7 +49,7 @@ export async function setSession(user: User) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24 * 3650, // matches token expiry above
     path: "/",
   });
 }

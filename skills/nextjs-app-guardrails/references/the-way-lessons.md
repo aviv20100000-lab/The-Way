@@ -16,14 +16,22 @@ Use this reference when the task touches the same classes of problems that appea
 - Prefer one shared API helper for auth, CSRF, and common error handling.
 
 ### Real examples from this app
-- Old and new route families both exist under `src/app/api/`: `quotes` and `motivation/quotes`, `steps` and `health/steps`, `meals` and `foods/meals`, `analyze-food` and `foods/analyze`.
-- `next.config.ts` currently suppresses build and lint failures, which hides migration damage instead of forcing cleanup.
+- Historical: old and new route families briefly coexisted (`quotes` vs `motivation/quotes`,
+  `steps` vs `health/steps`, `analyze-food` vs `foods/analyze`). Verified 2026-07-07: the
+  migration is complete — the old flat routes no longer exist, only the domain-folder
+  versions (`foods/`, `health/`, `users/`, `motivation/`) remain. `meals/quick` is a
+  distinct quick-add feature, not a leftover duplicate of `foods/meals`.
+- Historical: `next.config.ts` suppressed build and lint failures. Fixed as of 2026-07-07
+  (see section 4) — no longer suppressed.
 
 ## 2. Testing Lag
 
 ### What happened
 - The audit identified missing tests as a top release risk.
-- Some hook tests were added, but coverage still does not clearly protect the highest-risk flows such as auth, route migration, and full feature behavior.
+- Fixed as of 2026-07-07: `src/__tests__/security/` now covers the highest-risk flows
+  directly — route auth rejection (`route-auth.test.ts`), CSRF middleware
+  (`middleware-csrf.test.ts`), password-reset token replay/integration, image validation,
+  and audit logging. Hook and API tests cover the feature layer on top of that.
 
 ### What to do next time
 - Before a refactor, add at least one test or smoke checklist around the behavior being moved.
@@ -43,18 +51,29 @@ Use this reference when the task touches the same classes of problems that appea
 
 ### Real examples from this app
 - `src/middleware.ts` performs inline CSRF validation because middleware runs on Edge and cannot safely import the server-side CSRF module.
-- `src/lib/auth.ts` moved session lifetime from 365 days to 7 days.
-- `docs/SECURITY_FIXES.md` documents remaining manual work such as rotating production secrets.
+- `src/lib/auth.ts` session lifetime history: 365 days → cut to 7 days as a security
+  hardening step → deliberately reverted to an effectively unbounded (10-year) lifetime
+  on 2026-07-07 by product decision (users should stay logged in until they log out).
+  This is a real product/security tradeoff, not an oversight — the actual revocation
+  mechanism is `session_version` (bumped on password reset), which works regardless of
+  token expiry. Don't "fix" this back to a short expiry without checking with the user
+  first; it was requested explicitly.
+- Verified 2026-07-07: no `.env*` file has ever been committed across the app's full git history (206 commits, checked with `git log --all`, not just recent history) — so key rotation is precautionary hygiene, not a response to an actual leak.
 
 ## 4. Build Hygiene
 
 ### What happened
-- `next.config.ts` allows TypeScript and ESLint build failures to pass.
-- This speeds short-term progress but makes the real status of the app harder to trust.
+- Earlier versions of `next.config.ts` allowed TypeScript and ESLint build failures to pass
+  (`ignoreBuildErrors` / `ignoreDuringBuilds`). This speed short-term progress but made the
+  real status of the app harder to trust.
+- Fixed as of 2026-07-07: `next.config.ts` no longer sets either flag. `npx tsc --noEmit`
+  runs clean.
 
 ### What to do next time
 - Treat ignored build failures as a temporary exception with an owner and a removal step.
 - Before release work, remove the suppression or at least enumerate the exact unresolved errors.
+- Don't reintroduce these flags to silence a build error under deadline pressure — fix the
+  actual error instead.
 
 ## 5. Practical Preflight Checklist
 

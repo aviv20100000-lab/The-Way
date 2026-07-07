@@ -1,0 +1,27 @@
+name: security-audit
+
+# Runs `npm audit` on every push and PR. Report-only — it never fails the
+# build or blocks a deploy, it just prints findings to the Actions log so
+# they don't go unnoticed for months.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: npm audit (report only, never fails the job)
+        run: npm audit --omit=dev || true

@@ -272,33 +272,45 @@ async function runInit() {
       UNIQUE(menu_plan_id, day_index)
     );
 
+    -- A "meal" is a freeform, coach-defined slot within a day (e.g. "בוקר", or any
+    -- custom name) — not restricted to a fixed set, and a day can have any number of
+    -- them (coach can delete/add/rename freely).
     CREATE TABLE IF NOT EXISTS menu_meals (
       id TEXT PRIMARY KEY,
       menu_day_id TEXT NOT NULL REFERENCES menu_days(id) ON DELETE CASCADE,
-      meal_type TEXT NOT NULL CHECK(meal_type IN ('breakfast', 'lunch', 'dinner', 'snack')),
+      label TEXT NOT NULL DEFAULT 'ארוחה',
       sort_order INTEGER NOT NULL DEFAULT 0,
-      UNIQUE(menu_day_id, meal_type)
+      selected_option_id TEXT,
+      selected_at TEXT
+    );
+
+    -- A meal can have one or more alternative options (e.g. "אפשרות א׳" / "אפשרות ב׳").
+    -- The client picks exactly one option per meal as what they actually ate.
+    CREATE TABLE IF NOT EXISTS menu_meal_options (
+      id TEXT PRIMARY KEY,
+      menu_meal_id TEXT NOT NULL REFERENCES menu_meals(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT 'אפשרות א׳',
+      sort_order INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS menu_items (
       id TEXT PRIMARY KEY,
-      menu_meal_id TEXT NOT NULL REFERENCES menu_meals(id) ON DELETE CASCADE,
+      menu_meal_option_id TEXT NOT NULL REFERENCES menu_meal_options(id) ON DELETE CASCADE,
       tzameret_code TEXT REFERENCES tzameret_foods(code),
       name_he TEXT NOT NULL,
       grams REAL NOT NULL DEFAULT 100,
       calories REAL NOT NULL DEFAULT 0,
       protein REAL NOT NULL DEFAULT 0,
       carbs REAL NOT NULL DEFAULT 0,
-      fat REAL NOT NULL DEFAULT 0,
-      checked INTEGER NOT NULL DEFAULT 0,
-      checked_at TEXT
+      fat REAL NOT NULL DEFAULT 0
     );
 
     CREATE INDEX IF NOT EXISTS idx_menu_plans_coach_client ON menu_plans(coach_id, client_id, updated_at);
     CREATE INDEX IF NOT EXISTS idx_menu_plans_client_status ON menu_plans(client_id, status, updated_at);
     CREATE INDEX IF NOT EXISTS idx_menu_days_plan ON menu_days(menu_plan_id, day_index);
     CREATE INDEX IF NOT EXISTS idx_menu_meals_day ON menu_meals(menu_day_id, sort_order);
-    CREATE INDEX IF NOT EXISTS idx_menu_items_meal ON menu_items(menu_meal_id);
+    CREATE INDEX IF NOT EXISTS idx_menu_meal_options_meal ON menu_meal_options(menu_meal_id, sort_order);
+    CREATE INDEX IF NOT EXISTS idx_menu_items_option ON menu_items(menu_meal_option_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON chat_messages(sender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_receiver ON chat_messages(receiver_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sent_at ON chat_messages(sent_at);
@@ -404,6 +416,56 @@ async function runInit() {
     sql: "CREATE INDEX IF NOT EXISTS idx_chat_messages_group_id ON chat_messages(group_id)",
     args: [],
   });
+
+  // Menu schema migration (2026-07-07): meal_type went from a fixed 4-value enum to a
+  // freeform label, and items now belong to an "option" (alternative) under a meal
+  // instead of directly to the meal. `menu_meals`/`menu_items` were empty in production
+  // at the time of this migration, so a drop+recreate is safe — this block is guarded
+  // by the presence of the new `label` column so it only ever runs once.
+  try {
+    await db.execute("SELECT label FROM menu_meals LIMIT 1");
+  } catch {
+    await db.execute({ sql: "DROP TABLE IF EXISTS menu_items", args: [] });
+    await db.execute({ sql: "DROP TABLE IF EXISTS menu_meal_options", args: [] });
+    await db.execute({ sql: "DROP TABLE IF EXISTS menu_meals", args: [] });
+    await db.execute({
+      sql: `CREATE TABLE menu_meals (
+        id TEXT PRIMARY KEY,
+        menu_day_id TEXT NOT NULL REFERENCES menu_days(id) ON DELETE CASCADE,
+        label TEXT NOT NULL DEFAULT 'ארוחה',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        selected_option_id TEXT,
+        selected_at TEXT
+      )`,
+      args: [],
+    });
+    await db.execute({
+      sql: `CREATE TABLE menu_meal_options (
+        id TEXT PRIMARY KEY,
+        menu_meal_id TEXT NOT NULL REFERENCES menu_meals(id) ON DELETE CASCADE,
+        label TEXT NOT NULL DEFAULT 'אפשרות א׳',
+        sort_order INTEGER NOT NULL DEFAULT 0
+      )`,
+      args: [],
+    });
+    await db.execute({
+      sql: `CREATE TABLE menu_items (
+        id TEXT PRIMARY KEY,
+        menu_meal_option_id TEXT NOT NULL REFERENCES menu_meal_options(id) ON DELETE CASCADE,
+        tzameret_code TEXT REFERENCES tzameret_foods(code),
+        name_he TEXT NOT NULL,
+        grams REAL NOT NULL DEFAULT 100,
+        calories REAL NOT NULL DEFAULT 0,
+        protein REAL NOT NULL DEFAULT 0,
+        carbs REAL NOT NULL DEFAULT 0,
+        fat REAL NOT NULL DEFAULT 0
+      )`,
+      args: [],
+    });
+    await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_meals_day ON menu_meals(menu_day_id, sort_order)", args: [] });
+    await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_meal_options_meal ON menu_meal_options(menu_meal_id, sort_order)", args: [] });
+    await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_items_option ON menu_items(menu_meal_option_id)", args: [] });
+  }
 
   // Derive a plain username from the email address for existing users.
   await db.execute({

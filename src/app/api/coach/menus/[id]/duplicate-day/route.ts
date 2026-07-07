@@ -28,12 +28,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!sourceDay || !targetDay) return NextResponse.json({ error: "התפריט לא נמצא" }, { status: 404 });
 
   const meals = await db.execute({
-    sql: "SELECT id, meal_type, sort_order FROM menu_meals WHERE menu_day_id = ? ORDER BY sort_order",
+    sql: "SELECT id, label, sort_order FROM menu_meals WHERE menu_day_id = ? ORDER BY sort_order",
+    args: [sourceDay.id],
+  });
+  const options = await db.execute({
+    sql: `SELECT mo.* FROM menu_meal_options mo JOIN menu_meals mm ON mm.id = mo.menu_meal_id
+          WHERE mm.menu_day_id = ? ORDER BY mo.sort_order`,
     args: [sourceDay.id],
   });
   const items = await db.execute({
-    sql: `SELECT mi.* FROM menu_items mi JOIN menu_meals mm ON mm.id = mi.menu_meal_id
-          WHERE mm.menu_day_id = ? ORDER BY mm.sort_order, mi.rowid`,
+    sql: `SELECT mi.* FROM menu_items mi
+          JOIN menu_meal_options mo ON mo.id = mi.menu_meal_option_id
+          JOIN menu_meals mm ON mm.id = mo.menu_meal_id
+          WHERE mm.menu_day_id = ? ORDER BY mo.sort_order, mi.rowid`,
     args: [sourceDay.id],
   });
 
@@ -43,16 +50,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   for (const meal of meals.rows) {
     const newMealId = uuid();
     statements.push({
-      sql: "INSERT INTO menu_meals (id, menu_day_id, meal_type, sort_order) VALUES (?, ?, ?, ?)",
-      args: [newMealId, targetDay.id, meal.meal_type, meal.sort_order],
+      sql: "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)",
+      args: [newMealId, targetDay.id, meal.label, meal.sort_order],
     });
-    for (const item of items.rows.filter((entry) => entry.menu_meal_id === meal.id)) {
+    for (const option of options.rows.filter((entry) => entry.menu_meal_id === meal.id)) {
+      const newOptionId = uuid();
       statements.push({
-        sql: `INSERT INTO menu_items
-                (id, menu_meal_id, tzameret_code, name_he, grams, calories, protein, carbs, fat, checked, checked_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)`,
-        args: [uuid(), newMealId, item.tzameret_code, item.name_he, item.grams, item.calories, item.protein, item.carbs, item.fat],
+        sql: "INSERT INTO menu_meal_options (id, menu_meal_id, label, sort_order) VALUES (?, ?, ?, ?)",
+        args: [newOptionId, newMealId, option.label, option.sort_order],
       });
+      for (const item of items.rows.filter((entry) => entry.menu_meal_option_id === option.id)) {
+        statements.push({
+          sql: `INSERT INTO menu_items
+                  (id, menu_meal_option_id, tzameret_code, name_he, grams, calories, protein, carbs, fat)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [uuid(), newOptionId, item.tzameret_code, item.name_he, item.grams, item.calories, item.protein, item.carbs, item.fat],
+        });
+      }
     }
   }
   statements.push({ sql: "UPDATE menu_plans SET updated_at = datetime('now') WHERE id = ?", args: [planId] });

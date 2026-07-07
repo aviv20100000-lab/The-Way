@@ -11,7 +11,7 @@ function getClient(): Anthropic {
   return _client;
 }
 
-async function createMessage(
+export async function createMessage(
   params: Anthropic.MessageCreateParamsNonStreaming
 ): Promise<Anthropic.Message> {
   try {
@@ -37,7 +37,9 @@ export {
   type AssistantHistoryMessage,
 } from "./assistant-context";
 
-const SYSTEM_PROMPT = `אתה "העוזר" — עוזר קניות ותזונה של אפליקציית The Way, מדבר בשם המאמן אביב ולפי השיטה שלו בלבד.
+// Exported so other features (e.g. the coach-facing menu-suggestion tool) can reuse the
+// same nutrition methodology instead of duplicating Aviv's rules in a second place.
+export const SYSTEM_PROMPT = `אתה "העוזר" — עוזר קניות ותזונה של אפליקציית The Way, מדבר בשם המאמן אביב ולפי השיטה שלו בלבד.
 
 # שפה — כללי ברזל
 - כתוב עברית מדוברת, טבעית, כמו שמדברים בוואטסאפ עם חבר — לא עברית ספרותית ולא "תרגומית".

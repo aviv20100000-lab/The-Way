@@ -9,7 +9,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { itemId } = await params;
   const owned = await db.execute({
     sql: `SELECT mi.id, mp.id AS plan_id FROM menu_items mi
-          JOIN menu_meals mm ON mm.id = mi.menu_meal_id
+          JOIN menu_meal_options mo ON mo.id = mi.menu_meal_option_id
+          JOIN menu_meals mm ON mm.id = mo.menu_meal_id
           JOIN menu_days md ON md.id = mm.menu_day_id
           JOIN menu_plans mp ON mp.id = md.menu_plan_id
           JOIN users u ON u.id = mp.client_id

@@ -1,96 +1,44 @@
-# THE WAY — עיצוב ונגישות | סיכום
+# Design & Accessibility
 
-## 🎨 **עיצוב — מצב נוכחי**
+Last verified against the codebase: 2026-07-07.
 
-### Phase 1 ✅ (COMPLETE)
-- ✅ Design tokens system (`src/lib/design-system.ts`)
-- ✅ Hebrew fonts (Rubik, RTL ready)
-- ✅ Framer Motion animations installed
-- ✅ Gradient cards (indigo primary, cyan accent, emerald success)
-- ✅ Premium shadows & spacing
-- ✅ ProgressRing animated components
-- ✅ Client home page with animated header & hero
+## Design tokens
 
-### Phase 2 📋 (TODO — Priority Order)
-1. [ ] Food tab: photo upload UI, meal cards styling
-2. [ ] Weight tab: journey visualization, animations
-3. [ ] Steps tab: leaderboard styling
-4. [ ] Coach dashboard: equivalent visual elevation
-5. [ ] Accessibility audit (WCAG AAA)
+There is no separate `design-system.ts` file — tokens are CSS variables defined directly
+in `src/app/globals.css` (`--color-primary-*`, `--color-neutral-*`, `--color-black-*`,
+etc.), consumed through Tailwind's `var(--color-...)` utility syntax.
 
----
+- Font: Rubik (Hebrew + Latin), loaded via `next/font/google`.
+- Animation: Framer Motion, ~300ms default duration.
+- Spacing/radius: standard Tailwind scale (4px base), 12px card radius, 8px button radius.
 
-## ♿ **נגישות — דרישות**
+## RTL (Hebrew)
 
-### RTL (Right-to-Left) Hebrew
-- ✅ All components use `dir="rtl"` 
-- ✅ Tailwind configured for RTL
-- ✅ Text alignment auto-reversed
-- ✅ Icons can be mirrored where needed
+- `<html lang="he" dir="rtl">` set once at the root layout — no need to repeat `dir="rtl"`
+  per component.
+- Icons that imply direction (arrows, chevrons) are mirrored where relevant; icons with no
+  inherent direction (checkmarks, hearts) are left as-is.
 
-### WCAG AAA Targets
-- [ ] Color contrast: 7:1 ratio (AAA)
-- [ ] Focus states: visible & keyboard navigable
-- [ ] Semantic HTML: proper heading hierarchy
-- [ ] ARIA labels: for icons & complex components
-- [ ] Screen reader testing: needed
+## Mobile / PWA specifics
 
-### Mobile-First Approach
-- ✅ Responsive: max-w-lg containers
-- ✅ Touch-friendly: buttons 44×44px minimum
-- ✅ iOS: Gallery via `<label>` with opacity:0 (not display:none)
-- ✅ Web Share Target API in manifest
+- Touch targets: minimum 44x44px on interactive elements.
+- iOS photo picker: uses a `<label>` wrapping a hidden file input styled with
+  `opacity: 0` rather than `display: none` — iOS Safari does not reliably trigger file
+  pickers from `display: none` inputs.
+- Web Share Target API is registered in the PWA manifest.
+- iOS HEIC photos are converted to JPEG client-side before being base64-encoded for the
+  Claude API (see `src/lib/image-compression.ts`).
 
----
+## Accessibility — not yet formally audited
 
-## 🛠️ **כלים & Stack**
+No WCAG contrast/screen-reader audit has been run against this app. If accessibility
+compliance becomes a requirement (e.g. IS 5568), treat this as a real gap to address
+directly rather than assuming it inherited from any earlier "AAA target" plan — no such
+audit currently exists.
 
-```
-Tailwind 4.1 (with CSS variables)
-Framer Motion (animations)
-TypeScript (strict mode)
-Next.js 15 (App Router)
-Rubik Font (Hebrew)
-```
+## Design rules (from user feedback, kept consistent across the app)
 
----
-
-## 📐 **Design Tokens**
-
-```typescript
-// src/lib/design-system.ts
-Colors:
-  - primary: indigo (actions, focus)
-  - accent: cyan (highlights)
-  - success: emerald (goals met)
-  - warning: amber (caution)
-  - error: red (critical)
-
-Spacing: 4px base (tailwind 1 = 4px)
-Shadows: premium elevation levels
-Animations: 300ms default duration, cubic-bezier(0.23, 1, 0.320, 1)
-Border radius: 12px (cards), 8px (buttons)
-```
-
----
-
-## 📝 **הערות חשובות**
-
-- **תמונות:** base64 לClaude API (iOS HEIC → JPEG compression)
-- **Build:** `ignoreBuildErrors: true` (TS warnings בקבצים שלא משתנים)
-- **Gallery:** No `accept` attribute on input — צריך לעדכן
-- **Commit style:** Conventional (feat:, fix:, design:, refactor:)
-
----
-
-## 🎯 **משימה הקרובה**
-
-**Food Tab Phase 2:**
-- Photo upload UI עם preview
-- Meal cards עם animations
-- Nutrition summary card
-- Delete/edit actions
-
----
-
-**עדכון אחרון:** 2026-06-19 | Vercel: the-way-app-two.vercel.app
+- No emoji in UI titles.
+- No podium/leaderboard visual gimmicks.
+- Dark backgrounds only — no light-mode variant.
+- Animate with Framer Motion, not raw CSS transitions, on interactive elements.

@@ -27,22 +27,25 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ```
 src/
 ├── app/
-│  ├── api/          # API routes (organized by domain)
+│  ├── api/          # API routes (organized by domain: auth/ chat/ coach/ foods/ health/ users/ ...)
 │  ├── client/       # Client dashboard
 │  ├── coach/        # Coach dashboard
 │  └── page.tsx      # Landing page
 ├── components/      # Reusable React components
 ├── hooks/           # Custom React hooks (extracted logic)
 │  ├── useAuth.ts
-│  ├── client/       # Client-specific hooks
+│  ├── client/       # Client-specific hooks (useClientHome, useFoodTracking, ...)
 │  └── coach/        # Coach-specific hooks
 └── lib/
-   ├── api.ts        # Centralized API wrapper
-   ├── auth.ts       # Auth utilities
-   ├── db.ts         # Database connection
-   ├── types.ts      # TypeScript types
-   └── constants.ts  # Magic values & endpoints
+   ├── csrf-client.ts # Attaches the CSRF token to state-changing fetch() calls
+   ├── auth.ts        # Auth utilities (JWT session, bcrypt)
+   ├── db.ts          # Database connection (Turso/LibSQL)
+   └── types.ts       # TypeScript types
 ```
+
+There is no `src/lib/api.ts` fetch wrapper or `src/hooks` barrel file — import each hook
+directly from its own path. Design tokens live as CSS variables in `src/app/globals.css`,
+not in a separate `design-system.ts`.
 
 ### Adding a Feature
 
@@ -71,8 +74,8 @@ src/
 
 4. **Use in component**
    ```tsx
-   import { useMyFeature } from "@/hooks";
-   
+   import { useMyFeature } from "@/hooks/useMyFeature";
+
    export function MyComponent() {
      const { state } = useMyFeature();
      return <div>{state}</div>;
@@ -82,9 +85,9 @@ src/
 ## Code Standards
 
 ### TypeScript
-- ✅ Strict mode enabled (no `any`)
-- ✅ Full type annotations
-- ✅ Use interfaces for data shapes
+- Strict mode enabled, no `any`
+- Full type annotations
+- Use interfaces for data shapes
 
 ### Naming
 - Hooks: `useFeatureName.ts`
@@ -93,9 +96,9 @@ src/
 - Functions: `camelCase()`
 
 ### Styling
-- ✅ Tailwind CSS (no inline styles)
-- ✅ Hebrew RTL-first approach
-- ✅ Use design tokens from `src/lib/design-system.ts`
+- Tailwind CSS, no inline styles
+- Hebrew RTL-first approach
+- Use the CSS variable tokens defined in `src/app/globals.css` (`--color-*`)
 
 ### Comments
 - Only add comments for the "why", not the "what"
@@ -105,11 +108,11 @@ src/
 ## API Routes
 
 All routes should:
-1. ✅ Check auth with `getSessionUser()`
-2. ✅ Validate input
-3. ✅ Initialize DB with `initDb()` if needed
-4. ✅ Return JSON with proper status codes
-5. ✅ Include error handling
+1. Check auth with `getSessionUser()`
+2. Validate input
+3. Initialize DB with `initDb()` if needed
+4. Return JSON with proper status codes
+5. Include error handling
 
 Example:
 ```typescript
@@ -146,9 +149,9 @@ npm test -- --testPathPattern="useAuth"
 ```
 
 Write tests for:
-- ✅ API routes (request/response)
-- ✅ Custom hooks (state changes)
-- ✅ Complex components (user interaction)
+- API routes (request/response)
+- Custom hooks (state changes)
+- Complex components (user interaction)
 
 ## Commits
 
@@ -184,4 +187,4 @@ See [DEPLOYMENT.md](./docs/DEPLOYMENT.md)
 - Review [DESIGN_ACCESSIBILITY_SUMMARY.md](./docs/DESIGN_ACCESSIBILITY_SUMMARY.md) for UI guidelines
 - Look at existing code for patterns
 
-Welcome! 🚀
+Welcome!

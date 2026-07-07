@@ -17,6 +17,7 @@ const LIMITS = {
   mealScan: { requests: 3, windowMs: DAY_MS }, // 3 AI meal photo scans per day
   stepsScan: { requests: 2, windowMs: DAY_MS }, // 2 AI steps screenshots per day
   menuSuggest: { requests: 40, windowMs: DAY_MS }, // 40 AI menu-building suggestions per day, per coach
+  menuImport: { requests: 15, windowMs: DAY_MS }, // 15 free-text menu imports per day, per coach
   lowBalanceAlert: { requests: 1, windowMs: 6 * 60 * 60 * 1000 }, // 1 Telegram alert per 6 hours
 };
 

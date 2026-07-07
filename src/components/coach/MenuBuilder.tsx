@@ -43,6 +43,10 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
   const [aiError, setAiError] = useState<Record<string, string>>({});
   const [coachAiTargetOptionId, setCoachAiTargetOptionId] = useState("");
+  const [importText, setImportText] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importNotFound, setImportNotFound] = useState<string[]>([]);
 
   const loadPlan = useCallback(async (planId: string) => {
     const response = await fetch(`/api/coach/menus/${planId}`, { cache: "no-store" });
@@ -236,9 +240,13 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
     }
   };
 
+  const foodQueryTokens = useMemo(() => new Map<string, number>(), []);
+
   const findFoods = async (optionId: string, query: string) => {
     setQueries((current) => ({ ...current, [optionId]: query }));
     setSelectedFoods((current) => ({ ...current, [optionId]: undefined }));
+    const token = (foodQueryTokens.get(optionId) ?? 0) + 1;
+    foodQueryTokens.set(optionId, token);
     if (query.trim().length < 2) {
       setSuggestions((current) => ({ ...current, [optionId]: [] }));
       return;
@@ -246,8 +254,10 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
     try {
       const response = await fetch(`/api/foods?q=${encodeURIComponent(query)}`);
       const data: FoodSuggestion[] = await response.json();
+      if (foodQueryTokens.get(optionId) !== token) return;
       setSuggestions((current) => ({ ...current, [optionId]: Array.isArray(data) ? data.filter((food) => food.id.startsWith("tz-")).slice(0, 6) : [] }));
     } catch {
+      if (foodQueryTokens.get(optionId) !== token) return;
       setSuggestions((current) => ({ ...current, [optionId]: [] }));
     }
   };
@@ -335,6 +345,31 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
     }
   };
 
+  const importMenu = async () => {
+    if (!plan || !importText.trim()) return;
+    setImportLoading(true);
+    setImportError("");
+    setImportNotFound([]);
+    setMessage("");
+    try {
+      const response = await fetch(`/api/coach/menus/${plan.id}/import`, {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ text: importText }),
+      });
+      const responseBody = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(responseBody.error || "ייבוא התפריט נכשל");
+      await loadPlan(plan.id);
+      setImportText("");
+      setImportNotFound(Array.isArray(responseBody.notFound) ? responseBody.notFound : []);
+      setMessage(`נוספו ${responseBody.addedMeals ?? 0} ארוחות מהטקסט שהודבק`);
+    } catch (cause) {
+      setImportError(cause instanceof Error ? cause.message : "ייבוא התפריט נכשל");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   const duplicateDay = async () => {
     if (!plan || copyTarget === activeDay) return;
     setSaving(true);
@@ -388,6 +423,30 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
                   {plan.status === "published"
                     ? "התפריט מפורסם ומופיע עכשיו אצל המתאמן."
                     : "התפריט שמור כטיוטה ולא מופיע אצל המתאמן עד שלוחצים על \"שמור ופרסם למתאמן\"."}
+                </div>
+
+                <div className="rounded-2xl border border-dashed border-[#444933] bg-[#171a15] p-4">
+                  <p className="mb-2 text-xs font-bold text-[#c3f400]">ייבוא תפריט מטקסט חופשי</p>
+                  <p className="mb-2 text-xs text-[#8e9379]">הדבק תפריט כמו שאתה כותב אותו רגיל (עם ימים, ארוחות, "/" לחלופות) - הוא יפורק אוטומטית ויתווסף לימים המתאימים.</p>
+                  <textarea
+                    value={importText}
+                    onChange={(event) => setImportText(event.target.value)}
+                    placeholder={"לדוגמה:\nימים א-ד:\nארוחת בוקר: 3 ביצים, 2 פרוסות לחם\n..."}
+                    rows={4}
+                    className="w-full rounded-xl border border-[#444933] bg-[#10130f] px-3 py-2 text-sm text-white"
+                  />
+                  <button
+                    type="button"
+                    disabled={importLoading || !importText.trim()}
+                    onClick={() => void importMenu()}
+                    className="mt-2 w-full rounded-xl border border-[#c3f400]/30 bg-[#c3f400]/10 py-2 text-sm font-bold text-[#c3f400] disabled:opacity-40"
+                  >
+                    {importLoading ? "מפרק ובונה..." : "ייבא תפריט"}
+                  </button>
+                  {importError && <p className="mt-2 text-xs text-red-300">{importError}</p>}
+                  {importNotFound.length > 0 && (
+                    <p className="mt-2 text-xs text-amber-300">לא נמצאו במאגר צמרת (הוסף ידנית): {importNotFound.join(", ")}</p>
+                  )}
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-1">

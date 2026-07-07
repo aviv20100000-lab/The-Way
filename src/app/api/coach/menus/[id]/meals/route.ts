@@ -30,11 +30,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const mealId = uuid();
   const optionId = uuid();
-  await db.batch([
-    { sql: "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)", args: [mealId, dayId, label, sortOrder] },
-    { sql: "INSERT INTO menu_meal_options (id, menu_meal_id, label, sort_order) VALUES (?, ?, 'אפשרות א׳', 0)", args: [optionId, mealId] },
-    { sql: "UPDATE menu_plans SET updated_at = datetime('now') WHERE id = ?", args: [planId] },
-  ], "write");
+  try {
+    await db.batch([
+      { sql: "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)", args: [mealId, dayId, label, sortOrder] },
+      { sql: "INSERT INTO menu_meal_options (id, menu_meal_id, label, sort_order) VALUES (?, ?, 'אפשרות א׳', 0)", args: [optionId, mealId] },
+      { sql: "UPDATE menu_plans SET updated_at = datetime('now') WHERE id = ?", args: [planId] },
+    ], "write");
+  } catch (error) {
+    console.error("[coach/menus/:id/meals POST]", error);
+    return NextResponse.json({ error: "הוספת הארוחה נכשלה" }, { status: 500 });
+  }
 
   return NextResponse.json({
     id: mealId,

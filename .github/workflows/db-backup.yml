@@ -37,7 +37,7 @@ jobs:
           gzip "backup.json"
 
       - name: Upload backup artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: db-backup-${{ env.BACKUP_DATE }}
           path: backup.json.gz

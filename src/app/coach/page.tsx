@@ -10,7 +10,6 @@ import CoachActivityNotifications from "@/components/coach/CoachActivityNotifica
 import CoachInsightsPanel from "@/components/coach/CoachInsightsPanel";
 import CoachMealsPanel, { type CoachMealLog } from "@/components/coach/CoachMealsPanel";
 import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
-import AssistantChatReview from "@/components/coach/AssistantChatReview";
 import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
 
@@ -545,8 +544,6 @@ export default function CoachPage() {
             {clientGroupFilter === "all" && clientsOutOfGroup > 0 && (
               <p className="-mt-3 text-xs text-[#8e9379]">המתאמנים שבקבוצה מוצגים ראשונים; מי שמחוץ לקבוצה מופיע בתחתית.</p>
             )}
-
-            <AssistantChatReview clients={clients} />
 
             {showAddClient && (
               <AddClientForm

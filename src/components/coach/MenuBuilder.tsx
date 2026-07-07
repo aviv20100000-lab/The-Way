@@ -42,6 +42,7 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, AiSuggestion[]>>({});
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
   const [aiError, setAiError] = useState<Record<string, string>>({});
+  const [coachAiTargetOptionId, setCoachAiTargetOptionId] = useState("");
 
   const loadPlan = useCallback(async (planId: string) => {
     const response = await fetch(`/api/coach/menus/${planId}`, { cache: "no-store" });
@@ -73,12 +74,27 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
   useEffect(() => { void loadPlans(); }, [loadPlans]);
 
   const day = plan?.days.find((entry) => Number(entry.day_index) === activeDay);
+  const dayOptions = useMemo(
+    () => (day?.meals ?? []).flatMap((meal) => meal.options.map((option) => ({ meal, option }))),
+    [day]
+  );
+  const coachAiTargetOption = dayOptions.find((entry) => entry.option.id === coachAiTargetOptionId)?.option ?? dayOptions[0]?.option;
+
+  useEffect(() => {
+    if (coachAiTargetOptionId && dayOptions.some((entry) => entry.option.id === coachAiTargetOptionId)) return;
+    setCoachAiTargetOptionId(dayOptions[0]?.option.id ?? "");
+  }, [coachAiTargetOptionId, dayOptions]);
   const dayCalories = useMemo(
     () => day?.meals.flatMap((meal) => meal.options.flatMap((option) => option.items)).reduce((sum, item) => sum + Number(item.calories || 0), 0) ?? 0,
     [day]
   );
   const numericTarget = Number(caloriesTarget || 0);
   const targetProgress = numericTarget > 0 ? Math.min(100, Math.round((dayCalories / numericTarget) * 100)) : 0;
+
+  const responseError = async (response: Response, fallback: string) => {
+    const body = await response.json().catch(() => ({}));
+    return typeof body?.error === "string" ? body.error : fallback;
+  };
 
   const createPlan = async () => {
     setSaving(true);
@@ -144,7 +160,7 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
         headers: await withCsrf({ "Content-Type": "application/json" }),
         body: JSON.stringify({ dayId: day.id, label: newMealLabel.trim() }),
       });
-      if (!response.ok) throw new Error("הוספת הארוחה נכשלה");
+      if (!response.ok) throw new Error(await responseError(response, "הוספת הארוחה נכשלה"));
       await loadPlan(plan.id);
       setNewMealLabel("");
     } catch (cause) {
@@ -194,7 +210,7 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
         method: "POST",
         headers: await withCsrf({ "Content-Type": "application/json" }),
       });
-      if (!response.ok) throw new Error("הוספת האפשרות נכשלה");
+      if (!response.ok) throw new Error(await responseError(response, "הוספת האפשרות נכשלה"));
       await loadPlan(plan.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "הוספת האפשרות נכשלה");
@@ -248,7 +264,7 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
         headers: await withCsrf({ "Content-Type": "application/json" }),
         body: JSON.stringify({ tzameretCode: food.id, grams: amount }),
       });
-      if (!response.ok) throw new Error("הוספת המזון נכשלה");
+      if (!response.ok) throw new Error(await responseError(response, "הוספת המזון נכשלה"));
       await loadPlan(plan.id);
       setQueries((current) => ({ ...current, [optionId]: "" }));
       setGrams((current) => ({ ...current, [optionId]: "" }));
@@ -295,7 +311,7 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
         headers: await withCsrf({ "Content-Type": "application/json" }),
         body: JSON.stringify({ tzameretCode: suggestion.id, grams: suggestion.grams }),
       });
-      if (!response.ok) throw new Error("הוספת המזון נכשלה");
+      if (!response.ok) throw new Error(await responseError(response, "הוספת המזון נכשלה"));
       await loadPlan(plan.id);
       setAiSuggestions((current) => ({ ...current, [optionId]: (current[optionId] ?? []).filter((entry) => entry.id !== suggestion.id) }));
     } catch (cause) {
@@ -376,6 +392,59 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
 
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {DAYS.map((label, index) => <button key={label} type="button" onClick={() => { setActiveDay(index); setCopyTarget(index === 6 ? 0 : index + 1); }} className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold ${activeDay === index ? "bg-[#c3f400] text-[#161e00]" : "border border-[#444933] bg-[#1e2020] text-[#c4c9ac]"}`}>{label}</button>)}
+                </div>
+
+                <div className="rounded-2xl border border-[#c3f400]/25 bg-[#c3f400]/8 p-4">
+                  <div className="mb-3">
+                    <p className="text-xs font-bold text-[#c3f400]">עוזר AI לבניית תפריט</p>
+                    <h3 className="text-base font-bold text-white">בקש רעיון והוסף אותו לחלופה שבחרת</h3>
+                  </div>
+                  {dayOptions.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-[#444933] p-3 text-sm text-[#8e9379]">כדי להשתמש בעוזר, הוסף קודם ארוחה ליום הזה.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <select
+                        value={coachAiTargetOption?.id ?? ""}
+                        onChange={(event) => setCoachAiTargetOptionId(event.target.value)}
+                        className="w-full rounded-xl border border-[#444933] bg-[#10130f] px-3 py-2 text-sm text-white"
+                      >
+                        {dayOptions.map(({ meal, option }) => (
+                          <option key={option.id} value={option.id}>{meal.label} - {option.label}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <input
+                          value={coachAiTargetOption ? aiQueries[coachAiTargetOption.id] ?? "" : ""}
+                          onChange={(event) => coachAiTargetOption && setAiQueries((current) => ({ ...current, [coachAiTargetOption.id]: event.target.value }))}
+                          onKeyDown={(event) => { if (event.key === "Enter" && coachAiTargetOption) { event.preventDefault(); void askAi(coachAiTargetOption.id); } }}
+                          placeholder="לדוגמה: ארוחת ערב חלבון גבוהה עד 500 קלוריות"
+                          className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#10130f] px-3 py-2 text-sm text-white"
+                        />
+                        <button
+                          type="button"
+                          disabled={!coachAiTargetOption || aiLoading[coachAiTargetOption.id] || !aiQueries[coachAiTargetOption.id]?.trim()}
+                          onClick={() => coachAiTargetOption && void askAi(coachAiTargetOption.id)}
+                          className="shrink-0 rounded-xl border border-[#c3f400]/30 bg-[#c3f400]/10 px-4 py-2 text-sm font-bold text-[#c3f400] disabled:opacity-40"
+                        >
+                          {coachAiTargetOption && aiLoading[coachAiTargetOption.id] ? "חושב..." : "הצע לי"}
+                        </button>
+                      </div>
+                      {coachAiTargetOption && aiError[coachAiTargetOption.id] && <p className="text-xs text-red-300">{aiError[coachAiTargetOption.id]}</p>}
+                      {coachAiTargetOption && (aiSuggestions[coachAiTargetOption.id]?.length ?? 0) > 0 && (
+                        <div className="space-y-2">
+                          {aiSuggestions[coachAiTargetOption.id]?.map((suggestion) => (
+                            <div key={suggestion.id} className="flex items-center gap-3 rounded-xl bg-[#171a15] p-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-medium text-white">{suggestion.name_he}</p>
+                                <p className="text-xs text-[#8e9379]">{Math.round(suggestion.grams)} ג׳ · {Math.round(suggestion.calories)} קל׳ · {Math.round(suggestion.protein)} חלבון</p>
+                              </div>
+                              <button type="button" disabled={saving} onClick={() => void addAiSuggestion(coachAiTargetOption.id, suggestion)} className="shrink-0 text-sm font-bold text-[#c3f400]">+ הוסף</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-2xl border border-[#444933] bg-[#171a15] p-4">

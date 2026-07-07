@@ -17,6 +17,10 @@ const EditGroupMembers = dynamic(() => import("@/components/coach/EditGroupMembe
   loading: () => <div className="skeleton h-80 rounded-3xl" />,
 });
 
+const AssistantChatReview = dynamic(() => import("@/components/coach/AssistantChatReview"), {
+  loading: () => <div className="skeleton h-full min-h-80 rounded-3xl" />,
+});
+
 function Avatar({ username, name, avatarUrl, size = 44 }: { username?: string; name: string; avatarUrl?: string | null; size?: number }) {
   const [failed, setFailed] = useState(false);
   const initials = name.slice(0, 1);
@@ -71,7 +75,8 @@ type ChatMode =
   | { type: "group" }
   | { type: "namedGroup"; group: NamedGroup }
   | { type: "private"; contact: Contact }
-  | { type: "assistant" };
+  | { type: "assistant" }
+  | { type: "assistantReview" };
 
 const CHAT_CACHE_KEY = "way_chat_bootstrap";
 const REACTION_EMOJIS = ["👍", "❤️", "🔥", "😂", "😢"] as const;
@@ -371,6 +376,7 @@ export default function ChatPage() {
 
   const loadMessages = useCallback(async (opts?: { silent?: boolean; forMode?: ChatMode }) => {
     const target = opts?.forMode ?? modeRef.current;
+    if (target.type === "assistantReview") return;
     if (target.type === "assistant") {
       const currentUser = userRef.current;
       if (!currentUser) return;
@@ -453,6 +459,7 @@ export default function ChatPage() {
     const msgInterval = setInterval(() => {
       if (document.hidden || !userRef.current) return;
       if (modeRef.current.type === "assistant") return;
+      if (modeRef.current.type === "assistantReview") return;
       loadMessages({ silent: true });
     }, 5000);
     const contactsInterval = setInterval(() => {
@@ -625,7 +632,8 @@ export default function ChatPage() {
   };
   const totalUnread = groupUnread + Object.values(unreadMap).reduce((a, b) => a + b, 0);
   const isAssistantMode = mode.type === "assistant";
-  const canPin = user?.role === "coach" && mode.type !== "private" && !isAssistantMode;
+  const isAssistantReviewMode = mode.type === "assistantReview";
+  const canPin = user?.role === "coach" && mode.type !== "private" && !isAssistantMode && !isAssistantReviewMode;
   const pinnedMessage = messages.find((m) => m.pinned);
 
   if (!user) return <PageSkeleton variant="chat" />;
@@ -637,7 +645,9 @@ export default function ChatPage() {
       ? mode.group.name
       : mode.type === "assistant"
         ? `${ASSISTANT_DISPLAY_NAME} 🛒`
-        : mode.contact.name;
+        : mode.type === "assistantReview"
+          ? "שיחות הבוט עם מתאמנים"
+          : mode.contact.name;
   const isGroupActive = mode.type === "group";
 
   const openRenameGroup = () => {
@@ -698,6 +708,25 @@ export default function ChatPage() {
   // Clients outside the default group don't see it at all; coaches always do
   const showGroupRow = user.role === "coach" || inDefaultGroup;
   const { coach: coachContact, regular: regularContacts } = partitionChatContacts(user.role, contacts);
+
+  const assistantReviewRow = user.role === "coach" && (
+    <button
+      type="button"
+      data-testid="coach-assistant-chats"
+      onClick={() => selectChat({ type: "assistantReview" })}
+      className={`mx-3 my-2 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border p-4 text-right shadow-lg transition-all ${isAssistantReviewMode && showChat ? "border-[#c3f400] bg-[#c3f400]/15" : "border-[#c3f400]/35 bg-[#171919] hover:border-[#c3f400]/70"}`}
+    >
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#c3f400]/25 bg-[#c3f400]/10 text-2xl">🛒</div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-2">
+          <span className={`truncate text-base font-bold ${isAssistantReviewMode && showChat ? "text-[#c3f400]" : "text-white"}`}>שיחות הבוט עם מתאמנים</span>
+          <span className="shrink-0 rounded-full bg-[#c3f400] px-2 py-0.5 text-[9px] font-black text-[#161e00]">בקרה</span>
+        </div>
+        <p className="text-xs font-medium text-[#c4c9ac]">צפייה בשאלות שהמתאמנים שאלו את העוזר</p>
+      </div>
+      <span className="text-lg text-[#c3f400]">›</span>
+    </button>
+  );
 
   const groupRow = showGroupRow && (
     <div
@@ -1021,6 +1050,14 @@ export default function ChatPage() {
     </>
   );
 
+  const activeChatWindow = isAssistantReviewMode
+    ? (
+      <div className="flex-1 overflow-hidden p-4" style={{ background: "#0c0f0f" }}>
+        <AssistantChatReview clients={regularContacts.map((contact) => ({ id: contact.id, name: contact.name }))} fullHeight />
+      </div>
+    )
+    : chatWindow;
+
   const isCoach = user?.role === "coach";
   const groupsHeaderRow = (isCoach || namedGroups.length > 0) && (
     <div className="flex items-center justify-between px-4 pt-4 pb-1">
@@ -1081,7 +1118,7 @@ export default function ChatPage() {
             </>
           )}
         </div>
-        {showChat && !searchOpen && (
+        {showChat && !searchOpen && !isAssistantReviewMode && (
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
@@ -1102,6 +1139,8 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto" style={{ background: "#0c0f0f" }}>
             {coachRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">המאמן שלך</div>}
             {coachRow}
+            {assistantReviewRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">בוט מתאמנים</div>}
+            {assistantReviewRow}
             {assistantRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">עוזר קניות</div>}
             {assistantRow}
             <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">שיחות</div>
@@ -1112,7 +1151,7 @@ export default function ChatPage() {
             {dmRows}
           </div>
         ) : (
-          <div className="flex-1 flex flex-col overflow-hidden">{chatWindow}</div>
+          <div className="flex-1 flex flex-col overflow-hidden">{activeChatWindow}</div>
         )}
       </div>
 
@@ -1121,6 +1160,8 @@ export default function ChatPage() {
         <aside className="w-64 border-l border-[#1e2020] flex flex-col shrink-0 overflow-y-auto" style={{ background: "#0d1010" }}>
           {coachRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">המאמן שלך</div>}
           {coachRow}
+          {assistantReviewRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">בוט מתאמנים</div>}
+          {assistantReviewRow}
           {assistantRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">עוזר קניות</div>}
           {assistantRow}
           <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">שיחות</div>
@@ -1130,7 +1171,7 @@ export default function ChatPage() {
           {regularContacts.length > 0 && <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">פרטי</div>}
           {dmRows}
         </aside>
-        <main className="flex-1 flex flex-col overflow-hidden">{chatWindow}</main>
+        <main className="flex-1 flex flex-col overflow-hidden">{activeChatWindow}</main>
       </div>
 
       {showGroupCreator && (

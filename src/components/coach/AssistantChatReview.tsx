@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { CoachClient } from "@/components/coach/ClientListCard";
+
+type AssistantReviewClient = {
+  id: string;
+  name: string;
+};
 
 type Conversation = {
   client_id: string;
@@ -29,7 +33,7 @@ function formatTime(value: string | null) {
   });
 }
 
-export default function AssistantChatReview({ clients }: { clients: CoachClient[] }) {
+export default function AssistantChatReview({ clients, fullHeight = false }: { clients: AssistantReviewClient[]; fullHeight?: boolean }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
@@ -81,7 +85,7 @@ export default function AssistantChatReview({ clients }: { clients: CoachClient[
   );
 
   return (
-    <section className="rounded-2xl border border-[#334022] bg-[#121512] p-4">
+    <section className={`rounded-2xl border border-[#334022] bg-[#121512] p-4 ${fullHeight ? "flex h-full min-h-0 flex-col" : ""}`}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-white">שיחות מתאמנים עם העוזר</h2>
@@ -114,7 +118,7 @@ export default function AssistantChatReview({ clients }: { clients: CoachClient[
       ) : messages.length === 0 ? (
         <p className="rounded-2xl bg-[#1e2020] p-4 text-center text-sm text-[#8e9379]">אין עדיין הודעות עם העוזר למתאמן הזה.</p>
       ) : (
-        <div className="max-h-80 space-y-2 overflow-y-auto rounded-2xl border border-[#282b22] bg-[#0c0f0f] p-3">
+        <div className={`${fullHeight ? "min-h-0 flex-1" : "max-h-80"} space-y-2 overflow-y-auto rounded-2xl border border-[#282b22] bg-[#0c0f0f] p-3`}>
           <p className="pb-1 text-xs text-[#8e9379]">עדכון אחרון: {formatTime(selectedConversation?.last_message_at ?? null)}</p>
           {messages.map((message) => (
             <div key={message.id} className={`rounded-2xl px-3 py-2 text-sm ${message.role === "assistant" ? "bg-[#1e2020] text-white" : "bg-[#c3f400] text-[#161e00]"}`}>

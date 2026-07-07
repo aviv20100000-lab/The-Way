@@ -38,7 +38,7 @@
     "@types/uuid": "^10.0.0",
     "@types/web-push": "^3.6.4",
     "eslint": "^9.27.0",
-    "eslint-config-next": "^15.3.3",
+    "eslint-config-next": "^16.2.10",
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1",
     "tailwindcss": "^4.1.7",

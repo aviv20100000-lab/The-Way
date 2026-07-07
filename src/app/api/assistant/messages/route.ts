@@ -30,6 +30,7 @@ function toMessageRow(row: Record<string, unknown>): AssistantMessageRow {
 export async function GET() {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+  if (session.role !== "client") return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
 
   await initDb();
   const result = await db.execute({
@@ -95,6 +96,7 @@ async function loadUserContext(userId: string, name: string): Promise<AssistantU
 export async function POST(req: NextRequest) {
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
+  if (session.role !== "client") return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
 
   let body: { content?: unknown };
   try {

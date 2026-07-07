@@ -10,6 +10,7 @@ import CoachActivityNotifications from "@/components/coach/CoachActivityNotifica
 import CoachInsightsPanel from "@/components/coach/CoachInsightsPanel";
 import CoachMealsPanel, { type CoachMealLog } from "@/components/coach/CoachMealsPanel";
 import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
+import AssistantChatReview from "@/components/coach/AssistantChatReview";
 import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
 
@@ -25,7 +26,7 @@ const MenuBuilder = dynamic(() => import("@/components/coach/MenuBuilder"), {
   loading: () => <div className="fixed inset-0 z-[70] bg-black/70 p-4"><div className="skeleton mx-auto h-full max-w-3xl rounded-3xl" /></div>,
 });
 
-type CoachTab = "clients" | "food" | "quotes" | "insights";
+type CoachTab = "clients" | "menus" | "food" | "quotes" | "insights";
 
 interface Quote {
   id: string;
@@ -545,6 +546,8 @@ export default function CoachPage() {
               <p className="-mt-3 text-xs text-[#8e9379]">המתאמנים שבקבוצה מוצגים ראשונים; מי שמחוץ לקבוצה מופיע בתחתית.</p>
             )}
 
+            <AssistantChatReview clients={clients} />
+
             {showAddClient && (
               <AddClientForm
                 value={newClient}
@@ -578,14 +581,12 @@ export default function CoachPage() {
                   onAvatarUploaded={(clientId, url) => setClients((current) => current.map((item) => item.id === clientId ? { ...item, avatar_url: url } : item))}
                   onToggleGroup={(selected) => void toggleGroupMembership(selected)}
                 />
-                <button type="button" onClick={() => setMenuClient(client)}
+                <button type="button" onClick={() => { setMenuClient(client); setTab("menus"); }}
                   className="w-full rounded-xl border border-[#c3f400]/25 bg-[#c3f400]/10 py-2.5 text-sm font-bold text-[#c3f400] transition hover:bg-[#c3f400]/15">
                   🍽️ בניית תפריט
                 </button>
               </div>
             ))}
-
-            {menuClient && <MenuBuilder client={menuClient} onClose={() => setMenuClient(null)} />}
 
             {wizardClient && (
               <ClientGoalsWizard
@@ -770,6 +771,38 @@ export default function CoachPage() {
           </div>
         )}
 
+        {tab === "menus" && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">בניית תפריטים</h2>
+              <p className="mt-1 text-xs text-[#8e9379]">בחר מתאמן ועבוד על התפריט במסך מלא ונוח.</p>
+            </div>
+
+            <div className="rounded-2xl border border-[#444933] bg-[#171919] p-3">
+              <label className="mb-2 block text-xs font-semibold text-[#8e9379]">מתאמן</label>
+              <select
+                value={menuClient?.id ?? ""}
+                onChange={(event) => {
+                  const selected = clients.find((client) => client.id === event.target.value) ?? null;
+                  setMenuClient(selected);
+                }}
+                className="w-full rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-3 text-white"
+              >
+                <option value="">בחר מתאמן</option>
+                {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+              </select>
+            </div>
+
+            {menuClient ? (
+              <MenuBuilder key={menuClient.id} client={menuClient} embedded />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[#444933] bg-[#121512] p-8 text-center">
+                <p className="text-sm text-[#8e9379]">בחר מתאמן כדי לפתוח את בונה התפריט.</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === "food" && (
           <CoachMealsPanel
             clients={clients}
@@ -931,6 +964,7 @@ export default function CoachPage() {
         <div className="mx-auto flex max-w-lg">
           {([
             { id: "clients", icon: "👥", label: "מתאמנים" },
+            { id: "menus", icon: "📋", label: "תפריטים" },
             { id: "food", icon: "🍽️", label: "אוכל" },
             { id: "quotes", icon: "💬", label: "ציטוטים" },
             { id: "insights", icon: "📈", label: "תובנות" },

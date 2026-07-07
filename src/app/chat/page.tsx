@@ -70,10 +70,35 @@ interface Message { id: string; sender_id: string; sender_name: string; sender_u
 type ChatMode =
   | { type: "group" }
   | { type: "namedGroup"; group: NamedGroup }
-  | { type: "private"; contact: Contact };
+  | { type: "private"; contact: Contact }
+  | { type: "assistant" };
 
 const CHAT_CACHE_KEY = "way_chat_bootstrap";
 const REACTION_EMOJIS = ["👍", "❤️", "🔥", "😂", "😢"] as const;
+
+const ASSISTANT_SENDER_ID = "shopping-assistant";
+const ASSISTANT_DISPLAY_NAME = "העוזר";
+
+type AssistantApiMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
+function mapAssistantMessage(message: AssistantApiMessage, user: User): Message {
+  const isUser = message.role === "user";
+  return {
+    id: message.id,
+    sender_id: isUser ? user.id : ASSISTANT_SENDER_ID,
+    sender_name: isUser ? user.name : ASSISTANT_DISPLAY_NAME,
+    sender_username: isUser ? user.username : undefined,
+    sender_avatar_url: isUser ? user.avatar_url : undefined,
+    content: message.content,
+    sent_at: message.created_at,
+    is_read: 1,
+  };
+}
 
 function getOptimisticReactions(current: Reaction[] | undefined, emoji: string): Reaction[] {
   const reactions = (current ?? []).map((reaction) => ({ ...reaction }));
@@ -194,6 +219,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>(cached?.messages ?? []);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [assistantTyping, setAssistantTyping] = useState(false);
   const [loading, setLoading] = useState(cached?.user ? false : true);
   const [showContent, setShowContent] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
@@ -345,6 +371,23 @@ export default function ChatPage() {
 
   const loadMessages = useCallback(async (opts?: { silent?: boolean; forMode?: ChatMode }) => {
     const target = opts?.forMode ?? modeRef.current;
+    if (target.type === "assistant") {
+      const currentUser = userRef.current;
+      if (!currentUser) return;
+      const res = await fetch("/api/assistant/messages", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const msgs: Message[] = ((data.messages ?? []) as AssistantApiMessage[]).map((message) => mapAssistantMessage(message, currentUser));
+      if (!opts?.silent) msgs.forEach((message) => initialMessageIds.current.add(message.id));
+      const newLastId = msgs[msgs.length - 1]?.id ?? null;
+      if (!opts?.silent || newLastId !== lastMsgId.current) {
+        lastMsgId.current = newLastId;
+        messagesRef.current = msgs;
+        setMessages(msgs);
+        if (isAtBottom.current) setTimeout(() => scrollToBottom("smooth"), 30);
+      }
+      return;
+    }
     const params = new URLSearchParams();
     if (target.type === "private") {
       params.set("type", "private");
@@ -409,6 +452,7 @@ export default function ChatPage() {
   useEffect(() => {
     const msgInterval = setInterval(() => {
       if (document.hidden || !userRef.current) return;
+      if (modeRef.current.type === "assistant") return;
       loadMessages({ silent: true });
     }, 5000);
     const contactsInterval = setInterval(() => {
@@ -418,10 +462,63 @@ export default function ChatPage() {
     return () => { clearInterval(msgInterval); clearInterval(contactsInterval); };
   }, [loadMessages, loadContacts]);
 
+  const sendAssistantMessage = async (text: string) => {
+    const currentUser = userRef.current;
+    if (!currentUser) return;
+    const optimistic: Message = {
+      id: `opt-${Date.now()}`,
+      sender_id: currentUser.id,
+      sender_name: currentUser.name,
+      content: text,
+      image_url: undefined,
+      sent_at: new Date().toISOString(),
+      is_read: 0,
+    };
+    messagesRef.current = [...messagesRef.current, optimistic];
+    setMessages((prev) => [...prev, optimistic]);
+    isAtBottom.current = true;
+    setTimeout(() => scrollToBottom("smooth"), 30);
+    setSending(true);
+    setAssistantTyping(true);
+    try {
+      const csrf = await getCsrfToken();
+      const response = await fetch("/api/assistant/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf ?? "" },
+        body: JSON.stringify({ content: text }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "assistant failed");
+      const confirmed = ((data.messages ?? []) as AssistantApiMessage[]).map((message) => mapAssistantMessage(message, currentUser));
+      const withoutOptimistic = messagesRef.current.filter((message) => message.id !== optimistic.id);
+      messagesRef.current = [...withoutOptimistic, ...confirmed];
+      setMessages(messagesRef.current);
+      setTimeout(() => scrollToBottom("smooth"), 30);
+    } catch {
+      const errorMessage: Message = {
+        id: `assistant-error-${Date.now()}`,
+        sender_id: ASSISTANT_SENDER_ID,
+        sender_name: ASSISTANT_DISPLAY_NAME,
+        content: "לא הצלחתי לענות כרגע. נסה שוב עוד רגע.",
+        sent_at: new Date().toISOString(),
+        is_read: 1,
+      };
+      messagesRef.current = [...messagesRef.current, errorMessage];
+      setMessages(messagesRef.current);
+    } finally {
+      setAssistantTyping(false);
+      setSending(false);
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
     const text = input.trim();
     setInput("");
+    if (mode.type === "assistant") {
+      await sendAssistantMessage(text);
+      return;
+    }
     const optimistic: Message = {
       id: `opt-${Date.now()}`,
       sender_id: user!.id,
@@ -527,7 +624,8 @@ export default function ChatPage() {
     clearSearch();
   };
   const totalUnread = groupUnread + Object.values(unreadMap).reduce((a, b) => a + b, 0);
-  const canPin = user?.role === "coach" && mode.type !== "private";
+  const isAssistantMode = mode.type === "assistant";
+  const canPin = user?.role === "coach" && mode.type !== "private" && !isAssistantMode;
   const pinnedMessage = messages.find((m) => m.pinned);
 
   if (!user) return <PageSkeleton variant="chat" />;
@@ -537,7 +635,9 @@ export default function ChatPage() {
     ? displayGroupName
     : mode.type === "namedGroup"
       ? mode.group.name
-      : mode.contact.name;
+      : mode.type === "assistant"
+        ? `${ASSISTANT_DISPLAY_NAME} 🛒`
+        : mode.contact.name;
   const isGroupActive = mode.type === "group";
 
   const openRenameGroup = () => {
@@ -686,6 +786,25 @@ export default function ChatPage() {
     );
   })();
 
+  const assistantRow = user.role === "client" && (
+    <button
+      type="button"
+      data-testid="assistant-chat"
+      onClick={() => selectChat({ type: "assistant" })}
+      className={`mx-3 my-2 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border p-4 text-right shadow-lg transition-all ${isAssistantMode && showChat ? "border-[#c3f400] bg-[#c3f400]/15" : "border-[#c3f400]/35 bg-[#171919] hover:border-[#c3f400]/70"}`}
+    >
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#c3f400]/25 bg-[#c3f400]/10 text-2xl">🛒</div>
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-2">
+          <span className={`truncate text-base font-bold ${isAssistantMode && showChat ? "text-[#c3f400]" : "text-white"}`}>{ASSISTANT_DISPLAY_NAME}</span>
+          <span className="shrink-0 rounded-full bg-[#c3f400] px-2 py-0.5 text-[9px] font-black text-[#161e00]">AI</span>
+        </div>
+        <p className="text-xs font-medium text-[#c4c9ac]">שאלות מהסופר, אוכל ותזונה</p>
+      </div>
+      <span className="text-lg text-[#c3f400]">›</span>
+    </button>
+  );
+
   const dmRows = regularContacts.map((c) => {
     const isActive = mode.type === "private" && mode.contact.id === c.id && showChat;
     return (
@@ -743,6 +862,15 @@ export default function ChatPage() {
           <div className="flex justify-center pt-10">
             <div className="w-6 h-6 border-2 border-[#c3f400] border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : isAssistantMode && messages.length === 0 ? (
+          <motion.div
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.25 }}
+            className="pt-10 text-center text-sm text-[#8e9379]"
+          >
+            היי! אני העוזר. שאל אותי על קניות בסופר, מוצרים ותזונה.
+          </motion.div>
         ) : messages.length === 0 ? (
           <motion.div
             initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
@@ -807,7 +935,7 @@ export default function ChatPage() {
                       </button>
                     )}
                   </span>
-                  {!msg.id.startsWith("opt-") && (msg.reactions ?? []).map((reaction) => (
+                  {!isAssistantMode && !msg.id.startsWith("opt-") && (msg.reactions ?? []).map((reaction) => (
                     <motion.button
                       key={reaction.emoji}
                       onClick={() => void reactToMessage(msg.id, reaction.emoji)}
@@ -820,7 +948,7 @@ export default function ChatPage() {
                       {reaction.emoji} {reaction.count}
                     </motion.button>
                   ))}
-                  {!msg.id.startsWith("opt-") && (
+                  {!isAssistantMode && !msg.id.startsWith("opt-") && (
                     <motion.button
                       onClick={() => setReactionPickerMessageId((current) => current === msg.id ? null : msg.id)}
                       whileTap={prefersReducedMotion ? undefined : { scale: 0.85 }}
@@ -853,6 +981,13 @@ export default function ChatPage() {
             </motion.div>
           );
         })}
+        {assistantTyping && (
+          <div className="flex justify-end">
+            <div className="rounded-2xl rounded-br-sm border border-[#444933] bg-[#1e2020] px-4 py-2.5 text-sm text-white">
+              העוזר כותב...
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -863,9 +998,9 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-            placeholder="כתוב הודעה..."
+            placeholder={isAssistantMode ? "שאל את העוזר..." : "כתוב הודעה..."}
             rows={1}
-            maxLength={1000}
+            maxLength={isAssistantMode ? 500 : 1000}
             className="flex-1 rounded-2xl px-4 py-3 text-sm resize-none outline-none placeholder-[#8e9379] text-white transition-all"
             style={{ minHeight: "44px", maxHeight: "120px", background: "#1e2020", border: "1px solid #444933" }}
             onFocus={(e) => { e.currentTarget.style.borderColor = "#c3f400"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(195,244,0,0.1)"; }}
@@ -967,6 +1102,8 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto" style={{ background: "#0c0f0f" }}>
             {coachRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">המאמן שלך</div>}
             {coachRow}
+            {assistantRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">עוזר קניות</div>}
+            {assistantRow}
             <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">שיחות</div>
             {groupRow}
             {groupsHeaderRow}
@@ -984,6 +1121,8 @@ export default function ChatPage() {
         <aside className="w-64 border-l border-[#1e2020] flex flex-col shrink-0 overflow-y-auto" style={{ background: "#0d1010" }}>
           {coachRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">המאמן שלך</div>}
           {coachRow}
+          {assistantRow && <div className="px-4 pt-4 pb-0 text-[10px] font-semibold uppercase tracking-widest text-[#c3f400]">עוזר קניות</div>}
+          {assistantRow}
           <div className="px-4 pt-4 pb-1 text-[10px] text-[#8e9379] uppercase tracking-widest font-semibold">שיחות</div>
           {groupRow}
           {groupsHeaderRow}

@@ -21,7 +21,7 @@ type MenuSummary = Pick<MenuPlan, "id" | "title" | "daily_calories_target" | "da
 
 const DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
-export default function MenuBuilder({ client, onClose }: { client: { id: string; name: string }; onClose: () => void }) {
+export default function MenuBuilder({ client, onClose, embedded = false }: { client: { id: string; name: string }; onClose?: () => void; embedded?: boolean }) {
   const [plans, setPlans] = useState<MenuSummary[]>([]);
   const [plan, setPlan] = useState<MenuPlan | null>(null);
   const [activeDay, setActiveDay] = useState(0);
@@ -339,12 +339,11 @@ export default function MenuBuilder({ client, onClose }: { client: { id: string;
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[70] bg-black/70 p-0 sm:p-4" onClick={onClose}>
-      <section dir="rtl" className="mx-auto h-full max-w-3xl overflow-y-auto bg-[#10130f] p-4 sm:rounded-3xl sm:border sm:border-[#444933] sm:p-6" onClick={(event) => event.stopPropagation()}>
+  const panel = (
+      <section dir="rtl" className={`${embedded ? "w-full" : "mx-auto h-full max-w-3xl overflow-y-auto"} bg-[#10130f] p-4 sm:rounded-3xl sm:border sm:border-[#444933] sm:p-6`} onClick={(event) => event.stopPropagation()}>
         <div className="mb-5 flex items-center justify-between">
           <div><p className="text-xs font-bold text-[#c3f400]">בניית תפריט</p><h2 className="text-xl font-black text-white">{client.name}</h2></div>
-          <button type="button" onClick={onClose} aria-label="סגור" className="rounded-full border border-[#444933] px-3 py-1.5 text-xl text-[#c4c9ac]">×</button>
+          {onClose && <button type="button" onClick={onClose} aria-label="סגור" className="rounded-full border border-[#444933] px-3 py-1.5 text-xl text-[#c4c9ac]">×</button>}
         </div>
 
         {loading ? <div className="skeleton h-80 rounded-3xl" /> : (
@@ -369,6 +368,12 @@ export default function MenuBuilder({ client, onClose }: { client: { id: string;
               <button type="button" disabled={saving} onClick={() => void createPlan()} className="w-full rounded-xl bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50">צור תפריט חדש</button>
             ) : (
               <>
+                <div className={`rounded-2xl border p-3 text-sm ${plan.status === "published" ? "border-[#c3f400]/30 bg-[#c3f400]/10 text-[#d7ff52]" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>
+                  {plan.status === "published"
+                    ? "התפריט מפורסם ומופיע עכשיו אצל המתאמן."
+                    : "התפריט שמור כטיוטה ולא מופיע אצל המתאמן עד שלוחצים על \"שמור ופרסם למתאמן\"."}
+                </div>
+
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {DAYS.map((label, index) => <button key={label} type="button" onClick={() => { setActiveDay(index); setCopyTarget(index === 6 ? 0 : index + 1); }} className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold ${activeDay === index ? "bg-[#c3f400] text-[#161e00]" : "border border-[#444933] bg-[#1e2020] text-[#c4c9ac]"}`}>{label}</button>)}
                 </div>
@@ -454,13 +459,20 @@ export default function MenuBuilder({ client, onClose }: { client: { id: string;
                 <div className="flex items-center gap-2 rounded-2xl border border-[#33372b] p-3"><select value={copyTarget} onChange={(event) => setCopyTarget(Number(event.target.value))} className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white">{DAYS.map((label, index) => index !== activeDay && <option key={label} value={index}>העתק ליום {label}</option>)}</select><button type="button" disabled={saving || copyTarget === activeDay} onClick={() => void duplicateDay()} className="rounded-xl border border-[#444933] px-4 py-2 font-semibold text-[#c4c9ac]">העתק יום</button></div>
                 {error && <p className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
                 {message && <p className="rounded-xl border border-[#c3f400]/30 bg-[#c3f400]/10 p-3 text-sm text-[#c3f400]">{message}</p>}
-                <div className="grid grid-cols-2 gap-3 pb-6"><button type="button" disabled={saving} onClick={() => void savePlan("draft")} className="rounded-xl border border-[#444933] py-3 font-bold text-[#c4c9ac] disabled:opacity-50">שמור טיוטה</button><button type="button" disabled={saving} onClick={() => void savePlan("published")} className="rounded-xl bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50">פרסם ללקוח</button></div>
+                <div className="grid grid-cols-2 gap-3 pb-6"><button type="button" disabled={saving} onClick={() => void savePlan("draft")} className="rounded-xl border border-[#444933] py-3 font-bold text-[#c4c9ac] disabled:opacity-50">שמור כטיוטה</button><button type="button" disabled={saving} onClick={() => void savePlan("published")} className="rounded-xl bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50">שמור ופרסם למתאמן</button></div>
               </>
             )}
             {error && !plan && <p className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
           </div>
         )}
       </section>
+  );
+
+  if (embedded) return panel;
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/70 p-0 sm:p-4" onClick={onClose}>
+      {panel}
     </div>
   );
 }

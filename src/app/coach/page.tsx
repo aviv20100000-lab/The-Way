@@ -963,7 +963,6 @@ export default function CoachPage() {
             { id: "clients", icon: "👥", label: "מתאמנים" },
             { id: "menus", icon: "📋", label: "תפריטים" },
             { id: "food", icon: "🍽️", label: "אוכל" },
-            { id: "quotes", icon: "💬", label: "ציטוטים" },
             { id: "insights", icon: "📈", label: "תובנות" },
           ] as { id: CoachTab; icon: string; label: string }[]).map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}

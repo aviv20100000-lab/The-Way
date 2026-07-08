@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -85,6 +85,30 @@ async function migrateMenuOptionsSchema() {
           WHERE label IS NULL OR label = ''`,
     args: [],
   });
+
+  // Older installs created menu_meals with a NOT NULL meal_type column (no default).
+  // Nothing has inserted into it since the "label" refactor above, so every INSERT
+  // into menu_meals on those installs fails with a NOT NULL constraint error. SQLite
+  // can't drop a NOT NULL constraint via ALTER TABLE, so rebuild the table without it
+  // (data, including the label backfill above, is preserved).
+  if (await hasColumn("menu_meals", "meal_type")) {
+    await db.executeMultiple(`
+      PRAGMA foreign_keys=OFF;
+      CREATE TABLE menu_meals_rebuild (
+        id TEXT PRIMARY KEY,
+        menu_day_id TEXT NOT NULL REFERENCES menu_days(id) ON DELETE CASCADE,
+        label TEXT NOT NULL DEFAULT 'ארוחה',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        selected_option_id TEXT,
+        selected_at TEXT
+      );
+      INSERT INTO menu_meals_rebuild (id, menu_day_id, label, sort_order, selected_option_id, selected_at)
+        SELECT id, menu_day_id, label, sort_order, selected_option_id, selected_at FROM menu_meals;
+      DROP TABLE menu_meals;
+      ALTER TABLE menu_meals_rebuild RENAME TO menu_meals;
+      PRAGMA foreign_keys=ON;
+    `);
+  }
 
   await db.execute({
     sql: `CREATE TABLE IF NOT EXISTS menu_meal_options (

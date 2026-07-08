@@ -19,6 +19,12 @@ const MENU_SUGGEST_SYSTEM_PROMPT = `${COACH_METHODOLOGY}
 2. תחזיר 2-4 מילות חיפוש בעברית — שמות מזון אמיתיים וקצרים (כמו "קוטג' 5%", "חזה עוף", "יוגורט חלבון"), לא תיאורים ולא משפטים.
 3. לכל מילת חיפוש, תציע גרמים משוערים שמתאימים למה שהמאמן ביקש.
 4. אם המאמן מבקש ירק או ירקות, תעדיף ירקות טריים/בסיסיים ורלוונטיים כמו "מלפפון", "עגבניה", "גזר", "ברוקולי", "פלפל", "חסה". אל תציע כבושים/חמוצים/משומרים/מטוגנים אלא אם המאמן ביקש את זה במפורש.
+5. סגנון התפריטים של המאמן:
+   - אורז + חזה עוף/הודו/פרגית שייך בעיקר לצהריים או לארוחה מרכזית ביום, לא כברירת מחדל לערב.
+   - בערב תעדיף שילובים כמו: טונה במים, ביצים/חביתה, קוטג' 3%-5%, גבינה לבנה/גבינה 5%, פריכיות אורז, לחם קל, פיתה כוסמין, סלט, מלפפון, עגבניה, בצל, חסה, מעט שמן זית.
+   - בלילה תעדיף משהו קטן: מעדן/יוגורט פרו 20 גרם חלבון, תמר, אגוז/שקד/קשיו בכמות קטנה, מלפפון, פרי אם מתאים.
+   - לפני אימון אפשר להציע מעדן פרו/משקה פרו, קוטג', פרי, במבה קטנה רק אם זה מתאים לבקשה.
+   - אם המאמן כתב "ארוחת ערב", "ערב", "לילה" או "ארוחת לילה", אל תציע "אורז" או "חזה עוף" אלא אם הוא ביקש אותם במפורש.
 
 אתה לא ממציא ולא מדווח ערכים תזונתיים בעצמך — אלה תמיד יגיעו מחיפוש אמיתי במאגר צמרת, לא ממך. אתה רק בוחר מה לחפש ובאיזו כמות משוערת.
 
@@ -79,6 +85,43 @@ function calorieLimitOf(request: string): number | null {
 
 function requestAllowsProcessed(request: string) {
   return /חמוץ|חמוצים|כבוש|כבושים|משומר|משומרים|קופס|מטוגן|מטוגנת/.test(request);
+}
+
+function isEveningRequest(request: string) {
+  return /ערב|ארוחת\s*ערב|לילה|ארוחת\s*לילה|לפני\s*שינה/.test(request);
+}
+
+function explicitlyAskedForLunchStaple(request: string) {
+  return /אורז|חזה\s*עוף|עוף|הודו|פרגית|בשר|שייטל|שווארמה/.test(request);
+}
+
+function isLunchStapleForEvening(query: string) {
+  return /אורז|חזה\s*עוף/.test(query);
+}
+
+function defaultEveningSearches(request: string): RawSearch[] {
+  const night = /לילה|לפני\s*שינה/.test(request);
+  if (night) {
+    return [
+      { query: "מעדן פרו", grams: 200 },
+      { query: "תמר", grams: 20 },
+      { query: "שקד טבעי", grams: 15 },
+      { query: "מלפפון", grams: 200 },
+    ];
+  }
+  return [
+    { query: "טונה במים", grams: 120 },
+    { query: "ביצה", grams: 150 },
+    { query: "קוטג' 3%", grams: 125 },
+    { query: "פריכיות אורז", grams: 40 },
+  ];
+}
+
+function applyCoachStyle(searches: RawSearch[], request: string): RawSearch[] {
+  if (!isEveningRequest(request) || explicitlyAskedForLunchStaple(request)) return searches;
+  const filtered = searches.filter((search) => !isLunchStapleForEvening(search.query));
+  if (filtered.length > 0) return filtered;
+  return defaultEveningSearches(request);
 }
 
 function isLessRelevantCandidate(food: TzameretFood, request: string) {
@@ -165,7 +208,7 @@ export async function suggestMenuFoods(
     .map((block) => block.text)
     .join("\n");
 
-  const searches = parseSearches(text);
+  const searches = applyCoachStyle(parseSearches(text), request);
   if (searches.length === 0) return [];
 
   const results: MenuSuggestion[] = [];

@@ -49,7 +49,8 @@ async function handleImport(req: NextRequest, paramsPromise: Promise<{ id: strin
     parsed = await importMenuText(text);
   } catch (error) {
     console.error("[coach/menus/:id/import POST]", error);
-    return NextResponse.json({ error: "לא הצלחנו לפרק את התפריט. נסה שוב." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "נסה שוב";
+    return NextResponse.json({ error: `פירוק התפריט בעזרת AI נכשל: ${message}` }, { status: 500 });
   }
 
   if (parsed.dayGroups.length === 0) {

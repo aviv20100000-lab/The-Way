@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 11;
+const SCHEMA_VERSION = 12;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -61,6 +61,25 @@ export function menuMealInsertStatement(hasLegacyMealType: boolean) {
   return hasLegacyMealType
     ? "INSERT INTO menu_meals (id, menu_day_id, label, sort_order, meal_type) VALUES (?, ?, ?, ?, 'snack')"
     : "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)";
+}
+
+const REQUIRED_MENU_ITEM_COLUMNS = [
+  "menu_meal_option_id",
+  "tzameret_code",
+  "name_he",
+  "grams",
+  "calories",
+  "protein",
+  "carbs",
+  "fat",
+];
+
+async function menuSchemaNeedsMigration() {
+  if (await hasColumn("menu_meals", "meal_type")) return true;
+  for (const column of REQUIRED_MENU_ITEM_COLUMNS) {
+    if (!(await hasColumn("menu_items", column))) return true;
+  }
+  return false;
 }
 
 async function addColumnIfMissing(table: "menu_meals" | "menu_items", column: string, definition: string) {
@@ -175,7 +194,7 @@ async function runInit() {
       sql: "SELECT version FROM schema_meta WHERE id = 1",
       args: [],
     });
-    if (Number(schemaMeta.rows[0]?.version) === SCHEMA_VERSION && !(await hasColumn("menu_meals", "meal_type"))) return;
+    if (Number(schemaMeta.rows[0]?.version) === SCHEMA_VERSION && !(await menuSchemaNeedsMigration())) return;
   } catch {
     // schema_meta does not exist yet; the idempotent setup below creates it.
   }

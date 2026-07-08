@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 12;
+const SCHEMA_VERSION = 13;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -76,6 +76,7 @@ const REQUIRED_MENU_ITEM_COLUMNS = [
 
 async function menuSchemaNeedsMigration() {
   if (await hasColumn("menu_meals", "meal_type")) return true;
+  if (await hasColumn("menu_items", "menu_meal_id")) return true;
   for (const column of REQUIRED_MENU_ITEM_COLUMNS) {
     if (!(await hasColumn("menu_items", column))) return true;
   }
@@ -179,6 +180,32 @@ async function migrateMenuOptionsSchema() {
             WHERE menu_meal_option_id IS NULL OR menu_meal_option_id = ''`,
       args: [],
     });
+  }
+
+  // Legacy menu_items had a NOT NULL menu_meal_id column. New imports attach
+  // items to menu_meal_options, so rebuild the table without the old constraint.
+  if (await hasColumn("menu_items", "menu_meal_id")) {
+    await db.executeMultiple(`
+      PRAGMA foreign_keys=OFF;
+      CREATE TABLE menu_items_rebuild (
+        id TEXT PRIMARY KEY,
+        menu_meal_option_id TEXT NOT NULL REFERENCES menu_meal_options(id) ON DELETE CASCADE,
+        tzameret_code TEXT REFERENCES tzameret_foods(code),
+        name_he TEXT NOT NULL,
+        grams REAL NOT NULL DEFAULT 100,
+        calories REAL NOT NULL DEFAULT 0,
+        protein REAL NOT NULL DEFAULT 0,
+        carbs REAL NOT NULL DEFAULT 0,
+        fat REAL NOT NULL DEFAULT 0
+      );
+      INSERT INTO menu_items_rebuild (id, menu_meal_option_id, tzameret_code, name_he, grams, calories, protein, carbs, fat)
+        SELECT id, menu_meal_option_id, tzameret_code, COALESCE(NULLIF(name_he, ''), 'מזון'), grams, calories, protein, carbs, fat
+        FROM menu_items
+        WHERE menu_meal_option_id IS NOT NULL AND menu_meal_option_id <> '';
+      DROP TABLE menu_items;
+      ALTER TABLE menu_items_rebuild RENAME TO menu_items;
+      PRAGMA foreign_keys=ON;
+    `);
   }
 
   await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_menu_meals_day ON menu_meals(menu_day_id, sort_order)", args: [] });

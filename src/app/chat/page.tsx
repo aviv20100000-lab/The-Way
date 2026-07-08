@@ -277,6 +277,15 @@ export default function ChatPage() {
   }, [prefersReducedMotion]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const keepInputVisible = () => {
+      if (showChat && isAtBottom.current) setTimeout(() => scrollToBottom("auto"), 50);
+    };
+    window.visualViewport.addEventListener("resize", keepInputVisible);
+    return () => window.visualViewport?.removeEventListener("resize", keepInputVisible);
+  }, [scrollToBottom, showChat]);
+
+  useEffect(() => {
     fetch("/api/chat/bootstrap").then(async (res) => {
       if (!res.ok) {
         if (res.status === 401) router.push("/login");
@@ -1021,7 +1030,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-[#1e2020] p-3 pb-[max(12px,env(safe-area-inset-bottom))]" style={{ background: "#0c0f0f" }}>
+      <div className="shrink-0 border-t border-[#1e2020] p-3 pb-[max(12px,env(safe-area-inset-bottom))]" style={{ background: "#0c0f0f" }}>
         <div className="flex items-end gap-2">
           <textarea
             value={input}
@@ -1030,9 +1039,9 @@ export default function ChatPage() {
             placeholder={isAssistantMode ? "שאל את העוזר..." : "כתוב הודעה..."}
             rows={1}
             maxLength={isAssistantMode ? 500 : 1000}
-            className="flex-1 rounded-2xl px-4 py-3 text-sm resize-none outline-none placeholder-[#8e9379] text-white transition-all"
+            className="flex-1 rounded-2xl px-4 py-3 text-base md:text-sm resize-none outline-none placeholder-[#8e9379] text-white transition-all"
             style={{ minHeight: "44px", maxHeight: "120px", background: "#1e2020", border: "1px solid #444933" }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "#c3f400"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(195,244,0,0.1)"; }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "#c3f400"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(195,244,0,0.1)"; setTimeout(() => scrollToBottom("auto"), 250); }}
             onBlur={(e) => { e.currentTarget.style.borderColor = "#444933"; e.currentTarget.style.boxShadow = "none"; }}
             onInput={(e) => { const el = e.currentTarget; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 120)}px`; }}
           />
@@ -1094,7 +1103,7 @@ export default function ChatPage() {
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="חפש בשיחה..."
-                  className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-sm text-white outline-none placeholder:text-[#8e9379] focus:border-[#c3f400]/60"
+                  className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-base md:text-sm text-white outline-none placeholder:text-[#8e9379] focus:border-[#c3f400]/60"
                 />
                 <button
                   type="button"
@@ -1217,7 +1226,7 @@ export default function ChatPage() {
               onChange={(e) => setGroupNameInput(e.target.value)}
               maxLength={40}
               placeholder="לדוגמה: המתאמנים שלי"
-              className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-[#c3f400]/60 focus:ring-4 focus:ring-[#c3f400]/10"
+              className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-base text-white outline-none transition placeholder:text-white/30 focus:border-[#c3f400]/60 focus:ring-4 focus:ring-[#c3f400]/10"
             />
             {renamingError && <p className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-300">{renamingError}</p>}
             <div className="mt-5 flex gap-3">

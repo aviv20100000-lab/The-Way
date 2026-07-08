@@ -9,8 +9,16 @@ interface LeaderboardEntry {
   week: number;
 }
 
+interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  hasCompetition: boolean;
+  groupName: string | null;
+}
+
 export function useStepsTracking() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [hasCompetition, setHasCompetition] = useState(true);
+  const [competitionGroupName, setCompetitionGroupName] = useState<string | null>(null);
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
   const [stepsError, setStepsError] = useState("");
@@ -25,7 +33,16 @@ export function useStepsTracking() {
     try {
       const stepsRes = await fetch("/api/health/steps?type=leaderboard");
       const stepsData = await stepsRes.json();
-      setLeaderboard(stepsData);
+      if (Array.isArray(stepsData)) {
+        setLeaderboard(stepsData);
+        setHasCompetition(stepsData.length > 0);
+        setCompetitionGroupName(null);
+      } else {
+        const data = stepsData as LeaderboardResponse;
+        setLeaderboard(Array.isArray(data.entries) ? data.entries : []);
+        setHasCompetition(data.hasCompetition !== false);
+        setCompetitionGroupName(data.groupName ?? null);
+      }
     } catch (e) {
       console.error("Error loading leaderboard:", e);
       loadedRef.current = false;
@@ -51,7 +68,7 @@ export function useStepsTracking() {
         if (res.ok) {
           setTodaySteps(data.steps);
           setStepsSuccess(`זוהו ${data.steps.toLocaleString()} צעדים!`);
-          await loadLeaderboard();
+          await loadLeaderboard(true);
         } else {
           setStepsError(data.error || "שגיאה בעדכון הצעדים");
         }
@@ -67,6 +84,8 @@ export function useStepsTracking() {
 
   return {
     leaderboard,
+    hasCompetition,
+    competitionGroupName,
     uploadingSteps,
     stepsSuccess,
     stepsError,

@@ -70,15 +70,15 @@ export async function GET(req: NextRequest) {
 
   if (type === "leaderboard") {
     const userRes = await db.execute({
-      sql: "SELECT coach_id, role FROM users WHERE id = ?",
+      sql: "SELECT coach_id, role, in_default_group FROM users WHERE id = ?",
       args: [user.id],
     });
 
-    const userData = userRes.rows[0] as unknown as { coach_id: string; role: string };
+    const userData = userRes.rows[0] as unknown as { coach_id: string | null; role: string; in_default_group: number | null };
     const coachId = userData?.role === "coach" ? user.id : userData?.coach_id;
 
     if (!coachId) {
-      return NextResponse.json([]);
+      return NextResponse.json({ entries: [], hasCompetition: false, groupName: null });
     }
 
     const todayKey = getTodayDayKey();
@@ -87,6 +87,58 @@ export async function GET(req: NextRequest) {
     weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
     const weekStartKey = weekStart.toISOString().slice(0, 10);
     const weekStartUtc = getDayRangeUtc(weekStartKey).startUtc;
+
+    if (userData?.role === "client") {
+      const groupRes = await db.execute({
+        sql: `SELECT g.id, g.name
+              FROM chat_groups g
+              JOIN chat_group_members gm ON gm.group_id = g.id
+              WHERE gm.user_id = ? AND g.coach_id = ?
+              ORDER BY g.created_at DESC`,
+        args: [user.id, coachId],
+      });
+      const customGroups = groupRes.rows.map((row) => ({ id: String(row.id), name: String(row.name) }));
+      const inDefaultGroup = Number(userData.in_default_group) === 1;
+
+      if (!inDefaultGroup && customGroups.length === 0) {
+        return NextResponse.json({ entries: [], hasCompetition: false, groupName: null });
+      }
+
+      const customGroupIds = customGroups.map((group) => group.id);
+      const customGroupFilter = customGroupIds.length > 0
+        ? `OR EXISTS (
+             SELECT 1 FROM chat_group_members gm2
+             WHERE gm2.user_id = u.id AND gm2.group_id IN (${customGroupIds.map(() => "?").join(",")})
+           )`
+        : "";
+      const groupName = [
+        inDefaultGroup ? "הקבוצה הראשית" : null,
+        ...customGroups.map((group) => group.name),
+      ].filter(Boolean).join(" + ");
+
+      const lbRes = await db.execute({
+        sql: `
+          SELECT
+            u.id,
+            u.name,
+            COALESCE(SUM(CASE WHEN s.logged_at >= ? AND s.logged_at < ? THEN s.steps ELSE 0 END), 0) as today,
+            COALESCE(SUM(CASE WHEN s.logged_at >= ? THEN s.steps ELSE 0 END), 0) as week
+          FROM users u
+          LEFT JOIN steps_logs s ON u.id = s.user_id
+          WHERE u.role = 'client'
+            AND u.coach_id = ?
+            AND (
+              ${inDefaultGroup ? "u.in_default_group = 1" : "0 = 1"}
+              ${customGroupFilter}
+            )
+          GROUP BY u.id
+          ORDER BY week DESC
+        `,
+        args: [todayRange.startUtc, todayRange.endUtc, weekStartUtc, coachId, ...customGroupIds],
+      });
+
+      return NextResponse.json({ entries: lbRes.rows, hasCompetition: true, groupName });
+    }
 
     const lbRes = await db.execute({
       sql: `
@@ -104,7 +156,7 @@ export async function GET(req: NextRequest) {
       args: [todayRange.startUtc, todayRange.endUtc, weekStartUtc, coachId],
     });
 
-    return NextResponse.json(lbRes.rows);
+    return NextResponse.json({ entries: lbRes.rows, hasCompetition: true, groupName: null });
   }
 
   const { startUtc, endUtc } = getDayRangeUtc(getTodayDayKey());

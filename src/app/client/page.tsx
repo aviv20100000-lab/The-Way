@@ -104,7 +104,7 @@ export default function ClientPage() {
   const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
   const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
-  const { leaderboard, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
+  const { leaderboard, hasCompetition, competitionGroupName, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
   const handleSaveWeight = async () => {
     if (await saveWeight()) setSuccessMessage("המשקל נשמר");
@@ -909,6 +909,7 @@ export default function ClientPage() {
                 `}</style>
                 <h2 className="lb-title text-2xl font-black leading-none">לוח מנצחים</h2>
                 {myRank && <p className="text-xs text-[#8e9379] mt-1">הדירוג שלך <span className="text-[#c3f400] font-bold">#{myRank}</span></p>}
+                {hasCompetition && competitionGroupName && <p className="text-xs text-[#8e9379] mt-1">תחרות: <span className="text-[#c3f400] font-bold">{competitionGroupName}</span></p>}
                 <p className="text-xs text-[#8e9379] mt-1">היעד היומי שלך: {stepsGoal.toLocaleString()} צעדים</p>
               </div>
               {/* Time toggle — top right */}
@@ -946,8 +947,15 @@ export default function ClientPage() {
               )}
             </motion.div>
 
+            {!hasCompetition && (
+              <div className="glass-card rounded-2xl border border-[#2e3030] px-6 py-12 text-center">
+                <p className="text-base font-bold text-white">אין לך תחרות צעדים כרגע</p>
+                <p className="mt-2 text-sm text-[#8e9379]">התחרות פתוחה רק למתאמנים שנמצאים בקבוצה. כשהמאמן יוסיף אותך לקבוצה, הלוח יופיע כאן.</p>
+              </div>
+            )}
+
             {/* Gap-to-leader banner */}
-            {myEntry && myRank && myRank > 1 && sorted[0] && (() => {
+            {hasCompetition && myEntry && myRank && myRank > 1 && sorted[0] && (() => {
               const leader = sorted[0];
               const leaderVal = lbView === "today" ? leader.today : leader.week;
               const myVal = lbView === "today" ? myEntry.today : myEntry.week;
@@ -969,7 +977,7 @@ export default function ClientPage() {
             })()}
 
             {/* Leaderboard */}
-            {!lbLoaded && sorted.length === 0 ? (
+            {hasCompetition && (!lbLoaded && sorted.length === 0 ? (
               <div className="glass-card rounded-2xl border border-[#2e3030] overflow-hidden">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-[#1a1c1c] last:border-0">
@@ -1061,7 +1069,7 @@ export default function ClientPage() {
                   );
                 })}
               </motion.div>
-            )}
+            ))}
           </div>
           );
         })()}

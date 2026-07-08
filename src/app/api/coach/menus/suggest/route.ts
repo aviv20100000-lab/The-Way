@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const suggestions = await suggestMenuFoods(request, { dailyCalories, dailyProtein });
+    if (suggestions.length === 0) {
+      return NextResponse.json(
+        { error: "ה-AI הציע רעיונות, אבל לא מצאנו להם התאמה במאגר צמרת. נסה לכתוב שם מזון ספציפי יותר, למשל: קוטג׳, יוגורט, חזה עוף או אורז." },
+        { status: 422 }
+      );
+    }
     return NextResponse.json({ suggestions });
   } catch (error) {
     console.error("[coach/menus/suggest POST]", error);

@@ -304,6 +304,9 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "לא הצלחנו לקבל הצעות");
+      if (!Array.isArray(body.suggestions) || body.suggestions.length === 0) {
+        throw new Error("לא נמצאו הצעות שמתאימות למאגר צמרת. נסה לכתוב שם מזון ספציפי יותר.");
+      }
       setAiSuggestions((current) => ({ ...current, [optionId]: body.suggestions ?? [] }));
     } catch (cause) {
       setAiError((current) => ({ ...current, [optionId]: cause instanceof Error ? cause.message : "לא הצלחנו לקבל הצעות" }));

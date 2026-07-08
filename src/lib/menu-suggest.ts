@@ -18,6 +18,7 @@ const MENU_SUGGEST_SYSTEM_PROMPT = `${COACH_METHODOLOGY}
 1. תבין מה המאמן מחפש, לפי אותה שיטה תזונתית שתוארה למעלה (המוצרים המומלצים, החוקים, מבנה הארוחות).
 2. תחזיר 2-4 מילות חיפוש בעברית — שמות מזון אמיתיים וקצרים (כמו "קוטג' 5%", "חזה עוף", "יוגורט חלבון"), לא תיאורים ולא משפטים.
 3. לכל מילת חיפוש, תציע גרמים משוערים שמתאימים למה שהמאמן ביקש.
+4. אם המאמן מבקש ירק או ירקות, תעדיף ירקות טריים/בסיסיים ורלוונטיים כמו "מלפפון", "עגבניה", "גזר", "ברוקולי", "פלפל", "חסה". אל תציע כבושים/חמוצים/משומרים/מטוגנים אלא אם המאמן ביקש את זה במפורש.
 
 אתה לא ממציא ולא מדווח ערכים תזונתיים בעצמך — אלה תמיד יגיעו מחיפוש אמיתי במאגר צמרת, לא ממך. אתה רק בוחר מה לחפש ובאיזו כמות משוערת.
 
@@ -71,6 +72,77 @@ function scaleToSuggestion(food: TzameretFood, grams: number): MenuSuggestion {
   };
 }
 
+function calorieLimitOf(request: string): number | null {
+  const match = request.match(/(?:עד|מתחת ל|פחות מ)\s*(\d{2,4})\s*(?:קל|קלור)/);
+  return match ? Number(match[1]) : null;
+}
+
+function requestAllowsProcessed(request: string) {
+  return /חמוץ|חמוצים|כבוש|כבושים|משומר|משומרים|קופס|מטוגן|מטוגנת/.test(request);
+}
+
+function isLessRelevantCandidate(food: TzameretFood, request: string) {
+  if (requestAllowsProcessed(request)) return false;
+  return /חמוץ|כבוש|משומר|מטוגן|ברוטב|מיובש/.test(food.name_he);
+}
+
+const GENERIC_SEARCH_WORDS = new Set([
+  "ארוחה",
+  "ארוחת",
+  "בוקר",
+  "צהריים",
+  "ערב",
+  "ביניים",
+  "חלבון",
+  "גבוה",
+  "גבוהה",
+  "דל",
+  "דלה",
+  "קל",
+  "קלה",
+  "קלוריות",
+  "משהו",
+]);
+
+function searchVariants(query: string): string[] {
+  const normalized = query
+    .normalize("NFKC")
+    .replace(/[",;:()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const meaningfulTokens = tokens.filter((token) => !GENERIC_SEARCH_WORDS.has(token));
+  const variants = [
+    normalized,
+    meaningfulTokens.slice(0, 3).join(" "),
+    meaningfulTokens.slice(0, 2).join(" "),
+    ...meaningfulTokens,
+  ].filter((value) => value.length >= 2);
+  return [...new Set(variants)];
+}
+
+async function findBestTzameretMatch(query: string): Promise<TzameretFood | null> {
+  for (const variant of searchVariants(query)) {
+    const matches = await searchTzameret(variant);
+    if (matches[0]) return matches[0];
+  }
+  return null;
+}
+
+async function findRelevantTzameretMatch(query: string, request: string, grams: number): Promise<TzameretFood | null> {
+  const calorieLimit = calorieLimitOf(request);
+  for (const variant of searchVariants(query)) {
+    const matches = await searchTzameret(variant);
+    const relevant = matches.find((candidate) => {
+      if (isLessRelevantCandidate(candidate, request)) return false;
+      if (calorieLimit !== null && scaleToSuggestion(candidate, grams).calories > calorieLimit) return false;
+      return true;
+    });
+    if (relevant) return relevant;
+  }
+  return findBestTzameretMatch(query);
+}
+
 export async function suggestMenuFoods(
   request: string,
   targets: { dailyCalories?: number | null; dailyProtein?: number | null }
@@ -99,8 +171,7 @@ export async function suggestMenuFoods(
   const results: MenuSuggestion[] = [];
   const seenCodes = new Set<string>();
   for (const search of searches) {
-    const matches = await searchTzameret(search.query);
-    const best = matches[0];
+    const best = await findRelevantTzameretMatch(search.query, request, search.grams);
     if (!best || seenCodes.has(best.code)) continue;
     seenCodes.add(best.code);
     results.push(scaleToSuggestion(best, search.grams));

@@ -19,7 +19,7 @@ export async function GET() {
       args: [u.id, today],
     }),
     db.execute({
-      sql: "SELECT daily_water_ml, daily_calories, daily_protein_g, daily_steps FROM goals WHERE user_id = ?",
+      sql: "SELECT target_weight_kg, daily_water_ml, daily_calories, daily_protein_g, daily_steps FROM goals WHERE user_id = ?",
       args: [u.id],
     }),
     db.execute({
@@ -62,6 +62,7 @@ export async function GET() {
   const waterTotal = waterLogs.reduce((s, l) => s + l.amount_ml, 0);
   const waterGoal = (goalsRes.rows[0]?.daily_water_ml as number) || 2000;
   const calGoal = (goalsRes.rows[0]?.daily_calories as number) || null;
+  const goalsRow = goalsRes.rows[0] || null;
   const streakRow = streakRes.rows[0] || {};
   const profileRow = profileRes.rows[0] || {};
   const createdAt = profileRow.created_at ? String(profileRow.created_at) : null;
@@ -90,5 +91,12 @@ export async function GET() {
       goal: calGoal,
     },
     protein_goal: (goalsRes.rows[0]?.daily_protein_g as number) || null,
+    goal_status: {
+      target_weight: goalsRow?.target_weight_kg != null,
+      calories: goalsRow?.daily_calories != null,
+      protein: goalsRow?.daily_protein_g != null,
+      water: goalsRow?.daily_water_ml != null,
+      steps: goalsRow?.daily_steps != null,
+    },
   });
 }

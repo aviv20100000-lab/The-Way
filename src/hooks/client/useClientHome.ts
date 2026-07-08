@@ -12,8 +12,25 @@ type HomeCache = {
   todayCalories: number;
   calorieGoal: number | null;
   proteinGoal: number | null;
+  goalStatus: GoalStatus;
   daysSinceSignup: number;
   totalSteps: number;
+};
+
+type GoalStatus = {
+  targetWeight: boolean;
+  calories: boolean;
+  protein: boolean;
+  water: boolean;
+  steps: boolean;
+};
+
+const DEFAULT_GOAL_STATUS: GoalStatus = {
+  targetWeight: false,
+  calories: false,
+  protein: false,
+  water: false,
+  steps: false,
 };
 
 function readCache(): HomeCache | null {
@@ -45,6 +62,7 @@ export function useClientHome() {
   const [todayCalories, setTodayCalories] = useState(cached?.todayCalories ?? 0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(cached?.calorieGoal ?? null);
   const [proteinGoal, setProteinGoal] = useState<number | null>(cached?.proteinGoal ?? null);
+  const [goalStatus, setGoalStatus] = useState<GoalStatus>(cached?.goalStatus ?? DEFAULT_GOAL_STATUS);
   const [daysSinceSignup, setDaysSinceSignup] = useState(cached?.daysSinceSignup ?? 0);
   const [totalSteps, setTotalSteps] = useState(cached?.totalSteps ?? 0);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -68,6 +86,14 @@ export function useClientHome() {
       setTodayCalories(data.calories?.total ?? 0);
       setCalorieGoal(data.calories?.goal ?? null);
       setProteinGoal(data.protein_goal ?? null);
+      const nextGoalStatus: GoalStatus = {
+        targetWeight: Boolean(data.goal_status?.target_weight),
+        calories: Boolean(data.goal_status?.calories),
+        protein: Boolean(data.goal_status?.protein),
+        water: Boolean(data.goal_status?.water),
+        steps: Boolean(data.goal_status?.steps),
+      };
+      setGoalStatus(nextGoalStatus);
       setDaysSinceSignup(data.days_since_signup ?? 0);
       setTotalSteps(data.total_steps ?? 0);
       writeCache({
@@ -79,6 +105,7 @@ export function useClientHome() {
         todayCalories: data.calories?.total ?? 0,
         calorieGoal: data.calories?.goal ?? null,
         proteinGoal: data.protein_goal ?? null,
+        goalStatus: nextGoalStatus,
         daysSinceSignup: data.days_since_signup ?? 0,
         totalSteps: data.total_steps ?? 0,
       });
@@ -168,6 +195,7 @@ export function useClientHome() {
     todayCalories,
     calorieGoal,
     proteinGoal,
+    goalStatus,
     daysSinceSignup,
     totalSteps,
     isLoaded,

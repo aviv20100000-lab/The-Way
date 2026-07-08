@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 
-type ActivityKind = "meal" | "quick_meal" | "weight" | "steps";
+type ActivityKind = "meal" | "quick_meal" | "weight" | "steps" | "menu_request" | "goals_request";
 
 function activityText(kind: ActivityKind, value: number) {
   switch (kind) {
@@ -10,6 +10,8 @@ function activityText(kind: ActivityKind, value: number) {
     case "quick_meal": return { title: "רשם ארוחה מהירה", detail: `${Math.round(value)} קלוריות` };
     case "weight": return { title: "עדכן משקל", detail: `${value.toFixed(1)} ק״ג` };
     case "steps": return { title: "העלה צעדים", detail: `${Math.round(value).toLocaleString("he-IL")} צעדים` };
+    case "menu_request": return { title: "מבקש תפריט", detail: "המתאמן הזכיר להעלות תפריט" };
+    case "goals_request": return { title: "מבקש עדכון יעדים", detail: "קלוריות, חלבון או יעד משקל" };
   }
 }
 
@@ -62,9 +64,19 @@ export async function GET() {
               JOIN users u ON u.id = sl.user_id
               WHERE u.role = 'client' AND u.coach_id = ?
                 AND sl.logged_at >= datetime('now', '-30 days')
+
+              UNION ALL
+
+              SELECT 'request:' || cr.id AS activity_id, u.id AS client_id, u.name AS client_name,
+                     CASE cr.kind WHEN 'menu' THEN 'menu_request' ELSE 'goals_request' END AS kind,
+                     0 AS value, cr.created_at AS logged_at
+              FROM coach_requests cr
+              JOIN users u ON u.id = cr.client_id
+              WHERE cr.coach_id = ?
+                AND cr.created_at >= datetime('now', '-30 days')
             ) activity
             ORDER BY logged_at DESC`,
-      args: [coach.id, coach.id, coach.id, coach.id],
+      args: [coach.id, coach.id, coach.id, coach.id, coach.id],
     }),
     db.execute({
       sql: "SELECT activity_id FROM coach_activity_reads WHERE coach_id = ?",

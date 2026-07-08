@@ -7,14 +7,14 @@ interface ActivityItem {
   id: string;
   client_id: string;
   client_name: string;
-  kind: "meal" | "quick_meal" | "weight" | "steps";
+  kind: "meal" | "quick_meal" | "weight" | "steps" | "menu_request" | "goals_request";
   title: string;
   detail: string;
   logged_at: string;
   unread: boolean;
 }
 
-const ICONS: Record<ActivityItem["kind"], string> = {
+const ICONS: Partial<Record<ActivityItem["kind"], string>> = {
   meal: "🍽️",
   quick_meal: "🥣",
   weight: "⚖️",
@@ -133,7 +133,7 @@ export default function CoachActivityNotifications({ onOpenClient }: { onOpenCli
                 onClick={() => { setOpen(false); onOpenClient(item.client_id); }}
                 className={`mb-1 flex w-full items-start gap-3 rounded-xl p-3 text-right transition-colors hover:bg-[#282a2b] ${item.unread ? "bg-[#c3f400]/8" : ""}`}
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#282a2b] text-lg">{ICONS[item.kind]}</span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#282a2b] text-lg">{ICONS[item.kind] ?? "🔔"}</span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="truncate text-sm font-bold text-white">{item.client_name}</span>

@@ -17,6 +17,7 @@ import { useStepsTracking } from "@/hooks/client/useStepsTracking";
 import SuccessToast from "@/components/SuccessToast";
 import { AnimatedScore } from "@/components/AnimatedScore";
 import MilestoneCelebration, { type MilestoneCelebrationData } from "@/components/MilestoneCelebration";
+import { withCsrf } from "@/lib/csrf-client";
 
 const CELEBRATED_MILESTONES_KEY = "the-way:celebrated-milestones";
 const WATER_GOAL_CELEBRATED_KEY = "the-way:water-goal-celebrated";
@@ -80,14 +81,14 @@ export default function ClientPage() {
   const [showFullMealHistory, setShowFullMealHistory] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
-  const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [profileCurPw, setProfileCurPw] = useState("");
   const [profileNewPw, setProfileNewPw] = useState("");
   const [profileError, setProfileError] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null);
-  const [goalInput, setGoalInput] = useState("");
+  const [coachReminderLoading, setCoachReminderLoading] = useState(false);
+  const [coachReminderMessage, setCoachReminderMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [waterGoalPulse, setWaterGoalPulse] = useState(false);
   const [milestoneQueue, setMilestoneQueue] = useState<MilestoneCelebrationData[]>([]);
@@ -100,13 +101,33 @@ export default function ClientPage() {
 
   // Hooks
   const { user, isLoading, logout } = useAuth();
-  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, daysSinceSignup, totalSteps, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
+  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
   const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
   const handleSaveWeight = async () => {
     if (await saveWeight()) setSuccessMessage("המשקל נשמר");
+  };
+
+  const remindCoachAboutGoals = async () => {
+    if (coachReminderLoading) return;
+    setCoachReminderLoading(true);
+    setCoachReminderMessage("");
+    try {
+      const response = await fetch("/api/client/coach-reminders", {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ kind: "goals" }),
+      });
+      if (!response.ok) throw new Error("לא הצלחנו לשלוח תזכורת");
+      const data = await response.json();
+      setCoachReminderMessage(data.already_sent ? "כבר שלחת תזכורת למאמן היום" : "שלחנו תזכורת למאמן");
+    } catch (cause) {
+      setCoachReminderMessage(cause instanceof Error ? cause.message : "לא הצלחנו לשלוח תזכורת");
+    } finally {
+      setCoachReminderLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -349,6 +370,13 @@ export default function ClientPage() {
 
   const waterPct = Math.min(100, Math.round((waterTotal / waterGoal) * 100));
   const stepsPct = Math.min(100, Math.round((todaySteps / stepsGoal) * 100));
+  const missingCoachGoals = [
+    !goalStatus.calories ? "יעד קלוריות" : null,
+    !goalStatus.protein ? "יעד חלבון" : null,
+    !goalStatus.targetWeight ? "יעד משקל" : null,
+    !goalStatus.steps ? "יעד צעדים" : null,
+    !goalStatus.water ? "יעד מים" : null,
+  ].filter((item): item is string => Boolean(item));
   const hour = clientNow?.getHours() ?? 12;
   const greeting = hour < 12 ? "בוקר טוב" : hour < 17 ? "צהריים טובים" : hour < 21 ? "ערב טוב" : "לילה טוב";
   const greetingDate = clientNow?.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }) ?? "";
@@ -545,34 +573,26 @@ export default function ClientPage() {
               loadMyMeals(true);
             }} />
 
-            {!calorieGoalFromGoals && !showGoalEdit && (
-              <button onClick={() => { setGoalInput(""); setShowGoalEdit(true); }}
-                className="w-full rounded-xl border border-dashed border-[#444933] py-2 text-sm text-[#c3f400] font-medium hover:border-[#c3f400] transition-colors">
-                + הגדר יעד קלוריות יומי
-              </button>
-            )}
-            {showGoalEdit && (
-              <div className="glass-card rounded-xl border border-[#444933] p-4 flex items-center gap-3">
-                <input type="number" value={goalInput} onChange={e => setGoalInput(e.target.value)}
-                  placeholder="2000" min="500" max="5000"
-                  className="flex-1 rounded-lg border border-[#444933] bg-[#282a2b] px-3 py-2 text-center font-bold text-[#c3f400] focus:outline-none focus:ring-2 focus:ring-[#c3f400]/30" />
-                <span className="text-sm text-[#c4c9ac]">קל׳/יום</span>
-                <button onClick={async () => {
-                  const cal = parseInt(goalInput);
-                  if (!cal || cal < 500) return;
-                  const { withCsrf } = await import("@/lib/csrf-client");
-                  await fetch("/api/users/goals", { method: "POST", headers: await withCsrf({ "Content-Type": "application/json" }), body: JSON.stringify({ daily_calories: cal }) });
-                  loadHome();
-                  setShowGoalEdit(false);
-                }} className="rounded-full bg-[#c3f400] px-4 py-2 text-sm font-bold text-[#161e00]">שמור</button>
-                <button onClick={() => setShowGoalEdit(false)} className="text-[#8e9379] text-sm">ביטול</button>
+            {homeLoaded && missingCoachGoals.length > 0 && (
+              <div className="glass-card rounded-2xl border border-[#444933] p-4">
+                <p className="text-sm font-bold text-white">המאמן עוד לא עדכן את כל היעדים שלך</p>
+                <p className="mt-1 text-xs text-[#8e9379]">
+                  חסר: {missingCoachGoals.join(", ")}. ברגע שהמאמן יעדכן, הנתונים יופיעו כאן.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void remindCoachAboutGoals()}
+                  disabled={coachReminderLoading}
+                  className="mt-3 w-full rounded-xl bg-[#c3f400] px-4 py-3 text-sm font-black text-[#161e00] transition disabled:opacity-60"
+                >
+                  {coachReminderLoading ? "שולח..." : "הזכר למאמן לעדכן יעדים"}
+                </button>
+                {coachReminderMessage && <p className="mt-2 text-xs font-semibold text-[#c3f400]">{coachReminderMessage}</p>}
               </div>
             )}
+
             {calorieGoalFromGoals && (
-              <button onClick={() => { setGoalInput(String(calorieGoalFromGoals)); setShowGoalEdit(true); }}
-                className="text-xs text-[#8e9379] underline">
-                יעד: {calorieGoalFromGoals} קל׳/יום · שנה
-              </button>
+              <p className="text-xs text-[#8e9379]">יעד: {calorieGoalFromGoals} קל׳/יום</p>
             )}
             {proteinGoal && <p className="text-xs text-[#8e9379]">יעד חלבון: {proteinGoal} גרם ביום</p>}
 
@@ -756,6 +776,22 @@ export default function ClientPage() {
             </div>
           ) : (
           <div className="space-y-6">
+
+            {homeLoaded && !goalStatus.targetWeight && (
+              <div className="glass-card rounded-2xl border border-[#444933] p-4 text-center">
+                <p className="text-sm font-bold text-white">המאמן עוד לא עדכן יעד משקל</p>
+                <p className="mt-1 text-xs text-[#8e9379]">אפשר לעדכן משקל יומי, והיעד יופיע כאן אחרי שהמאמן יגדיר אותו.</p>
+                <button
+                  type="button"
+                  onClick={() => void remindCoachAboutGoals()}
+                  disabled={coachReminderLoading}
+                  className="mt-3 w-full rounded-xl bg-[#c3f400] px-4 py-3 text-sm font-black text-[#161e00] transition disabled:opacity-60"
+                >
+                  {coachReminderLoading ? "שולח..." : "הזכר למאמן לעדכן יעד"}
+                </button>
+                {coachReminderMessage && <p className="mt-2 text-xs font-semibold text-[#c3f400]">{coachReminderMessage}</p>}
+              </div>
+            )}
 
             {(() => {
               const startW = weightLogs[weightLogs.length - 1]?.weight_kg ?? null;

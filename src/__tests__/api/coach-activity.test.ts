@@ -42,7 +42,7 @@ describe("/api/coach/activity", () => {
     expect(response.status).toBe(200);
     expect(body.unread_count).toBe(1);
     expect(body.items[0]).toMatchObject({ client_id: "client-1", title: "עדכן משקל", unread: true });
-    expect(mockExecute.mock.calls[0][0].args).toEqual(["coach-1", "coach-1", "coach-1", "coach-1"]);
+    expect(mockExecute.mock.calls[0][0].args).toEqual(["coach-1", "coach-1", "coach-1", "coach-1", "coach-1"]);
   });
 
   it("marks activity as seen for the logged-in coach", async () => {

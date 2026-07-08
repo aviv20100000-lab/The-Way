@@ -17,6 +17,8 @@ export default function ClientMenuView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [savingMealId, setSavingMealId] = useState<string | null>(null);
+  const [reminding, setReminding] = useState(false);
+  const [reminderMessage, setReminderMessage] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -76,6 +78,26 @@ export default function ClientMenuView() {
     }
   };
 
+  const remindCoach = async () => {
+    if (reminding) return;
+    setReminding(true);
+    setReminderMessage("");
+    try {
+      const response = await fetch("/api/client/coach-reminders", {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ kind: "menu" }),
+      });
+      if (!response.ok) throw new Error("לא הצלחנו לשלוח תזכורת");
+      const data = await response.json();
+      setReminderMessage(data.already_sent ? "כבר שלחת תזכורת למאמן היום" : "שלחנו תזכורת למאמן");
+    } catch (cause) {
+      setReminderMessage(cause instanceof Error ? cause.message : "לא הצלחנו לשלוח תזכורת");
+    } finally {
+      setReminding(false);
+    }
+  };
+
   if (loading) return <div className="skeleton h-80 rounded-3xl" />;
   if (error && !plan) return <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-5 text-center text-sm text-red-200">{error}</div>;
   if (!plan) {
@@ -83,6 +105,15 @@ export default function ClientMenuView() {
       <div className="glass-card rounded-3xl border border-[#444933] px-6 py-16 text-center">
         <p className="font-semibold text-white">המאמן עדיין לא בנה לך תפריט</p>
         <p className="mt-2 text-sm text-[#8e9379]">כשהתפריט יפורסם הוא יופיע כאן.</p>
+        <button
+          type="button"
+          onClick={() => void remindCoach()}
+          disabled={reminding}
+          className="mt-5 w-full rounded-xl bg-[#c3f400] px-4 py-3 text-sm font-black text-[#161e00] transition disabled:opacity-60"
+        >
+          {reminding ? "שולח..." : "הזכר למאמן להעלות תפריט"}
+        </button>
+        {reminderMessage && <p className="mt-3 text-xs font-semibold text-[#c3f400]">{reminderMessage}</p>}
       </div>
     );
   }

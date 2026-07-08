@@ -21,9 +21,11 @@ export async function POST(req: NextRequest) {
 
   const dailyCalories = Number.isFinite(Number(body?.dailyCalories)) ? Number(body.dailyCalories) : null;
   const dailyProtein = Number.isFinite(Number(body?.dailyProtein)) ? Number(body.dailyProtein) : null;
+  const currentDayCalories = Number.isFinite(Number(body?.currentDayCalories)) ? Number(body.currentDayCalories) : null;
+  const currentMealCalories = Number.isFinite(Number(body?.currentMealCalories)) ? Number(body.currentMealCalories) : null;
 
   try {
-    const suggestions = await suggestMenuFoods(request, { dailyCalories, dailyProtein });
+    const suggestions = await suggestMenuFoods(request, { dailyCalories, dailyProtein, currentDayCalories, currentMealCalories });
     if (suggestions.length === 0) {
       return NextResponse.json(
         { error: "ה-AI הציע רעיונות, אבל לא מצאנו להם התאמה במאגר צמרת. נסה לכתוב שם מזון ספציפי יותר, למשל: קוטג׳, יוגורט, חזה עוף או אורז." },

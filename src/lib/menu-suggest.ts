@@ -28,6 +28,9 @@ const MENU_SUGGEST_SYSTEM_PROMPT = `${COACH_METHODOLOGY}
 
 אתה לא ממציא ולא מדווח ערכים תזונתיים בעצמך — אלה תמיד יגיעו מחיפוש אמיתי במאגר צמרת, לא ממך. אתה רק בוחר מה לחפש ובאיזו כמות משוערת.
 
+גם כשאתה חושב בעברית טבעית, הפלט למאמן חייב להיות JSON בלבד.
+שמות החיפוש צריכים להיות קצרים וטבעיים בישראל: "קוטג' 5%", "טונה במים", "יוגורט חלבון", "מעדן פרו". לא משפטים, לא תיאורים שיווקיים, ולא ניסוח רשמי.
+
 החזר אך ורק JSON תקין, בלי שום טקסט נוסף לפניו או אחריו:
 {"searches": [{"query": "שם מזון קצר", "grams": 100}, ...]}`;
 
@@ -45,6 +48,13 @@ interface RawSearch {
   query: string;
   grams: number;
 }
+
+type SuggestTargets = {
+  dailyCalories?: number | null;
+  dailyProtein?: number | null;
+  currentDayCalories?: number | null;
+  currentMealCalories?: number | null;
+};
 
 function parseSearches(text: string): RawSearch[] {
   const match = text.match(/\{[\s\S]*\}/);
@@ -81,6 +91,20 @@ function scaleToSuggestion(food: TzameretFood, grams: number): MenuSuggestion {
 function calorieLimitOf(request: string): number | null {
   const match = request.match(/(?:עד|מתחת ל|פחות מ)\s*(\d{2,4})\s*(?:קל|קלור)/);
   return match ? Number(match[1]) : null;
+}
+
+function remainingCaloriesOf(targets: SuggestTargets): number | null {
+  if (!targets.dailyCalories || targets.currentDayCalories == null) return null;
+  return Math.round(targets.dailyCalories - targets.currentDayCalories);
+}
+
+function fitGramsSoftlyToRemaining(food: TzameretFood, grams: number, remainingCalories: number | null) {
+  if (remainingCalories == null || remainingCalories <= 0) return grams;
+  const currentCalories = scaleToSuggestion(food, grams).calories;
+  const softMax = remainingCalories * 1.15 + 80;
+  if (currentCalories <= softMax) return grams;
+  const adjusted = Math.round(grams * (softMax / currentCalories));
+  return Math.max(30, Math.min(grams, adjusted));
 }
 
 function requestAllowsProcessed(request: string) {
@@ -188,11 +212,15 @@ async function findRelevantTzameretMatch(query: string, request: string, grams: 
 
 export async function suggestMenuFoods(
   request: string,
-  targets: { dailyCalories?: number | null; dailyProtein?: number | null }
+  targets: SuggestTargets
 ): Promise<MenuSuggestion[]> {
+  const remainingCalories = remainingCaloriesOf(targets);
   const targetLine = [
     targets.dailyCalories ? `יעד קלוריות יומי לתפריט: ${targets.dailyCalories}` : null,
     targets.dailyProtein ? `יעד חלבון יומי לתפריט: ${targets.dailyProtein} גרם` : null,
+    targets.currentDayCalories != null ? `קלוריות שכבר קיימות ביום הזה לפני ההצעה: ${Math.round(targets.currentDayCalories)}` : null,
+    remainingCalories != null ? `קלוריות שנשארו בערך ליום הזה: ${remainingCalories}. התחשב בזה בעדינות, לא כחסם מוחלט.` : null,
+    targets.currentMealCalories != null ? `קלוריות שכבר קיימות בחלופה/ארוחה הנוכחית: ${Math.round(targets.currentMealCalories)}` : null,
   ].filter(Boolean).join("\n");
 
   const response = await createMessage({
@@ -217,7 +245,7 @@ export async function suggestMenuFoods(
     const best = await findRelevantTzameretMatch(search.query, request, search.grams);
     if (!best || seenCodes.has(best.code)) continue;
     seenCodes.add(best.code);
-    results.push(scaleToSuggestion(best, search.grams));
+    results.push(scaleToSuggestion(best, fitGramsSoftlyToRemaining(best, search.grams, remainingCalories)));
   }
   return results;
 }

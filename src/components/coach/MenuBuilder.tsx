@@ -99,6 +99,15 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
     () => day?.meals.reduce((sum, meal) => sum + meal.options.reduce((optionSum, option) => optionSum + option.items.length, 0), 0) ?? 0,
     [day]
   );
+  const optionCalories = (option?: MenuOption) =>
+    option?.items.reduce((sum, item) => sum + Number(item.calories || 0), 0) ?? 0;
+  const dayCaloriesForOption = (optionId: string) => {
+    if (!day) return 0;
+    return day.meals.reduce((sum, meal) => {
+      const option = meal.options.find((entry) => entry.id === optionId) ?? meal.options[0];
+      return sum + optionCalories(option);
+    }, 0);
+  };
 
   const responseError = async (response: Response, fallback: string) => {
     const body = await response.json().catch(() => ({}));
@@ -305,6 +314,8 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
           request,
           dailyCalories: caloriesTarget ? Number(caloriesTarget) : null,
           dailyProtein: proteinTarget ? Number(proteinTarget) : null,
+          currentDayCalories: dayCaloriesForOption(optionId),
+          currentMealCalories: optionCalories(dayOptions.find((entry) => entry.option.id === optionId)?.option),
         }),
       });
       const body = await response.json().catch(() => ({}));

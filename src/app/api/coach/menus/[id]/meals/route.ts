@@ -50,6 +50,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } catch (error) {
     console.error("[coach/menus/:id/meals POST]", error);
     const message = error instanceof Error ? error.message : "הוספת הארוחה נכשלה";
-    return NextResponse.json({ error: `MENU_FIX_V2: הוספת הארוחה נכשלה: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: `הוספת הארוחה נכשלה: ${message}` }, { status: 500 });
   }
 }

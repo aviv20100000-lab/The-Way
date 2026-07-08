@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } catch (error) {
     console.error("[coach/menus/:id/import POST]", error);
     const message = error instanceof Error ? error.message : "ייבוא התפריט נכשל";
-    return NextResponse.json({ error: `MENU_FIX_V2: ייבוא התפריט נכשל: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: `ייבוא התפריט נכשל: ${message}` }, { status: 500 });
   }
 }
 
@@ -105,7 +105,7 @@ async function handleImport(req: NextRequest, paramsPromise: Promise<{ id: strin
   } catch (error) {
     console.error("[coach/menus/:id/import POST batch]", error);
     const message = error instanceof Error ? error.message : "שמירת התפריט המיובא נכשלה";
-    return NextResponse.json({ error: `MENU_FIX_V2: שמירת התפריט המיובא נכשלה: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: `שמירת התפריט המיובא נכשלה: ${message}` }, { status: 500 });
   }
 
   return NextResponse.json({ addedMeals, notFound: parsed.notFound });

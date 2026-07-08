@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -59,7 +59,7 @@ export async function menuMealsNeedsLegacyMealType() {
 
 export function menuMealInsertStatement(hasLegacyMealType: boolean) {
   return hasLegacyMealType
-    ? "INSERT INTO menu_meals (id, menu_day_id, label, sort_order, meal_type) VALUES (?, ?, ?, ?, 'meal')"
+    ? "INSERT INTO menu_meals (id, menu_day_id, label, sort_order, meal_type) VALUES (?, ?, ?, ?, 'snack')"
     : "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)";
 }
 
@@ -72,6 +72,13 @@ async function migrateMenuOptionsSchema() {
   await addColumnIfMissing("menu_meals", "label", "label TEXT");
   await addColumnIfMissing("menu_meals", "selected_option_id", "selected_option_id TEXT");
   await addColumnIfMissing("menu_meals", "selected_at", "selected_at TEXT");
+  await addColumnIfMissing("menu_items", "tzameret_code", "tzameret_code TEXT REFERENCES tzameret_foods(code)");
+  await addColumnIfMissing("menu_items", "name_he", "name_he TEXT");
+  await addColumnIfMissing("menu_items", "grams", "grams REAL NOT NULL DEFAULT 100");
+  await addColumnIfMissing("menu_items", "calories", "calories REAL NOT NULL DEFAULT 0");
+  await addColumnIfMissing("menu_items", "protein", "protein REAL NOT NULL DEFAULT 0");
+  await addColumnIfMissing("menu_items", "carbs", "carbs REAL NOT NULL DEFAULT 0");
+  await addColumnIfMissing("menu_items", "fat", "fat REAL NOT NULL DEFAULT 0");
   await addColumnIfMissing("menu_items", "menu_meal_option_id", "menu_meal_option_id TEXT");
 
   if (await hasColumn("menu_meals", "meal_type")) {
@@ -168,7 +175,7 @@ async function runInit() {
       sql: "SELECT version FROM schema_meta WHERE id = 1",
       args: [],
     });
-    if (Number(schemaMeta.rows[0]?.version) === SCHEMA_VERSION) return;
+    if (Number(schemaMeta.rows[0]?.version) === SCHEMA_VERSION && !(await hasColumn("menu_meals", "meal_type"))) return;
   } catch {
     // schema_meta does not exist yet; the idempotent setup below creates it.
   }
@@ -430,7 +437,6 @@ async function runInit() {
     CREATE INDEX IF NOT EXISTS idx_menu_days_plan ON menu_days(menu_plan_id, day_index);
     CREATE INDEX IF NOT EXISTS idx_menu_meals_day ON menu_meals(menu_day_id, sort_order);
     CREATE INDEX IF NOT EXISTS idx_menu_meal_options_meal ON menu_meal_options(menu_meal_id, sort_order);
-    CREATE INDEX IF NOT EXISTS idx_menu_items_option ON menu_items(menu_meal_option_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sender ON chat_messages(sender_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_receiver ON chat_messages(receiver_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_sent_at ON chat_messages(sent_at);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { getSessionUser } from "@/lib/auth";
-import db, { initDb } from "@/lib/db";
+import db, { initDb, menuMealInsertStatement, menuMealsNeedsLegacyMealType } from "@/lib/db";
 import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
 import { importMenuText } from "@/lib/menu-import";
 
@@ -58,6 +58,7 @@ async function handleImport(req: NextRequest, paramsPromise: Promise<{ id: strin
 
   const statements: { sql: string; args: (string | number | null)[] }[] = [];
   let addedMeals = 0;
+  const mealInsertSql = menuMealInsertStatement(await menuMealsNeedsLegacyMealType());
 
   for (const group of parsed.dayGroups) {
     for (const dayIndex of group.days) {
@@ -71,7 +72,7 @@ async function handleImport(req: NextRequest, paramsPromise: Promise<{ id: strin
 
       for (const meal of group.meals) {
         const mealId = uuid();
-        statements.push({ sql: "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)", args: [mealId, dayId, meal.label, sortOrder] });
+        statements.push({ sql: mealInsertSql, args: [mealId, dayId, meal.label, sortOrder] });
         sortOrder += 1;
         addedMeals += 1;
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { getSessionUser } from "@/lib/auth";
-import db, { initDb } from "@/lib/db";
+import db, { initDb, menuMealInsertStatement, menuMealsNeedsLegacyMealType } from "@/lib/db";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const coach = await getSessionUser();
@@ -47,10 +47,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const statements: Array<{ sql: string; args: unknown[] }> = [
     { sql: "DELETE FROM menu_meals WHERE menu_day_id = ?", args: [targetDay.id] },
   ];
+  const mealInsertSql = menuMealInsertStatement(await menuMealsNeedsLegacyMealType());
   for (const meal of meals.rows) {
     const newMealId = uuid();
     statements.push({
-      sql: "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)",
+      sql: mealInsertSql,
       args: [newMealId, targetDay.id, meal.label, meal.sort_order],
     });
     for (const option of options.rows.filter((entry) => entry.menu_meal_id === meal.id)) {

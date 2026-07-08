@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { getSessionUser } from "@/lib/auth";
-import db, { initDb } from "@/lib/db";
+import db, { initDb, menuMealInsertStatement, menuMealsNeedsLegacyMealType } from "@/lib/db";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -31,8 +31,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const mealId = uuid();
     const optionId = uuid();
+    const mealInsertSql = menuMealInsertStatement(await menuMealsNeedsLegacyMealType());
     await db.batch([
-      { sql: "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)", args: [mealId, dayId, label, sortOrder] },
+      { sql: mealInsertSql, args: [mealId, dayId, label, sortOrder] },
       { sql: "INSERT INTO menu_meal_options (id, menu_meal_id, label, sort_order) VALUES (?, ?, 'אפשרות א׳', 0)", args: [optionId, mealId] },
       { sql: "UPDATE menu_plans SET updated_at = datetime('now') WHERE id = ?", args: [planId] },
     ], "write");

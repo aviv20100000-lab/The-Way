@@ -53,6 +53,16 @@ async function hasColumn(table: "menu_meals" | "menu_items", column: string) {
   return result.rows.some((row) => String(row.name) === column);
 }
 
+export async function menuMealsNeedsLegacyMealType() {
+  return hasColumn("menu_meals", "meal_type");
+}
+
+export function menuMealInsertStatement(hasLegacyMealType: boolean) {
+  return hasLegacyMealType
+    ? "INSERT INTO menu_meals (id, menu_day_id, label, sort_order, meal_type) VALUES (?, ?, ?, ?, 'meal')"
+    : "INSERT INTO menu_meals (id, menu_day_id, label, sort_order) VALUES (?, ?, ?, ?)";
+}
+
 async function addColumnIfMissing(table: "menu_meals" | "menu_items", column: string, definition: string) {
   if (await hasColumn(table, column)) return;
   await db.execute({ sql: `ALTER TABLE ${table} ADD COLUMN ${definition}`, args: [] });

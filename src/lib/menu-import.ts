@@ -143,6 +143,34 @@ function scaleToItem(food: TzameretFood, grams: number, query: string): Resolved
   };
 }
 
+const COMMON_TRAINER_FOODS: Array<{
+  pattern: RegExp;
+  name_he: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}> = [
+  { pattern: /משקה\s*חלבון|(?:^|\s)פרו(?:\s|$)|\bpro\b/i, name_he: "משקה חלבון", calories: 60, protein: 10, carbs: 4, fat: 1 },
+  { pattern: /אבקת\s*חלבון|סקופ\s*חלבון/i, name_he: "אבקת חלבון", calories: 400, protein: 75, carbs: 8, fat: 6 },
+];
+
+function fallbackTrainerFood(query: string, grams: number): ResolvedItem | null {
+  const match = COMMON_TRAINER_FOODS.find((food) => food.pattern.test(query));
+  if (!match) return null;
+  const ratio = grams / 100;
+  return {
+    tzameretCode: null,
+    name_he: match.name_he,
+    grams,
+    calories: Math.round(match.calories * ratio * 10) / 10,
+    protein: Math.round(match.protein * ratio * 10) / 10,
+    carbs: Math.round(match.carbs * ratio * 10) / 10,
+    fat: Math.round(match.fat * ratio * 10) / 10,
+    query,
+  };
+}
+
 export async function importMenuText(text: string): Promise<{ dayGroups: ResolvedDayGroup[]; notFound: string[] }> {
   const response = await createMessage({
     model: "claude-sonnet-4-6",
@@ -171,6 +199,11 @@ export async function importMenuText(text: string): Promise<{ dayGroups: Resolve
           const matches = await searchTzameret(item.query);
           const match = matches[0];
           if (!match) {
+            const fallback = fallbackTrainerFood(item.query, item.grams);
+            if (fallback) {
+              items.push(fallback);
+              continue;
+            }
             notFound.push(item.query);
             continue;
           }

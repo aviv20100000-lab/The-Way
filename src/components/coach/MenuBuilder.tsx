@@ -94,6 +94,11 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
   );
   const numericTarget = Number(caloriesTarget || 0);
   const targetProgress = numericTarget > 0 ? Math.min(100, Math.round((dayCalories / numericTarget) * 100)) : 0;
+  const dayMealCount = day?.meals.length ?? 0;
+  const dayItemCount = useMemo(
+    () => day?.meals.reduce((sum, meal) => sum + meal.options.reduce((optionSum, option) => optionSum + option.items.length, 0), 0) ?? 0,
+    [day]
+  );
 
   const responseError = async (response: Response, fallback: string) => {
     const body = await response.json().catch(() => ({}));
@@ -428,14 +433,29 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
                     : "התפריט שמור כטיוטה ולא מופיע אצל המתאמן עד שלוחצים על \"שמור ופרסם למתאמן\"."}
                 </div>
 
-                <div className="rounded-2xl border border-dashed border-[#444933] bg-[#171a15] p-4">
+                <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[#33372b] bg-[#171a15] p-3 text-center">
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#8e9379]">יום</p>
+                    <p className="mt-1 text-sm font-bold text-white">{DAYS[activeDay]}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#8e9379]">ארוחות</p>
+                    <p className="mt-1 text-sm font-bold text-white">{dayMealCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#8e9379]">פריטים</p>
+                    <p className="mt-1 text-sm font-bold text-white">{dayItemCount}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[#444933] bg-[#171a15] p-4">
                   <p className="mb-2 text-xs font-bold text-[#c3f400]">ייבוא תפריט מטקסט חופשי</p>
                   <p className="mb-2 text-xs text-[#8e9379]">הדבק תפריט כמו שאתה כותב אותו רגיל (עם ימים, ארוחות, "/" לחלופות) - הוא יפורק אוטומטית ויתווסף לימים המתאימים.</p>
                   <textarea
                     value={importText}
                     onChange={(event) => setImportText(event.target.value)}
                     placeholder={"לדוגמה:\nימים א-ד:\nארוחת בוקר: 3 ביצים, 2 פרוסות לחם\n..."}
-                    rows={4}
+                    rows={6}
                     className="w-full rounded-xl border border-[#444933] bg-[#10130f] px-3 py-2 text-sm text-white"
                   />
                   <button
@@ -512,6 +532,11 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
                 <div className="rounded-2xl border border-[#444933] bg-[#171a15] p-4">
                   <div className="mb-2 flex justify-between text-sm"><span className="font-semibold text-white">סה״כ ליום (כל האפשרויות)</span><span className="text-[#c3f400]">{Math.round(dayCalories)}{numericTarget > 0 ? ` / ${numericTarget}` : ""} קל׳</span></div>
                   <div className="h-2 overflow-hidden rounded-full bg-[#282a2b]"><div className="h-full rounded-full bg-[#c3f400]" style={{ width: `${targetProgress}%` }} /></div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <h3 className="text-base font-bold text-white">ארוחות היום</h3>
+                  <span className="text-xs font-semibold text-[#8e9379]">{Math.round(dayCalories)} קל׳ ביום הנבחר</span>
                 </div>
 
                 {(day?.meals ?? []).map((meal) => (

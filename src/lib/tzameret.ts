@@ -37,6 +37,21 @@ function cookingStatesOf(value: string) {
     .filter((token) => COOKING_STATES.has(token));
 }
 
+function trainerSearchAliases(value: string) {
+  const normalized = value.normalize("NFKC");
+  const aliases: string[] = [];
+
+  if (/שניצל/.test(normalized) && /חזה\s*עוף/.test(normalized) && /אפוי|בתנור|צלוי/.test(normalized)) {
+    aliases.push("חזה עוף");
+  }
+
+  if (/משקה\s*חלבון|(?:^|\s)פרו(?:\s|$)|\bpro\b/i.test(normalized)) {
+    aliases.push("משקה חלבון", "יוגורט חלבון");
+  }
+
+  return aliases;
+}
+
 export function normalizeTzameretName(value: string) {
   return value
     .normalize("NFKC")
@@ -144,12 +159,17 @@ async function findCurated(term: string): Promise<TzameretFood | null> {
 export async function searchTzameret(nameHe: string): Promise<TzameretFood[]> {
   await initDb();
   const cookingStates = cookingStatesOf(nameHe);
-  const normalized = normalizeTzameretName(nameHe);
-  if (normalized.length < 2) return [];
+  const normalizedCandidates = [nameHe, ...trainerSearchAliases(nameHe)]
+    .map((candidate) => normalizeTzameretName(candidate))
+    .filter((candidate) => candidate.length >= 2);
+  const candidates = [...new Set(normalizedCandidates)];
+  if (candidates.length === 0) return [];
 
-  for (const mode of ["exact", "prefix", "contains"] as const) {
-    const results = await findBy(mode, normalized, cookingStates);
-    if (results.length > 0) return results;
+  for (const normalized of candidates) {
+    for (const mode of ["exact", "prefix", "contains"] as const) {
+      const results = await findBy(mode, normalized, cookingStates);
+      if (results.length > 0) return results;
+    }
   }
   return [];
 }

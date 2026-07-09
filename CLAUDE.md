@@ -1,8 +1,35 @@
-# Claude Project Instructions
+# CLAUDE.md
 
-Use the local skills in this repository before planning or building major product work.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+The Way — a Hebrew (RTL) PWA for fitness coaches and their trainees. Trainees photograph
+meals and upload step-count screenshots; Claude (Anthropic API) analyzes them and returns
+nutrition values; coaches see everything in one dashboard (chat, group management,
+weight/water/steps tracking, an AI assistant).
+
+Stack: Next.js 15 (App Router, Turbopack) + React 19 + TypeScript (strict) · Turso (LibSQL,
+cloud — not local SQLite) · JWT (jose) + bcrypt auth with CSRF double-submit cookies ·
+Tzameret (Israeli Ministry of Health) official nutrition DB · Tailwind CSS + Framer Motion ·
+Web Push (VAPID) + Vercel Cron.
+
+## Commands
+
+```bash
+npm run dev              # dev server (Turbopack), also auto-seeds demo users (skipped when NODE_ENV=production)
+npm run build             # production build — run before pushing
+npm test                  # jest
+npm test -- --testPathPattern="useAuth"   # run a single test file
+npm run test:watch
+npm run test:coverage
+npm run lint
+npm run db:seed           # manually seed demo data (src/lib/seed.ts)
+```
 
 ## Skill Routing
+
+Use the local skills in this repository before planning or building major product work.
 
 ### 1. Fitness coach app requests
 
@@ -45,40 +72,60 @@ Use that skill to:
 - preserve auth and permission boundaries
 - keep build and verification discipline
 
-## Default Combined Behavior
+### Default Combined Behavior
 
 For a new coach-client app in Next.js:
 1. Read `fitness-coach-app-builder` first for product shape.
 2. Read `nextjs-app-guardrails` second for implementation guardrails.
-3. Return a concise plan with:
-- roles
-- MVP modules
-- must-have screens
-- route families
-- first vertical slice
-- deferred features
-- privacy or permission risks
+3. Return a concise plan with: roles, MVP modules, must-have screens, route families, first vertical slice, deferred features, privacy or permission risks.
 
-## Keep It Lean
+### Keep It Lean
 
-Do not expand into a full platform too early.
-Prefer:
-- one plan flow
-- one progress flow
-- one feedback loop
+Do not expand into a full platform too early. Prefer one plan flow, one progress flow, one feedback loop.
+Defer extras unless the user explicitly prioritizes them: AI features, payments, community, challenges, advanced analytics.
 
-Defer extras unless the user explicitly prioritizes them:
-- AI features
-- payments
-- community
-- challenges
-- advanced analytics
+## Architecture
+
+```
+src/
+├── app/
+│  ├── api/          # API routes, organized by domain: auth/ chat/ coach/ foods/ health/ users/ meals/ menus/ motivation/ push/ cron/ admin/ ...
+│  ├── client/        # Trainee dashboard
+│  ├── coach/         # Coach dashboard
+│  ├── chat/          # Shared chat UI
+│  └── page.tsx       # Landing page
+├── components/       # Reusable React components
+├── hooks/
+│  ├── useAuth.ts
+│  ├── client/        # Trainee-specific hooks (useClientHome, useFoodTracking, ...)
+│  └── coach/         # Coach-specific hooks
+└── lib/
+   ├── auth.ts         # Auth utilities (JWT session, bcrypt)
+   ├── csrf.ts / csrf-client.ts  # CSRF double-submit cookie — csrf-client attaches the token to state-changing fetch() calls
+   ├── db.ts            # Turso/LibSQL connection
+   ├── anthropic.ts      # Claude API wrapper (food photo / steps screenshot analysis)
+   ├── assistant.ts + assistant-brain.ts + assistant-context.ts  # trainee-facing AI assistant: assistant.ts holds coach methodology/nutrition rules, assistant-brain.ts is a playbook layer on top (morning/lunch/evening/night/hunger/supermarket/unknown-product/off-plan-day), keep both — don't collapse them
+   ├── tzameret.ts       # Official nutrition DB lookups — never invent nutrition values
+   └── types.ts
+```
+
+There is no `src/lib/api.ts` fetch wrapper or `src/hooks` barrel file — import each hook
+directly from its own path. Design tokens live as CSS variables in `src/app/globals.css`
+(`--color-*`), not in a separate `design-system.ts`.
+
+API route convention (`src/app/api/**/route.ts`): check auth via `getSessionUser()` → `initDb()`
+if needed → validate input → return JSON with proper status codes and Hebrew error messages.
+
+Middleware (`src/middleware.ts`) exempts `public/` static assets from the auth redirect —
+be careful not to break that when touching auth redirects.
+
+Further docs: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) (env vars/deploy),
+[docs/API.md](./docs/API.md) (endpoint reference), [docs/MONITORING.md](./docs/MONITORING.md)
+(health-check bot), [docs/PROJECT_STRUCTURE.md](./docs/PROJECT_STRUCTURE.md).
 
 ## Deployment Memory
 
-- On 2026-07-04 the repository was synchronized with production in commit `115f2f9` and pushed to `main`.
 - GitHub `main` is connected to the active Vercel project `the-way-app`; every push to `main` triggers an automatic production deployment to `https://the-way-app-two.vercel.app`.
 - Normal release flow: save changes, create a git commit, then run `git push`. Vercel deploys automatically; do not run a separate manual Vercel deployment unless explicitly needed.
 - `git push` only sends committed changes. Local edits that were not committed are not deployed.
-- The stale duplicate Vercel project `project-dxx1s` was permanently removed on 2026-07-05. The only active project is `the-way-app`.
-- The nightly database-backup GitHub Actions workflow is active. Its first manual run succeeded and produced the `db-backup-2026-07-04` artifact.
+- The nightly database-backup GitHub Actions workflow is active.

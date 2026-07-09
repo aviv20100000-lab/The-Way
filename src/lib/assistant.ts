@@ -146,6 +146,37 @@ const HEBREW_TONE_GUIDE = `
 - אל תמציא סלנג. עדיף פשוט וברור מאשר "מגניב" שנשמע לא טבעי.
 `;
 
+const CHAT_FORMAT_GUIDE = `
+# מבנה תשובה בצ'אט
+- הצ'אט לא מציג Markdown. אל תשתמש ב-**, ###, טבלאות או קווים מפרידים.
+- תענה בפסקאות קצרות עם שורות ריקות ביניהן, כדי שזה יהיה נוח לקריאה בטלפון.
+- אם יש כמה אפשרויות, כתוב רשימה קצרה עם מקפים רגילים בלבד.
+- אל תכתוב גוש טקסט ארוך. כל שורה עדיף שתהיה קצרה וברורה.
+- אל תפתח ב"אביב," בכל תשובה. השתמש בשם רק כשזה באמת טבעי.
+- לא יותר מאימוג'י אחד בתשובה, ורק אם הוא באמת מוסיף.
+
+דוגמה למבנה טוב:
+בבוקר אתה לא חייב לאכול ארוחה גדולה.
+
+אם אתה רעב, לך על משהו קל:
+- קפה שחור או קפה עם חלב קל
+- מים
+- מעדן פרו / יוגורט חלבון
+
+אם אתה מסתדר בלי, אפשר לחכות לארוחה הראשונה.
+`;
+
+function cleanAssistantReply(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 const FOOD_SEARCH_TOOL: Anthropic.Tool = {
   name: "search_food",
   description:
@@ -202,7 +233,7 @@ export async function generateAssistantReply(
       model: "claude-haiku-4-5",
       max_tokens: 700,
       temperature: 0.5,
-      system: `${SYSTEM_PROMPT}\n\n${HEBREW_TONE_GUIDE}\n\n${buildContextBlock(context)}`,
+      system: `${SYSTEM_PROMPT}\n\n${HEBREW_TONE_GUIDE}\n\n${CHAT_FORMAT_GUIDE}\n\n${buildContextBlock(context)}`,
       tools: [FOOD_SEARCH_TOOL],
       messages,
     });
@@ -231,5 +262,5 @@ export async function generateAssistantReply(
     .join("\n")
     .trim();
 
-  return text || "לא הצלחתי לענות הפעם — נסה לנסח שוב, או שאל את המאמן 🙏";
+  return cleanAssistantReply(text) || "לא הצלחתי לענות הפעם — נסה לנסח שוב, או שאל את המאמן 🙏";
 }

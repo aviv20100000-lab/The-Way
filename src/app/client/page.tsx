@@ -478,7 +478,7 @@ export default function ClientPage() {
               <div className="skeleton h-28 w-full rounded-2xl" />
             </div>
           ) : (
-          <div className="space-y-5">
+          <div className="space-y-7">
             {/* Greeting — holographic HUD header */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -611,55 +611,14 @@ export default function ClientPage() {
               </button>
             )}
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <TiltCard className="flex flex-col items-center glass-card rounded-2xl p-6 transition-all" delay={0.3} max={10}>
-                <ProgressRing pct={stepsPct} size={88} stroke={8} color="#6366f1" track="#333535">
-                  <AnimatedScore value={todaySteps} animate={!prefersReducedMotion} className="text-xl font-bold text-white" />
-                  <span className="mt-0.5 text-xs font-normal text-[#c4c9ac]">צעדים</span>
-                </ProgressRing>
-                <p className="mt-4 text-sm font-semibold tracking-wide text-[#c4c9ac]">צעדים</p>
-              </TiltCard>
-
-              <TiltCard className="flex flex-col justify-between glass-card rounded-2xl p-6 transition-all" delay={0.4} max={10}>
-                <p className="text-xs font-semibold text-[#8e9379] tracking-widest uppercase">משקל</p>
-                {latestWeight ? (
-                  <div className="mt-2 space-y-3">
-                    <div className="flex items-baseline gap-1">
-                      <AnimatedScore
-                        value={latestWeight}
-                        animate={!prefersReducedMotion}
-                        precision={Number.isInteger(latestWeight) ? 0 : 1}
-                        format={(value) => value.toLocaleString("he-IL", { maximumFractionDigits: 1 })}
-                        className="text-4xl font-black leading-none text-white"
-                      />
-                      <span className="text-sm text-[#c4c9ac]">ק&quot;ג</span>
-                    </div>
-                    {weightTarget && (() => {
-                      const startW = weightLogs[weightLogs.length - 1]?.weight_kg ?? latestWeight;
-                      const totalDiff = Math.abs(startW - weightTarget);
-                      const done = Math.abs(startW - latestWeight);
-                      const pct = totalDiff > 0 ? Math.min(100, Math.round((done / totalDiff) * 100)) : 100;
-                      const remaining = Math.abs(latestWeight - weightTarget);
-                      return (
-                        <div className="space-y-2">
-                          <div className="h-1 rounded-full bg-[#333535] overflow-hidden">
-                            <div className="h-full rounded-full bg-[#c3f400] transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                          <p className="text-xs text-[#8e9379]">
-                            {remaining > 0
-                              ? `עוד ${remaining.toFixed(1)} ק"ג ליעד`
-                              : `הגעת ליעד! 🎯`}
-                          </p>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <p className="py-3 text-sm text-[#c4c9ac]">עוד לא נשקלת</p>
-                )}
-              </TiltCard>
-            </div>
+            {/* Steps */}
+            <TiltCard className="flex flex-col items-center glass-card rounded-2xl p-6 transition-all" delay={0.3} max={10}>
+              <ProgressRing pct={stepsPct} size={88} stroke={8} color="#6366f1" track="#333535">
+                <AnimatedScore value={todaySteps} animate={!prefersReducedMotion} className="text-xl font-bold text-white" />
+                <span className="mt-0.5 text-xs font-normal text-[#c4c9ac]">צעדים</span>
+              </ProgressRing>
+              <p className="mt-4 text-sm font-semibold tracking-wide text-[#c4c9ac]">צעדים</p>
+            </TiltCard>
 
             {/* Water */}
             <motion.div

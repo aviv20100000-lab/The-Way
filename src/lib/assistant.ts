@@ -178,7 +178,7 @@ function cleanAssistantReply(text: string): string {
     .trim();
 }
 
-async function polishAssistantReply(draft: string): Promise<string> {
+async function polishAssistantReply(draft: string, userMessage: string): Promise<string> {
   const cleanedDraft = cleanAssistantReply(draft);
   if (!cleanedDraft) return cleanedDraft;
 
@@ -188,7 +188,10 @@ async function polishAssistantReply(draft: string): Promise<string> {
       max_tokens: 500,
       temperature: 0.2,
       system: ASSISTANT_POLISH_PROMPT,
-      messages: [{ role: "user", content: cleanedDraft }],
+      messages: [{
+        role: "user",
+        content: `השאלה האחרונה של המתאמן:\n${userMessage}\n\nטיוטה לשכתוב:\n${cleanedDraft}`,
+      }],
     });
 
     const polished = response.content
@@ -288,5 +291,5 @@ export async function generateAssistantReply(
     .join("\n")
     .trim();
 
-  return (await polishAssistantReply(text)) || "לא הצלחתי לענות הפעם — נסה לנסח שוב, או שאל את המאמן 🙏";
+  return (await polishAssistantReply(text, userMessage)) || "לא הצלחתי לענות הפעם — נסה לנסח שוב, או שאל את המאמן 🙏";
 }

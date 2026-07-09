@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## שפה
+
+תמיד תענה למשתמש בעברית פשוטה וקצרה, גם אם השאלה נכתבה באנגלית.
+
 ## Project
 
 The Way — a Hebrew (RTL) PWA for fitness coaches and their trainees. Trainees photograph

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { searchTzameret } from "./tzameret";
 import { alertIfLowBalance } from "./low-balance-alert";
+import { ASSISTANT_POLISH_PROMPT, ASSISTANT_RESPONSE_PLAYBOOK } from "./assistant-brain";
 
 let _client: Anthropic | null = null;
 
@@ -177,6 +178,31 @@ function cleanAssistantReply(text: string): string {
     .trim();
 }
 
+async function polishAssistantReply(draft: string): Promise<string> {
+  const cleanedDraft = cleanAssistantReply(draft);
+  if (!cleanedDraft) return cleanedDraft;
+
+  try {
+    const response = await createMessage({
+      model: "claude-haiku-4-5",
+      max_tokens: 500,
+      temperature: 0.2,
+      system: ASSISTANT_POLISH_PROMPT,
+      messages: [{ role: "user", content: cleanedDraft }],
+    });
+
+    const polished = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("\n")
+      .trim();
+
+    return cleanAssistantReply(polished) || cleanedDraft;
+  } catch {
+    return cleanedDraft;
+  }
+}
+
 const FOOD_SEARCH_TOOL: Anthropic.Tool = {
   name: "search_food",
   description:
@@ -231,9 +257,9 @@ export async function generateAssistantReply(
   const request = () =>
     createMessage({
       model: "claude-haiku-4-5",
-      max_tokens: 700,
+      max_tokens: 650,
       temperature: 0.5,
-      system: `${SYSTEM_PROMPT}\n\n${HEBREW_TONE_GUIDE}\n\n${CHAT_FORMAT_GUIDE}\n\n${buildContextBlock(context)}`,
+      system: `${SYSTEM_PROMPT}\n\n${HEBREW_TONE_GUIDE}\n\n${CHAT_FORMAT_GUIDE}\n\n${ASSISTANT_RESPONSE_PLAYBOOK}\n\n${buildContextBlock(context)}`,
       tools: [FOOD_SEARCH_TOOL],
       messages,
     });
@@ -262,5 +288,5 @@ export async function generateAssistantReply(
     .join("\n")
     .trim();
 
-  return cleanAssistantReply(text) || "לא הצלחתי לענות הפעם — נסה לנסח שוב, או שאל את המאמן 🙏";
+  return (await polishAssistantReply(text)) || "לא הצלחתי לענות הפעם — נסה לנסח שוב, או שאל את המאמן 🙏";
 }

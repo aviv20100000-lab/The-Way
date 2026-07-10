@@ -889,7 +889,8 @@ export default function ClientPage() {
           <div className="space-y-5">
 
             {/* Header row */}
-            <motion.div initial={prefersReducedMotion ? false : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="flex items-end justify-between">
+            <motion.div initial={prefersReducedMotion ? false : { opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="competition-header flex items-end justify-between border-b border-[#2e3030] pb-4">
+              <style>{`.competition-header p { color: #8e9379 !important; } .competition-header p span { color: #c4c9ac !important; }`}</style>
               <div>
                 <style>{`
                   @keyframes lbShimmer {
@@ -916,13 +917,14 @@ export default function ClientPage() {
                   }
                   .first-glow { animation: firstGlow 3s ease-in-out infinite; }
                 `}</style>
-                <h2 className="lb-title text-2xl font-black leading-none">לוח מנצחים</h2>
-                {myRank && <p className="text-xs text-[#8e9379] mt-1">הדירוג שלך <span className="text-[#c3f400] font-bold">#{myRank}</span></p>}
+                <p className="mb-2 text-[10px] font-black tracking-[0.18em] text-[#c3f400]">אתגר הצעדים</p>
+                <h2 className="text-2xl font-black leading-none text-white">לוח מנצחים</h2>
+                {myRank && <p className="text-xs text-[#8e9379] mt-1">הדירוג שלך: <span className="text-[#c3f400] font-bold">{myRank}</span></p>}
                 {hasCompetition && competitionGroupName && <p className="text-xs text-[#8e9379] mt-1">תחרות: <span className="text-[#c3f400] font-bold">{competitionGroupName}</span></p>}
                 <p className="text-xs text-[#8e9379] mt-1">היעד היומי שלך: {stepsGoal.toLocaleString()} צעדים</p>
               </div>
               {/* Time toggle — top right */}
-              <div className="flex rounded-xl bg-[#1a1c1c] border border-[#2e3030] p-0.5 gap-0.5">
+              <div className="flex shrink-0 rounded-xl bg-[#1a1c1c] border border-[#2e3030] p-0.5 gap-0.5">
                 {([["today","היום"],["week","שבוע"]] as const).map(([v,label]) => (
                   <button key={v} onClick={() => setLbView(v)}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${lbView===v ? "bg-[#c3f400] text-[#161e00]" : "text-[#555] hover:text-[#888]"}`}>
@@ -946,12 +948,12 @@ export default function ClientPage() {
                   <summary className="flex items-center justify-between rounded-2xl border border-[#2e3030] bg-[#171919] px-5 py-3.5 cursor-pointer list-none select-none">
                     <div className="flex items-center gap-3">
                       <svg className="w-4 h-4 text-[#555]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                      <span className="text-sm font-semibold text-white">עדכן צעדים</span>
-                      <span className="text-xs text-[#555]">· סקרינשוט מ-בדיקת בריאות</span>
+                      <span className="text-sm font-semibold text-white">עדכון צעדים</span>
+                      <span className="text-xs text-[#555]">· Screenshot מאפליקציית בריאות</span>
                     </div>
                     <svg className="w-3.5 h-3.5 text-[#444] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
                   </summary>
-                  <div className="pt-3"><PhotoUpload onFile={uploadStepsScreenshot} isLoading={uploadingSteps} error={stepsError} /></div>
+                  <div className="pt-3"><PhotoUpload captureLabel="צלם צעדים" onFile={uploadStepsScreenshot} isLoading={uploadingSteps} error={stepsError} /></div>
                 </details>
               )}
             </motion.div>
@@ -985,7 +987,53 @@ export default function ClientPage() {
               );
             })()}
 
+            {hasCompetition && sorted.length >= 3 && (
+              <motion.section
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18 }}
+                aria-label="שלושת המקומות הראשונים"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-black text-white">שלישיית המובילים</p>
+                  <p className="text-[11px] text-[#8e9379]">{lbView === "today" ? "היום" : "השבוע"}</p>
+                </div>
+                <div className="grid grid-cols-3 items-end gap-2">
+                  {[1, 0, 2].map((podiumIndex) => {
+                    const entry = sorted[podiumIndex];
+                    const value = lbView === "today" ? entry.today : entry.week;
+                    const isMe = entry.id === user.id;
+                    const color = CROWN[podiumIndex];
+                    const height = podiumIndex === 0 ? "min-h-[154px]" : podiumIndex === 1 ? "min-h-[132px]" : "min-h-[116px]";
+                    return (
+                      <div
+                        key={entry.id}
+                        className={`relative flex ${height} flex-col items-center justify-end overflow-hidden rounded-t-2xl border border-b-0 p-3 text-center ${isMe ? "border-[#c3f400]/70 bg-[#c3f400]/10" : "border-[#30352d] bg-[#171b18]"}`}
+                        style={{ boxShadow: podiumIndex === 0 ? "0 -10px 28px rgba(195,244,0,0.12)" : undefined }}
+                      >
+                        <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: color }} />
+                        <div className="mb-3 flex items-center gap-2" style={{ color }} aria-label={`דירוג ${podiumIndex + 1}`}>
+                          <span className="h-px w-4" style={{ backgroundColor: `${color}88` }} />
+                          <span className="text-[11px] font-black tracking-[0.18em]">0{podiumIndex + 1}</span>
+                          <span className="h-px w-4" style={{ backgroundColor: `${color}88` }} />
+                        </div>
+                        <p className="max-w-full truncate text-base font-black leading-tight text-white">{entry.name}</p>
+                        {isMe && <span className="mt-1 rounded-full bg-[#c3f400] px-1.5 py-0.5 text-[9px] font-black text-[#161e00]">אתה</span>}
+                        <p className="mt-2 text-lg font-black" style={{ color }}>{value.toLocaleString()}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.section>
+            )}
+
             {/* Leaderboard */}
+            {hasCompetition && sorted.length > 3 && (
+              <div className="mt-5 flex items-center justify-between px-1">
+                <p className="text-sm font-black text-white">המשך הדירוג</p>
+                <p className="text-[11px] font-semibold text-[#8e9379]">מקומות 4–{sorted.length}</p>
+              </div>
+            )}
             {hasCompetition && (!lbLoaded && sorted.length === 0 ? (
               <div className="glass-card rounded-2xl border border-[#2e3030] overflow-hidden">
                 {[...Array(5)].map((_, i) => (
@@ -1007,7 +1055,8 @@ export default function ClientPage() {
             ) : (
               <motion.div initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
                 className="glass-card rounded-2xl border border-[#2e3030] overflow-hidden">
-                {sorted.map((entry, i) => {
+                {sorted.slice(3).map((entry, index) => {
+                  const i = index + 3;
                   const val = lbView === "today" ? entry.today : entry.week;
                   const pct = Math.round((val / maxVal) * 100);
                   const isMe = entry.id === user.id;
@@ -1033,29 +1082,17 @@ export default function ClientPage() {
                           ? <span className="text-base leading-none" style={{ filter: `drop-shadow(0 0 6px ${CROWN[i]}80)` }}>
                               {i===0?"🥇":i===1?"🥈":"🥉"}
                             </span>
-                          : <span className={`text-xs font-black ${isMe ? "text-[#c3f400]" : "text-[#3a3c3c]"}`}>#{i+1}</span>
+                          : <span className={`text-sm font-black tracking-[0.18em] ${isMe ? "text-[#c3f400]" : "text-[#8e9379]"}`}>{String(i + 1).padStart(2, "0")}</span>
                         }
-                      </div>
-
-                      {/* Avatar */}
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0"
-                        style={{
-                          background: accent ? `${accent}18` : isMe ? "rgba(195,244,0,0.1)" : "#1e2020",
-                          color: accent ?? (isMe ? "#c3f400" : "#8e9379"),
-                          border: `1.5px solid ${accent ? `${accent}40` : isMe ? "rgba(195,244,0,0.25)" : "#2a2c2c"}`,
-                        }}
-                      >
-                        {entry.name[0]}
                       </div>
 
                       {/* Name + bar */}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-bold leading-none mb-2 truncate ${isMe || isFirst ? "text-white" : "text-[#c4c9ac]"}`}>
+                        <p className={`text-base font-black leading-none mb-2 truncate ${isMe || isFirst ? "text-white" : "text-[#c4c9ac]"}`}>
                           {entry.name}
                           {isMe && <span className="ime-badge mr-1.5 inline-block text-[9px] font-black text-[#161e00] bg-[#c3f400] rounded px-1 py-0.5 align-middle">אני</span>}
                         </p>
-                        <div className="h-[3px] rounded-full bg-[#1e2020] overflow-hidden">
+                        <div className="h-1 rounded-full border border-[#303830] bg-[#252b25] overflow-hidden">
                           <motion.div
                             className="h-full rounded-full"
                             style={{ background: accent ?? (isMe ? "#c3f400" : "#333535") }}

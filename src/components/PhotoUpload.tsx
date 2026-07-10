@@ -8,9 +8,10 @@ interface PhotoUploadProps {
   onFile: (file: File) => void;
   isLoading?: boolean;
   error?: string;
+  captureLabel?: string;
 }
 
-export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadProps) {
+export function PhotoUpload({ onFile, isLoading = false, error, captureLabel = "צלם ארוחה" }: PhotoUploadProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const prefersReducedMotion = useReducedMotion();
@@ -73,7 +74,7 @@ export function PhotoUpload({ onFile, isLoading = false, error }: PhotoUploadPro
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
           <circle cx="12" cy="13" r="4"/>
         </svg>
-        <span className="text-base">צלם ארוחה</span>
+        <span className="text-base">{captureLabel}</span>
       </motion.button>
 
       <motion.button

@@ -22,7 +22,7 @@ export function useStepsTracking() {
   const [uploadingSteps, setUploadingSteps] = useState(false);
   const [stepsSuccess, setStepsSuccess] = useState("");
   const [stepsError, setStepsError] = useState("");
-  const [lbView, setLbView] = useState<"today" | "week">("week");
+  const [lbView, setLbView] = useState<"today" | "week">("today");
   const [todaySteps, setTodaySteps] = useState(0);
   const [lbLoaded, setLbLoaded] = useState(false);
   const loadedRef = useRef(false);

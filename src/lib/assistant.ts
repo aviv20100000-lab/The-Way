@@ -184,7 +184,7 @@ async function polishAssistantReply(draft: string, userMessage: string): Promise
 
   try {
     const response = await createMessage({
-      model: "claude-sonnet-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 500,
       temperature: 0.2,
       system: ASSISTANT_POLISH_PROMPT,
@@ -259,7 +259,7 @@ export async function generateAssistantReply(
 
   const request = () =>
     createMessage({
-      model: "claude-sonnet-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 650,
       temperature: 0.5,
       system: `${SYSTEM_PROMPT}\n\n${HEBREW_TONE_GUIDE}\n\n${CHAT_FORMAT_GUIDE}\n\n${ASSISTANT_RESPONSE_PLAYBOOK}\n\n${buildContextBlock(context)}`,

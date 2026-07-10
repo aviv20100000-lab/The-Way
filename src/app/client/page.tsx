@@ -322,13 +322,17 @@ export default function ClientPage() {
   useEffect(() => {
     if (tab === "steps") loadLeaderboard();
     if (tab === "home") loadMyMeals();
+    if (tab === "weight") {
+      void loadWeight();
+      void loadHome();
+    }
     // Refresh home stats when returning to the home tab (skip the initial
     // mount — useClientHome already fetches once on load).
     if (tab === "home") {
       if (homeRefreshReadyRef.current) loadHome();
       else homeRefreshReadyRef.current = true;
     }
-  }, [tab, loadLeaderboard, loadMyMeals, loadHome]);
+  }, [tab, loadLeaderboard, loadMyMeals, loadWeight, loadHome]);
 
   // Sync home-tab calorie counter after AI meal saved
   useEffect(() => {
@@ -786,7 +790,7 @@ export default function ClientPage() {
             </div>
             )}
 
-            {homeLoaded && !goalStatus.targetWeight && (
+            {homeLoaded && weightDataLoaded && weightTarget === null && (
               <div className="glass-card rounded-2xl border border-[#444933] p-4 text-center">
                 <p className="text-sm font-bold text-white">המאמן עוד לא עדכן יעד משקל</p>
                 <p className="mt-1 text-xs text-[#8e9379]">אפשר לעדכן משקל יומי, והיעד יופיע כאן אחרי שהמאמן יגדיר אותו.</p>

@@ -744,7 +744,7 @@ export default function ChatPage() {
       tabIndex={0}
       onClick={() => selectChat({ type: "group" })}
       onKeyDown={(e) => { if (e.key === "Enter") selectChat({ type: "group" }); }}
-      className={`flex items-center gap-3 px-4 py-3.5 w-full cursor-pointer text-right transition-colors ${isGroupActive && showChat ? "bg-[#c3f400]/8 border-r-2 border-[#c3f400]" : "hover:bg-[#1e2020]"}`}
+      className={`mx-3 my-1 flex w-[calc(100%_-_1.5rem)] cursor-pointer items-center gap-3 rounded-2xl border border-[#232a23] bg-[#121716] px-4 py-3.5 text-right transition-colors md:mx-0 md:my-0 md:w-full md:rounded-none md:border-0 md:bg-transparent ${isGroupActive && showChat ? "bg-[#c3f400]/8 border-r-2 border-[#c3f400]" : "hover:bg-[#1e2020]"}`}
     >
       <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#c3f400]/30 to-[#6366f1]/30 border border-[#c3f400]/20 flex items-center justify-center text-xl shrink-0" style={{ width: 44, height: 44 }}>👥</div>
       <div className="flex-1 min-w-0">
@@ -774,7 +774,7 @@ export default function ChatPage() {
         tabIndex={0}
         onClick={() => selectChat({ type: "namedGroup", group })}
         onKeyDown={(event) => { if (event.key === "Enter") selectChat({ type: "namedGroup", group }); }}
-        className={`flex w-full items-center gap-3 px-4 py-3.5 text-right transition-colors ${isActive ? "border-r-2 border-[#c3f400] bg-[#c3f400]/8" : "hover:bg-[#1e2020]"}`}
+        className={`mx-3 my-1 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border border-[#232a23] bg-[#121716] px-4 py-3.5 text-right transition-colors md:mx-0 md:my-0 md:w-full md:rounded-none md:border-0 md:bg-transparent ${isActive ? "border-r-2 border-[#c3f400] bg-[#c3f400]/8" : "hover:bg-[#1e2020]"}`}
       >
         <GroupPhoto imageUrl={group.imageUrl} name={group.name} />
         <div className="min-w-0 flex-1">
@@ -849,7 +849,7 @@ export default function ChatPage() {
       <button
         key={c.id}
         onClick={() => selectChat({ type: "private", contact: c })}
-        className={`flex items-center gap-3 px-4 py-3.5 w-full text-right transition-colors ${isActive ? "bg-[#c3f400]/8 border-r-2 border-[#c3f400]" : "hover:bg-[#1e2020]"}`}
+        className={`mx-3 my-1 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border border-[#232a23] bg-[#121716] px-4 py-3.5 text-right transition-colors md:mx-0 md:my-0 md:w-full md:rounded-none md:border-0 md:bg-transparent ${isActive ? "bg-[#c3f400]/8 border-r-2 border-[#c3f400]" : "hover:bg-[#1e2020]"}`}
       >
         <Avatar username={c.username} name={c.name} avatarUrl={c.avatar_url} />
         <div className="flex-1 min-w-0">

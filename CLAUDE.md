@@ -133,3 +133,29 @@ Further docs: [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) (env vars/deploy),
 - Normal release flow: save changes, create a git commit, then run `git push`. Vercel deploys automatically; do not run a separate manual Vercel deployment unless explicitly needed.
 - `git push` only sends committed changes. Local edits that were not committed are not deployed.
 - The nightly database-backup GitHub Actions workflow is active.
+- Only the USER pushes/deploys — give him the `git push` command to run himself; never run it (or `vercel deploy`) yourself.
+
+## Hard Rules — learned from real mistakes (do NOT violate)
+
+### Workflow
+
+- NEVER use browser/preview tools (`preview_screenshot`, `preview_start`, `preview_eval`, `preview_snapshot`, etc.). Verify instead with: (a) `npx tsc --noEmit`, (b) re-read the final diff and trace the logic by hand for a concrete scenario, (c) tell the user exactly what to click and check in HIS browser.
+- The user often works in a SECOND parallel AI session on this repo. NEVER `git add -A` or `git add .` — stage only files YOU touched this session. Run `git status` first and call out files you didn't touch. Re-read shared files (`src/middleware.ts`, `src/app/coach/page.tsx`, hooks) immediately before editing — they may have changed under you.
+- Before writing any code, READ the actual current source files involved. The codebase changes fast (multiple features per session) — never code from memory of "how it probably looks."
+
+### Debugging methodology (saves hours)
+
+- When ONE feature/tab fails → read its `route.ts` API handler FIRST, not CSS or component code. Check request param names (e.g. the quotes DELETE endpoint wants `quoteId`, not `id`) and response shape (array vs object). Guessing at UI code once wasted 2 hours on a bug that was a mismatched param name.
+- Phantom React render errors with NO error message, especially after big file changes: usually stale `.next` build artifacts, not real bugs. Stop the dev server, delete `.next`, restart, hard-refresh (Ctrl+Shift+R) BEFORE diving into code.
+- Testing endpoints with Hebrew payloads: NEVER curl from Windows — Git Bash mangles Hebrew into `�` before the request leaves the machine. Write a small Node `.mjs` script using `fetch()` and run `node script.mjs`.
+
+### Architecture gotchas
+
+- `src/middleware.ts` runs in the EDGE runtime: no Node `crypto`, no `next/headers`. Never import from `@/lib/csrf` there — the CSRF double-submit check is inline pure-JS. Breaking this 500s EVERY authenticated POST in production (`MIDDLEWARE_INVOCATION_FAILED`).
+- Every new client-side POST to `/api/*` MUST send the `x-csrf-token` header — use `getCsrfToken()` / `withCsrf()` from `src/lib/csrf-client.ts` — or it 403s.
+- New static asset under `public/` referenced from a logged-out page (login etc.): verify its file extension is in the middleware exemption regex, or the request silently 307s to `/login`. Test in an incognito window, not your logged-in dev browser.
+
+### AI / nutrition rules
+
+- Food-scan API calls: NEVER combine `thinking` with forced tool use (`tool_choice`) — it breaks the call entirely. Never add food-name examples (חומוס, שקשוקה…) to the scan prompt — it causes hallucinated foods; visual cues only (color, texture, shape). Scan image compression stays at 1568px / quality 0.9 — do not lower it for speed.
+- Any meat-detection logic (`isMeatDish` or any variant) MUST exclude fish from the start: guard with `&& !/דג|סלמון|טונה|בס|דניס|נסיכה|פילה/i.test(name)`. This bug was reintroduced once already; never again.

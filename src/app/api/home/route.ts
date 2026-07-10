@@ -19,7 +19,7 @@ export async function GET() {
       args: [u.id, today],
     }),
     db.execute({
-      sql: "SELECT target_weight_kg, daily_water_ml, daily_calories, daily_protein_g, daily_steps FROM goals WHERE user_id = ?",
+      sql: "SELECT target_weight_kg, daily_water_ml, daily_calories, daily_protein_g, daily_steps, weigh_in_frequency_weeks, weigh_in_weekday FROM goals WHERE user_id = ?",
       args: [u.id],
     }),
     db.execute({
@@ -91,6 +91,8 @@ export async function GET() {
       goal: calGoal,
     },
     protein_goal: (goalsRes.rows[0]?.daily_protein_g as number) || null,
+    weigh_in_frequency_weeks: (goalsRes.rows[0]?.weigh_in_frequency_weeks as number) || null,
+    weigh_in_weekday: goalsRes.rows[0]?.weigh_in_weekday == null ? null : Number(goalsRes.rows[0].weigh_in_weekday),
     goal_status: {
       target_weight: goalsRow?.target_weight_kg != null,
       calories: goalsRow?.daily_calories != null,

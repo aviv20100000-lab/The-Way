@@ -22,6 +22,15 @@ import { withCsrf } from "@/lib/csrf-client";
 const CELEBRATED_MILESTONES_KEY = "the-way:celebrated-milestones";
 const WATER_GOAL_CELEBRATED_KEY = "the-way:water-goal-celebrated";
 
+function isWeightEntryDay(date: Date | null, frequencyWeeks: number | null, firstWeighInWeekday: number | null, hasWeightLogs: boolean): boolean {
+  if (!date || !frequencyWeeks) return false;
+  if (!hasWeightLogs) return firstWeighInWeekday != null && date.getDay() === firstWeighInWeekday;
+  if (date.getDay() !== 0) return false;
+  if (frequencyWeeks <= 1) return true;
+  const weeksSinceEpoch = Math.floor(date.getTime() / (7 * 24 * 60 * 60 * 1000));
+  return weeksSinceEpoch % frequencyWeeks === 0;
+}
+
 const WaterTrackerTab = dynamic(() => import("@/app/client/water/page"), {
   loading: () => (
     <div className="space-y-4 pt-2">
@@ -101,7 +110,7 @@ export default function ClientPage() {
 
   // Hooks
   const { user, isLoading, logout } = useAuth();
-  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
+  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, weighInFrequencyWeeks, weighInWeekday, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
   const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, hasCompetition, competitionGroupName, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
@@ -152,6 +161,7 @@ export default function ClientPage() {
   }, [homeLoaded, prefersReducedMotion, waterGoal, waterTotal]);
 
   const latestWeight = weightLogs[0]?.weight_kg ?? null;
+  const canLogWeightToday = isWeightEntryDay(clientNow, weighInFrequencyWeeks, weighInWeekday, weightLogs.length > 0);
   // Peak (not just the oldest log) so a regain-then-reloss still unlocks new
   // milestones — losing 5kg from any past high point counts, not just from day one.
   const peakWeight = weightLogs.length > 0
@@ -735,6 +745,46 @@ export default function ClientPage() {
             </div>
           ) : (
           <div className="space-y-6">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.18em] text-[#c3f400]">מעקב משקל</p>
+                <h2 className="mt-1 text-2xl font-black text-white">ההתקדמות שלך</h2>
+              </div>
+              {latestWeight !== null && <p className="text-xs font-semibold text-[#8e9379]">המדידה האחרונה נשמרה</p>}
+            </div>
+
+            {canLogWeightToday && (
+            <div className="rounded-2xl border border-[#c3f400]/25 bg-[linear-gradient(135deg,#182015,#111413)] p-4 shadow-[0_18px_40px_-30px_rgba(195,244,0,0.7)]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-white">עדכון שקילה</p>
+                  <p className="mt-1 text-xs text-[#8e9379]">רשום את המשקל של היום כדי לעדכן את המגמה</p>
+                </div>
+                <span className="text-2xl" aria-hidden="true">⚖️</span>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newWeight}
+                  onChange={(e) => setNewWeight(e.target.value)}
+                  placeholder="75.0"
+                  aria-label="משקל בקילוגרמים"
+                  className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#0d100e] px-4 py-3 text-center text-xl font-black text-white outline-none transition focus:border-[#c3f400] focus:ring-2 focus:ring-[#c3f400]/20"
+                />
+                <span className="shrink-0 text-sm font-bold text-[#c4c9ac]">ק״ג</span>
+                <motion.button
+                  type="button"
+                  onClick={handleSaveWeight}
+                  disabled={savingWeight || !newWeight}
+                  whileTap={{ scale: 0.97 }}
+                  className="shrink-0 rounded-xl bg-[#c3f400] px-5 py-3 text-sm font-black text-[#161e00] transition disabled:opacity-50"
+                >
+                  {savingWeight ? "שומר..." : "שמור"}
+                </motion.button>
+              </div>
+            </div>
+            )}
 
             {homeLoaded && !goalStatus.targetWeight && (
               <div className="glass-card rounded-2xl border border-[#444933] p-4 text-center">
@@ -773,7 +823,7 @@ export default function ClientPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="glass-card rounded-2xl p-6 border border-[#444933] overflow-hidden"
+              className="hidden"
             >
               <p className="text-sm font-semibold text-[#c4c9ac] mb-4">כמה אתה שוקל היום?</p>
               <div className="flex items-center gap-2 w-full min-w-0">

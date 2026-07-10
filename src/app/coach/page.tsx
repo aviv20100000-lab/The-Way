@@ -40,6 +40,7 @@ interface Goals {
   daily_water_ml: number;
   daily_steps: number | null;
   weigh_in_frequency_weeks: number | null;
+  weigh_in_weekday: number | null;
 }
 
 interface ClientSummary {
@@ -55,7 +56,7 @@ interface CoachGroupOption {
   name: string;
 }
 
-const EMPTY_GOALS: Goals = { target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null };
+const EMPTY_GOALS: Goals = { target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null, weigh_in_weekday: null };
 
 export default function CoachPage() {
   const router = useRouter();
@@ -271,6 +272,7 @@ export default function CoachPage() {
         daily_water_ml: data.daily_water_ml ?? 2000,
         daily_steps: data.daily_steps ?? null,
         weigh_in_frequency_weeks: data.weigh_in_frequency_weeks ?? null,
+        weigh_in_weekday: data.weigh_in_weekday ?? null,
       });
     } catch {
       if (requestId === goalsRequestRef.current) setGoalsError("לא הצלחנו לטעון את היעדים של המתאמן.");
@@ -658,6 +660,24 @@ export default function CoachPage() {
                       <option value={0}>ללא תזכורת</option>
                       <option value={1}>כל שבוע</option>
                       <option value={2}>כל שבועיים</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יום השקילה הראשונה</span>
+                    <select
+                      value={clientGoals.weigh_in_weekday ?? ""}
+                      onChange={(e) => setClientGoals({ ...clientGoals, weigh_in_weekday: e.target.value === "" ? null : Number(e.target.value) })}
+                      className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
+                    >
+                      <option value="">בחר יום שקילה</option>
+                      <option value={0}>ראשון</option>
+                      <option value={1}>שני</option>
+                      <option value={2}>שלישי</option>
+                      <option value={3}>רביעי</option>
+                      <option value={4}>חמישי</option>
+                      <option value={5}>שישי</option>
+                      <option value={6}>שבת</option>
                     </select>
                   </label>
 

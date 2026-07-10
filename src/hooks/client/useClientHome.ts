@@ -12,6 +12,8 @@ type HomeCache = {
   todayCalories: number;
   calorieGoal: number | null;
   proteinGoal: number | null;
+  weighInFrequencyWeeks: number | null;
+  weighInWeekday: number | null;
   goalStatus: GoalStatus;
   daysSinceSignup: number;
   totalSteps: number;
@@ -62,6 +64,8 @@ export function useClientHome() {
   const [todayCalories, setTodayCalories] = useState(cached?.todayCalories ?? 0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(cached?.calorieGoal ?? null);
   const [proteinGoal, setProteinGoal] = useState<number | null>(cached?.proteinGoal ?? null);
+  const [weighInFrequencyWeeks, setWeighInFrequencyWeeks] = useState<number | null>(cached?.weighInFrequencyWeeks ?? null);
+  const [weighInWeekday, setWeighInWeekday] = useState<number | null>(cached?.weighInWeekday ?? null);
   const [goalStatus, setGoalStatus] = useState<GoalStatus>(cached?.goalStatus ?? DEFAULT_GOAL_STATUS);
   const [daysSinceSignup, setDaysSinceSignup] = useState(cached?.daysSinceSignup ?? 0);
   const [totalSteps, setTotalSteps] = useState(cached?.totalSteps ?? 0);
@@ -86,6 +90,8 @@ export function useClientHome() {
       setTodayCalories(data.calories?.total ?? 0);
       setCalorieGoal(data.calories?.goal ?? null);
       setProteinGoal(data.protein_goal ?? null);
+      setWeighInFrequencyWeeks(data.weigh_in_frequency_weeks ?? null);
+      setWeighInWeekday(data.weigh_in_weekday ?? null);
       const nextGoalStatus: GoalStatus = {
         targetWeight: Boolean(data.goal_status?.target_weight),
         calories: Boolean(data.goal_status?.calories),
@@ -105,6 +111,8 @@ export function useClientHome() {
         todayCalories: data.calories?.total ?? 0,
         calorieGoal: data.calories?.goal ?? null,
         proteinGoal: data.protein_goal ?? null,
+        weighInFrequencyWeeks: data.weigh_in_frequency_weeks ?? null,
+        weighInWeekday: data.weigh_in_weekday ?? null,
         goalStatus: nextGoalStatus,
         daysSinceSignup: data.days_since_signup ?? 0,
         totalSteps: data.total_steps ?? 0,
@@ -195,6 +203,8 @@ export function useClientHome() {
     todayCalories,
     calorieGoal,
     proteinGoal,
+    weighInFrequencyWeeks,
+    weighInWeekday,
     goalStatus,
     daysSinceSignup,
     totalSteps,

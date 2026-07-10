@@ -300,6 +300,7 @@ async function runInit() {
       daily_protein_g INTEGER,
       daily_water_ml INTEGER NOT NULL DEFAULT 2000,
       daily_steps INTEGER,
+      weigh_in_weekday INTEGER,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -589,9 +590,15 @@ async function runInit() {
   }
 
   // Weigh-in reminder cadence, set per client by their coach.
-  // NULL = no reminder. 1 = every Sunday, 2 = every other Sunday.
+  // NULL = no reminder. 1 = every week, 2 = every other week.
   try {
     await db.execute({ sql: "ALTER TABLE goals ADD COLUMN weigh_in_frequency_weeks INTEGER", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  try {
+    await db.execute({ sql: "ALTER TABLE goals ADD COLUMN weigh_in_weekday INTEGER", args: [] });
   } catch {
     // Column already exists — ignore
   }

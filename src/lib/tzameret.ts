@@ -52,6 +52,12 @@ function trainerSearchAliases(value: string) {
   return aliases;
 }
 
+function normalizedSearchCandidates(value: string) {
+  return [...new Set([...trainerSearchAliases(value), value]
+    .map((candidate) => normalizeTzameretName(candidate))
+    .filter((candidate) => candidate.length >= 2))];
+}
+
 export function normalizeTzameretName(value: string) {
   return value
     .normalize("NFKC")
@@ -159,10 +165,7 @@ async function findCurated(term: string): Promise<TzameretFood | null> {
 export async function searchTzameret(nameHe: string): Promise<TzameretFood[]> {
   await initDb();
   const cookingStates = cookingStatesOf(nameHe);
-  const normalizedCandidates = [nameHe, ...trainerSearchAliases(nameHe)]
-    .map((candidate) => normalizeTzameretName(candidate))
-    .filter((candidate) => candidate.length >= 2);
-  const candidates = [...new Set(normalizedCandidates)];
+  const candidates = normalizedSearchCandidates(nameHe);
   if (candidates.length === 0) return [];
 
   for (const normalized of candidates) {
@@ -177,15 +180,18 @@ export async function searchTzameret(nameHe: string): Promise<TzameretFood[]> {
 export async function matchTzameret(nameHe: string): Promise<TzameretFood | null> {
   await initDb();
   const cookingStates = cookingStatesOf(nameHe);
-  const normalized = normalizeTzameretName(nameHe);
-  if (normalized.length < 2) return null;
+  const candidates = normalizedSearchCandidates(nameHe);
+  const normalized = candidates[candidates.length - 1] ?? "";
+  if (!normalized) return null;
 
-  const curated = await findCurated(normalized);
-  if (curated) return curated;
+  for (const candidate of candidates) {
+    const curated = await findCurated(candidate);
+    if (curated) return curated;
 
-  for (const mode of ["exact", "prefix", "contains"] as const) {
-    const match = pickCandidate(await findBy(mode, normalized, cookingStates), cookingStates);
-    if (match) return match;
+    for (const mode of ["exact", "prefix", "contains"] as const) {
+      const match = pickCandidate(await findBy(mode, candidate, cookingStates), cookingStates);
+      if (match) return match;
+    }
   }
 
   const firstTwoTokens = normalized.split(" ").slice(0, 2).join(" ");

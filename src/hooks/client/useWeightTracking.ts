@@ -8,12 +8,38 @@ interface WeightLog {
   logged_at: string;
 }
 
+const CACHE_KEY = "way_weight_data";
+
+type WeightCache = {
+  logs: WeightLog[];
+  target: number | null;
+};
+
+function readCache(): WeightCache | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as WeightCache) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data: WeightCache) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
 export function useWeightTracking() {
-  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
-  const [weightTarget, setWeightTarget] = useState<number | null>(null);
+  const cached = readCache();
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>(cached?.logs ?? []);
+  const [weightTarget, setWeightTarget] = useState<number | null>(cached?.target ?? null);
   const [newWeight, setNewWeight] = useState("");
   const [weightPhoto, setWeightPhoto] = useState<File | null>(null);
   const [savingWeight, setSavingWeight] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const loadWeight = useCallback(async () => {
     try {
@@ -21,8 +47,11 @@ export function useWeightTracking() {
       const data = await res.json();
       setWeightLogs(data.logs ?? []);
       setWeightTarget(data.target ?? null);
+      writeCache({ logs: data.logs ?? [], target: data.target ?? null });
     } catch (e) {
       console.error("Error loading weight:", e);
+    } finally {
+      setIsLoaded(true);
     }
   }, []);
 
@@ -68,6 +97,7 @@ export function useWeightTracking() {
     newWeight,
     weightPhoto,
     savingWeight,
+    isLoaded,
     setNewWeight,
     setWeightPhoto,
     loadWeight,

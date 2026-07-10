@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
 
       const result = await db.execute({
         sql: `SELECT m.id, m.content, m.sent_at, m.is_read,
-                     m.sender_id, u.name as sender_name,
+                     m.sender_id, u.name as sender_name, u.username as sender_username,
                      strftime('%Y-%m-%dT%H:%M:%SZ', m.sent_at) as sent_at
               FROM chat_messages m
               JOIN users u ON u.id = m.sender_id
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
 
     const result = await db.execute({
       sql: `SELECT m.id, m.content, m.is_read,
-                   m.sender_id, u.name as sender_name,
+                   m.sender_id, u.name as sender_name, u.username as sender_username,
                    strftime('%Y-%m-%dT%H:%M:%SZ', m.sent_at) as sent_at
             FROM chat_messages m
             JOIN users u ON u.id = m.sender_id

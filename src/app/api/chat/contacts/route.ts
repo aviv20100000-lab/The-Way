@@ -15,15 +15,15 @@ export async function GET() {
         ? user.id
         : ((user as { coach_id?: string }).coach_id ?? null);
 
-    let contacts: { id: string; name: string; role: string }[] = [];
+    let contacts: { id: string; name: string; role: string; username: string }[] = [];
     if (coachId) {
       const membersRes = await db.execute({
-        sql: `SELECT id, name, role FROM users
+        sql: `SELECT id, name, role, username FROM users
               WHERE (id = ? OR coach_id = ?) AND id != ?
               ORDER BY role DESC, name ASC`,
         args: [coachId, coachId, user.id],
       });
-      contacts = membersRes.rows as unknown as { id: string; name: string; role: string }[];
+      contacts = membersRes.rows as unknown as { id: string; name: string; role: string; username: string }[];
     }
 
     // Unread DM count per sender

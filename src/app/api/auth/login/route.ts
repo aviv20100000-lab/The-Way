@@ -15,19 +15,37 @@ export async function POST(req: NextRequest) {
   }
 
   await ensureSeed();
-  const { username, password } = await req.json();
-  if (!username || !password) return NextResponse.json({ error: "נא למלא שם משתמש וסיסמה" }, { status: 400 });
 
-  // Try username first, fall back to email for backward compatibility
-  let user = await getUserByUsername(username);
+  const { identifier, email, username, password } = await req.json();
+  const loginIdentifier =
+    typeof identifier === "string" && identifier.trim()
+      ? identifier.trim()
+      : typeof email === "string" && email.trim()
+        ? email.trim()
+        : typeof username === "string" && username.trim()
+          ? username.trim()
+          : "";
+
+  if (!loginIdentifier || !password) {
+    return NextResponse.json({ error: "נא למלא מייל או שם משתמש וסיסמה" }, { status: 400 });
+  }
+
+  let user = await getUserByEmail(loginIdentifier);
   if (!user) {
-    user = await getUserByEmail(username);
+    user = await getUserByUsername(loginIdentifier);
   }
 
   if (!user || !(await verifyPassword(password, user.password_hash))) {
-    return NextResponse.json({ error: "שם משתמש או סיסמה שגויים" }, { status: 401 });
+    return NextResponse.json({ error: "מייל, שם משתמש או סיסמה שגויים" }, { status: 401 });
   }
 
-  await setSession({ id: user.id, name: user.name, email: user.email, role: user.role, coach_id: user.coach_id });
+  await setSession({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    coach_id: user.coach_id,
+  });
+
   return NextResponse.json({ role: user.role, name: user.name });
 }

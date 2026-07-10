@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     args: [user.id],
   });
   
-  const userData = userRes.rows[0] as { role: string };
+  const userData = userRes.rows[0] as unknown as { role: string };
   if (userData?.role !== "coach") {
     return NextResponse.json({ error: "רק מאמנים יכולים להוסיף ציטוטים" }, { status: 403 });
   }
@@ -80,7 +80,7 @@ export async function DELETE(req: NextRequest) {
     args: [user.id],
   });
   
-  const userData = userRes.rows[0] as { role: string };
+  const userData = userRes.rows[0] as unknown as { role: string };
   if (userData?.role !== "coach") {
     return NextResponse.json({ error: "רק מאמנים יכולים למחוק ציטוטים" }, { status: 403 });
   }

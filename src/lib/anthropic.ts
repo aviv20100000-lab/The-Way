@@ -4,32 +4,47 @@ const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const FOOD_PROMPT = `Analyze this food image and provide estimates in Hebrew. For each food item visible:
-1. Name (in Hebrew)
-2. Estimated weight/quantity
-3. Estimated calories
-4. Protein (grams)
-5. Carbs (grams)
-6. Fat (grams)
+export const MAX_ANTHROPIC_IMAGE_BYTES = 7.5 * 1024 * 1024; // 7.5MB
 
-Also provide 3 portion size options (small, medium, large) with calorie estimates for each.
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
+export type AnthropicImageMediaType = (typeof SUPPORTED_IMAGE_TYPES)[number];
 
-Return as JSON array with structure:
-[{
-  "name_he": "שם המזון",
-  "estimated_weight_g": 100,
-  "calories": 150,
-  "protein": 5,
-  "carbs": 20,
-  "fat": 3,
-  "portions": [
-    {"size": "קטן", "weight_g": 50, "calories": 75},
-    {"size": "בינוני", "weight_g": 100, "calories": 150},
-    {"size": "גדול", "weight_g": 150, "calories": 225}
-  ]
-}]
+export function isAnthropicImageMediaType(type: string): type is AnthropicImageMediaType {
+  return (SUPPORTED_IMAGE_TYPES as readonly string[]).includes(type);
+}
 
-IMPORTANT: Return ONLY the raw JSON array. No markdown code fences, no explanations, no extra text. If you cannot identify any food, return a best-effort estimate — never return empty or zero values.`;
+const FOOD_PROMPT_JSON = `You are a nutrition expert. Look carefully at this photo and list ONLY the food items you can clearly see.
+
+STRICT RULES:
+- Do NOT invent or assume foods that are not clearly visible.
+- If unsure whether something is present, omit it.
+- Name each item in Hebrew based on what you actually see (color, texture, shape):
+  • Yellow/white set or fluffy egg dish → חביתה or ביצה מקושקשת (NOT chicken)
+  • White lumpy dairy with visible curds → קוטג'
+  • Smooth white cream → שמנת חמוצה or יוגורט
+  • Smooth white spread → גבינה לבנה
+- Estimate weight from plate/utensil size.
+- Add one entry for cooking oil or dressing ONLY if you can see oil sheen or sauce.
+
+Return ONLY a raw JSON array (no markdown):
+[{"name_he":"שם בעברית","estimated_weight_g":150,"calories":300,"protein":20,"carbs":30,"fat":10}]
+
+Round all numbers. Never return zeros.`;
+
+const FOOD_PROMPT_TOOL = `You are a nutrition expert analyzing a food photo. Think step-by-step:
+
+STEP 1 — SCAN: Describe each distinct visual region you see (color, texture, shape, estimated size).
+STEP 2 — IDENTIFY: For each region, name the food based ONLY on what you see. If uncertain, omit it.
+STEP 3 — ESTIMATE: Use visual cues for portion weight. State your reasoning briefly.
+STEP 4 — CONFIDENCE: Rate each item 0.0–1.0. Only include items you are at least 0.6 confident about.
+
+STRICT RULES:
+- Do NOT invent foods. Only include what you clearly see.
+- Yellow/white fluffy or set egg dish → חביתה or ביצה מקושקשת (NEVER עוף)
+- White lumpy dairy with visible curds → קוטג' (NOT שמנת or גבינה לבנה)
+- Smooth white cream in a container → שמנת חמוצה or יוגורט
+- Smooth white spreadable on bread → גבינה לבנה
+- Add oil/dressing ONLY if you see visible oil sheen or pooling sauce.`;
 
 function extractJson(text: string): string {
   // Strip markdown code fences if present
@@ -68,7 +83,7 @@ export async function analyzeFoodPhoto(imageUrl: string) {
         role: "user",
         content: [
           { type: "image", source: { type: "url", url: imageUrl } },
-          { type: "text", text: FOOD_PROMPT },
+          { type: "text", text: FOOD_PROMPT_JSON },
         ],
       },
     ],
@@ -79,6 +94,35 @@ export async function analyzeFoodPhoto(imageUrl: string) {
   return parseFoodResponse(content.text);
 }
 
+const LOG_FOOD_TOOL = {
+  name: "log_food_items",
+  description: "Log the food items identified in the image with their nutritional estimates.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      items: {
+        type: "array",
+        description: "List of food items clearly visible in the image. Only include items you can see.",
+        items: {
+          type: "object",
+          properties: {
+            name_he:             { type: "string",  description: "Food name in Hebrew" },
+            estimated_weight_g:  { type: "integer", description: "Estimated weight in grams for the portion shown" },
+            calories:            { type: "integer", description: "Total calories for this portion" },
+            protein:             { type: "number",  description: "Protein in grams" },
+            carbs:               { type: "number",  description: "Carbohydrates in grams" },
+            fat:                 { type: "number",  description: "Fat in grams" },
+            confidence:          { type: "number",  description: "0.0–1.0 certainty this item is correctly identified. Only include items above 0.6." },
+            reasoning:           { type: "string",  description: "One sentence: visual evidence that led to this identification and portion estimate." },
+          },
+          required: ["name_he", "estimated_weight_g", "calories", "protein", "carbs", "fat", "confidence"],
+        },
+      },
+    },
+    required: ["items"],
+  },
+};
+
 export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) {
   const validType = (["image/jpeg", "image/png", "image/gif", "image/webp"].includes(mediaType)
     ? mediaType
@@ -86,21 +130,31 @@ export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) 
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 1024,
+    max_tokens: 2048,
+    tools: [LOG_FOOD_TOOL],
+    tool_choice: { type: "any" },
     messages: [
       {
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: validType, data: base64 } },
-          { type: "text", text: FOOD_PROMPT },
+          { type: "text", text: FOOD_PROMPT_TOOL },
         ],
       },
     ],
   });
 
-  const content = response.content[0];
-  if (content.type !== "text") throw new Error("Unexpected response type");
-  return parseFoodResponse(content.text);
+  // Extract structured data from tool call — guaranteed shape, no parsing needed
+  const toolUse = response.content.find((b) => b.type === "tool_use");
+  if (toolUse && toolUse.type === "tool_use") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (toolUse.input as any).items ?? [];
+  }
+
+  // Fallback: parse text if tool use somehow didn't fire
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (textBlock && textBlock.type === "text") return parseFoodResponse(textBlock.text);
+  throw new Error("No response from model");
 }
 
 export async function estimateNutritionByName(name: string, grams: number) {
@@ -115,6 +169,7 @@ All values are for the full ${grams}g portion. Round to whole numbers. Never ret
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 256,
+    temperature: 0,
     messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
   });
 

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     ? `SELECT u.id, u.name, COALESCE(SUM(s.steps), 0) as total_steps, COUNT(DISTINCT DATE(s.logged_at)) as days_logged FROM users u LEFT JOIN steps_logs s ON u.id = s.user_id AND s.logged_at >= datetime('now', 'weekday 0', '-7 days') WHERE u.coach_id = ? GROUP BY u.id ORDER BY total_steps DESC`
     : `SELECT u.id, u.name, COALESCE(SUM(s.steps), 0) as total_steps, COUNT(DISTINCT DATE(s.logged_at)) as days_logged FROM users u LEFT JOIN steps_logs s ON u.id = s.user_id AND s.logged_at >= datetime('now') WHERE u.coach_id = ? GROUP BY u.id ORDER BY total_steps DESC`;
 
-  const leaderboard = (await db.execute({ sql, args: [coachId] })).rows as Array<{
+  const leaderboard = (await db.execute({ sql, args: [coachId] })).rows as unknown as Array<{
     id: string;
     name: string;
     total_steps: number;

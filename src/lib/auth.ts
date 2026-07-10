@@ -10,6 +10,10 @@ const SECRET = new TextEncoder().encode(
 );
 const COOKIE_NAME = "the-way-session";
 
+function normalizeLoginValue(value: string) {
+  return value.trim().toLowerCase();
+}
+
 let dbReady = false;
 async function ensureDb() {
   if (!dbReady) { await initDb(); dbReady = true; }
@@ -59,10 +63,10 @@ export async function getSessionUser(): Promise<User | null> {
   if (!token) return null;
   try {
     const userId = await verifyToken(token);
-    const res = await db.execute({ sql: "SELECT id, name, email, role, coach_id FROM users WHERE id = ?", args: [userId] });
+    const res = await db.execute({ sql: "SELECT id, name, email, role, coach_id, username FROM users WHERE id = ?", args: [userId] });
     const row = res.rows[0];
     if (!row) return null;
-    return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null };
+    return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, username: row.username as string };
   } catch {
     return null;
   }
@@ -70,7 +74,8 @@ export async function getSessionUser(): Promise<User | null> {
 
 export async function getUserByEmail(email: string) {
   await ensureDb();
-  const res = await db.execute({ sql: "SELECT * FROM users WHERE email = ?", args: [email] });
+  const normalized = normalizeLoginValue(email);
+  const res = await db.execute({ sql: "SELECT * FROM users WHERE lower(trim(email)) = ?", args: [normalized] });
   const row = res.rows[0];
   if (!row) return undefined;
   return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string };
@@ -78,7 +83,18 @@ export async function getUserByEmail(email: string) {
 
 export async function getUserByUsername(username: string) {
   await ensureDb();
-  const res = await db.execute({ sql: "SELECT * FROM users WHERE username = ?", args: [username.toLowerCase()] });
+  const normalized = normalizeLoginValue(username);
+  const res = await db.execute({
+    sql: `
+      SELECT *
+      FROM users
+      WHERE lower(trim(username)) = ?
+         OR lower(trim(name)) = ?
+         OR lower(substr(trim(email), 1, instr(trim(email), '@') - 1)) = ?
+      LIMIT 1
+    `,
+    args: [normalized, normalized, normalized],
+  });
   const row = res.rows[0];
   if (!row) return undefined;
   return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string };
@@ -88,8 +104,10 @@ export async function createUser(data: { name: string; email: string; password: 
   await ensureDb();
   const id = uuid();
   const passwordHash = await bcrypt.hash(data.password, 10);
-  await db.execute({ sql: "INSERT INTO users (id, name, email, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?)", args: [id, data.name, data.email, passwordHash, data.role, data.coachId ?? null] });
-  return { id, name: data.name, email: data.email, role: data.role, coach_id: data.coachId ?? null };
+  const normalizedEmail = normalizeLoginValue(data.email);
+  const username = normalizedEmail.split("@")[0];
+  await db.execute({ sql: "INSERT INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [id, data.name, normalizedEmail, username, passwordHash, data.role, data.coachId ?? null] });
+  return { id, name: data.name, email: normalizedEmail, role: data.role, coach_id: data.coachId ?? null };
 }
 
 export async function getClientsByCoach(coachId: string): Promise<User[]> {

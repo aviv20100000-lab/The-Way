@@ -36,13 +36,16 @@ const FOODS = [
 ];
 
 let seeded = false;
+
 export async function ensureSeed() {
   if (seeded) return;
+
+  await initDb();
+  seeded = true;
+
   if (process.env.NODE_ENV === "production") {
     return;
   }
-  await initDb();
-  seeded = true;
 
   const foodCount = (await db.execute("SELECT COUNT(*) as c FROM foods")).rows[0].c as number;
   if (foodCount === 0) {
@@ -60,13 +63,30 @@ export async function ensureSeed() {
     const coachId = uuid();
     const client1Id = uuid();
     const client2Id = uuid();
-    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [coachId, "המאמן", "coach@theway.com", "coach", passwordHash, "coach", null] });
-    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [client1Id, "דני", "dani@theway.com", "dani", passwordHash, "client", coachId] });
-    await db.execute({ sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)", args: [client2Id, "מיכל", "michal@theway.com", "michal", passwordHash, "client", coachId] });
+
+    await db.execute({
+      sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      args: [coachId, "המאמן", "coach@theway.com", "coach", passwordHash, "coach", null],
+    });
+    await db.execute({
+      sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      args: [client1Id, "דני", "dani@theway.com", "dani", passwordHash, "client", coachId],
+    });
+    await db.execute({
+      sql: "INSERT OR IGNORE INTO users (id, name, email, username, password_hash, role, coach_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      args: [client2Id, "מיכל", "michal@theway.com", "מיכל", passwordHash, "client", coachId],
+    });
   } else {
-    // Migration: set username for existing users that don't have one yet
-    await db.execute({ sql: "UPDATE users SET username = 'coach' WHERE email = 'coach@theway.com' AND (username IS NULL OR username = '')", args: [] });
-    await db.execute({ sql: "UPDATE users SET username = 'dani' WHERE email = 'dani@theway.com' AND (username IS NULL OR username = '')", args: [] });
-    await db.execute({ sql: "UPDATE users SET username = 'michal' WHERE email = 'michal@theway.com' AND (username IS NULL OR username = '')", args: [] });
+    await db.execute({
+      sql: `
+        UPDATE users
+        SET username = lower(substr(trim(email), 1, instr(trim(email), '@') - 1))
+        WHERE username IS NULL
+           OR username = ''
+           OR username = lower(trim(email))
+           OR username = lower(trim(name))
+      `,
+      args: [],
+    });
   }
 }

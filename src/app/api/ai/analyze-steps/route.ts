@@ -1,15 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { extractStepsFromScreenshot } from "@/lib/anthropic";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { v4 as uuid } from "uuid";
-import db from "@/lib/db";
+import db, { initDb } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
+  await initDb();
   const formData = await req.formData();
   const screenshot = formData.get("screenshot") as File | null;
 
@@ -28,7 +29,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "הסקרינשוט גדול מדי (מקסימום 10MB)" }, { status: 413 });
   }
 
-  // Save screenshot with validated filename
   const uploadsDir = join(process.cwd(), "public", "uploads");
   await mkdir(uploadsDir, { recursive: true });
   const mimeExtMap: { [key: string]: string } = {
@@ -60,10 +60,11 @@ export async function POST(req: NextRequest) {
     }
 
     const logId = uuid();
-    db.prepare(`
-      INSERT INTO steps_logs (id, user_id, steps, screenshot_url, logged_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(logId, user.id, steps, screenshotUrl);
+    await db.execute({
+      sql: `INSERT INTO steps_logs (id, user_id, steps, screenshot_url, logged_at)
+            VALUES (?, ?, ?, ?, datetime('now'))`,
+      args: [logId, user.id, steps, screenshotUrl],
+    });
 
     return NextResponse.json({ steps, screenshotUrl });
   } catch (error) {
@@ -76,20 +77,21 @@ export async function GET(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
+  await initDb();
   const today = new Date().toISOString().split("T")[0];
-  const logs = db
-    .prepare(`
-      SELECT * FROM steps_logs
-      WHERE user_id = ? AND DATE(logged_at) = ?
-      ORDER BY logged_at DESC
-    `)
-    .all(user.id, today) as Array<{
-      id: string;
-      user_id: string;
-      steps: number;
-      screenshot_url: string;
-      logged_at: string;
-    }>;
+  const result = await db.execute({
+    sql: `SELECT * FROM steps_logs
+          WHERE user_id = ? AND DATE(logged_at) = ?
+          ORDER BY logged_at DESC`,
+    args: [user.id, today],
+  });
+  const logs = result.rows as unknown as Array<{
+    id: string;
+    user_id: string;
+    steps: number;
+    screenshot_url: string;
+    logged_at: string;
+  }>;
 
   return NextResponse.json(logs);
 }

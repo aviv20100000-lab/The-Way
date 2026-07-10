@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     args: [user.id],
   });
 
-  const total = (logsRes.rows as Array<{ amount_ml: number }>).reduce((sum, log) => sum + log.amount_ml, 0);
+  const total = (logsRes.rows as unknown as Array<{ amount_ml: number }>).reduce((sum, log) => sum + log.amount_ml, 0);
   const goal = (goalRes.rows[0]?.daily_water_ml as number) || 2000;
 
   return NextResponse.json({ 

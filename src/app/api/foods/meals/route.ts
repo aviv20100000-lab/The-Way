@@ -10,11 +10,23 @@ export async function GET() {
   await initDb();
   const today = new Date().toISOString().split("T")[0];
 
-  const [mealsRes, goalRes] = await Promise.all([
+  const [aiRes, quickRes, goalRes] = await Promise.all([
     db.execute({
       sql: `SELECT id, total_calories, ai_response, logged_at FROM ai_meal_logs
             WHERE user_id = ? AND logged_at >= datetime('now', '-35 days')
             ORDER BY logged_at DESC LIMIT 300`,
+      args: [user.id],
+    }),
+    db.execute({
+      sql: `SELECT m.id, m.logged_at,
+              ROUND(SUM(mi.quantity * f.calories / 100.0)) as total_calories,
+              GROUP_CONCAT(f.name_he || ':' || ROUND(mi.quantity * f.calories / 100.0) || ':' || mi.quantity, '|') as items_raw
+            FROM meals m
+            JOIN meal_items mi ON mi.meal_id = m.id
+            JOIN foods f ON f.id = mi.food_id
+            WHERE m.user_id = ? AND m.logged_at >= datetime('now', '-35 days')
+            GROUP BY m.id
+            ORDER BY m.logged_at DESC LIMIT 300`,
       args: [user.id],
     }),
     db.execute({
@@ -23,18 +35,30 @@ export async function GET() {
     }),
   ]);
 
-  const meals = mealsRes.rows.map((r) => ({
+  const aiMeals = aiRes.rows.map((r) => ({
     id: r.id as string,
     total_calories: r.total_calories as number,
     logged_at: r.logged_at as string,
+    source: "ai" as const,
     items: (() => {
-      try {
-        return JSON.parse(r.ai_response as string).items ?? [];
-      } catch {
-        return [];
-      }
+      try { return JSON.parse(r.ai_response as string).items ?? []; } catch { return []; }
     })(),
   }));
+
+  const quickMeals = quickRes.rows.map((r) => ({
+    id: r.id as string,
+    total_calories: Math.round((r.total_calories as number) || 0),
+    logged_at: r.logged_at as string,
+    source: "quick" as const,
+    items: String(r.items_raw || "").split("|").filter(Boolean).map((seg) => {
+      const [name, cal, grams] = seg.split(":");
+      return { name: name ?? "", calories: Math.round(Number(cal) || 0), estimated_weight_g: Math.round(Number(grams) || 0) };
+    }),
+  }));
+
+  const meals = [...aiMeals, ...quickMeals].sort(
+    (a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+  );
 
   const todayCalories = meals
     .filter((m) => m.logged_at.slice(0, 10) === today)

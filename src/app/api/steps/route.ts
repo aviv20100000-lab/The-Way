@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       args: [user.id],
     });
     
-    const userData = userRes.rows[0] as { coach_id: string; role: string };
+    const userData = userRes.rows[0] as unknown as { coach_id: string; role: string };
     const coachId = userData?.role === "coach" ? user.id : userData?.coach_id;
     
     if (!coachId) {
@@ -93,7 +93,9 @@ export async function GET(req: NextRequest) {
       args: [today, weekStartStr, coachId],
     });
 
-    return NextResponse.json(lbRes.rows);
+    return NextResponse.json(lbRes.rows, {
+      headers: { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" },
+    });
   }
 
   // Get today's steps

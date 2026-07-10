@@ -7,6 +7,7 @@ export interface User {
   email: string;
   role: Role;
   coach_id: string | null;
+  username?: string;
 }
 
 export interface Food {

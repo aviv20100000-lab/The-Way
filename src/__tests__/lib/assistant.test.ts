@@ -38,6 +38,14 @@ describe("buildContextBlock", () => {
     expect(block).not.toContain("משקל אחרון");
     expect(block).not.toContain("יעד חלבון");
   });
+  it("includes learned preference summary when available", () => {
+    const block = buildContextBlock({
+      ...baseContext,
+      preferenceSummary: "המתאמן אהב בעבר: קוטג' ופריכיות",
+    });
+    expect(block).toContain("מה הבוט למד");
+    expect(block).toContain("קוטג'");
+  });
 });
 
 describe("assistant limits", () => {

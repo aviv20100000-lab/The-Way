@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
+import { buildPreferenceSummary, parseMemoryList, parsePreferenceProfile } from "@/lib/assistant-learning";
 import {
   generateAssistantReply,
   ASSISTANT_MAX_INPUT_CHARS,
@@ -51,7 +52,7 @@ export async function GET() {
 
 async function loadUserContext(userId: string, name: string): Promise<AssistantUserContext> {
   const today = new Date().toISOString().split("T")[0];
-  const [goalsRes, caloriesRes, weightRes] = await Promise.all([
+  const [goalsRes, caloriesRes, weightRes, preferencesRes] = await Promise.all([
     db.execute({
       sql: "SELECT daily_calories, daily_protein_g, target_weight_kg FROM goals WHERE user_id = ?",
       args: [userId],
@@ -77,10 +78,17 @@ async function loadUserContext(userId: string, name: string): Promise<AssistantU
       sql: "SELECT weight_kg FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC LIMIT 1",
       args: [userId],
     }),
+    db.execute({
+      sql: "SELECT liked_notes, disliked_notes, saved_notes, profile_json, feedback_count FROM assistant_preferences WHERE user_id = ?",
+      args: [userId],
+    }),
   ]);
 
   const goals = goalsRes.rows[0] as
     | { daily_calories?: number | null; daily_protein_g?: number | null; target_weight_kg?: number | null }
+    | undefined;
+  const preferenceRow = preferencesRes.rows[0] as
+    | { liked_notes?: string | null; disliked_notes?: string | null; saved_notes?: string | null; profile_json?: string | null; feedback_count?: number | null }
     | undefined;
 
   return {
@@ -90,6 +98,15 @@ async function loadUserContext(userId: string, name: string): Promise<AssistantU
     todayCalories: Math.round(Number(caloriesRes.rows[0]?.total_calories) || 0),
     latestWeightKg: weightRes.rows[0]?.weight_kg ? Number(weightRes.rows[0].weight_kg) : null,
     targetWeightKg: goals?.target_weight_kg ? Number(goals.target_weight_kg) : null,
+    preferenceSummary: preferenceRow
+      ? buildPreferenceSummary({
+          likedNotes: parseMemoryList(preferenceRow.liked_notes),
+          dislikedNotes: parseMemoryList(preferenceRow.disliked_notes),
+          savedNotes: parseMemoryList(preferenceRow.saved_notes),
+          feedbackCount: Number(preferenceRow.feedback_count) || 0,
+          profile: parsePreferenceProfile(preferenceRow.profile_json),
+        })
+      : null,
   };
 }
 

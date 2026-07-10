@@ -82,6 +82,7 @@ const CHAT_CACHE_KEY = "way_chat_bootstrap";
 const REACTION_EMOJIS = ["👍", "❤️", "🔥", "😂", "😢"] as const;
 
 const ASSISTANT_SENDER_ID = "shopping-assistant";
+type AssistantFeedbackAction = "liked" | "disliked" | "saved";
 const ASSISTANT_DISPLAY_NAME = "העוזר";
 
 type AssistantApiMessage = {
@@ -225,6 +226,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [assistantTyping, setAssistantTyping] = useState(false);
+  const [assistantFeedback, setAssistantFeedback] = useState<Record<string, AssistantFeedbackAction>>({});
   const [loading, setLoading] = useState(cached?.user ? false : true);
   const [showContent, setShowContent] = useState(false);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
@@ -524,6 +526,24 @@ export default function ChatPage() {
     } finally {
       setAssistantTyping(false);
       setSending(false);
+    }
+  };
+
+  const sendAssistantFeedback = async (messageId: string, action: AssistantFeedbackAction) => {
+    setAssistantFeedback((current) => ({ ...current, [messageId]: action }));
+    try {
+      const csrf = await getCsrfToken();
+      await fetch("/api/assistant/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf ?? "" },
+        body: JSON.stringify({ messageId, action }),
+      });
+    } catch {
+      setAssistantFeedback((current) => {
+        const next = { ...current };
+        delete next[messageId];
+        return next;
+      });
     }
   };
 
@@ -955,6 +975,31 @@ export default function ChatPage() {
                   )}
                   {renderHighlightedContent(msg.content, normalizedSearchQuery)}
                 </div>
+                {isAssistantMode && !isMe && !msg.id.startsWith("assistant-error") && (
+                  <div className="flex flex-wrap justify-end gap-1 px-1 pt-1 text-[10px]">
+                    {([
+                      ["liked", "אהבתי"],
+                      ["disliked", "לא מדויק"],
+                      ["saved", "שמור"],
+                    ] as const).map(([action, label]) => {
+                      const active = assistantFeedback[msg.id] === action;
+                      return (
+                        <button
+                          key={action}
+                          type="button"
+                          onClick={() => void sendAssistantFeedback(msg.id, action)}
+                          className={`rounded-full border px-2.5 py-1 font-semibold transition ${
+                            active
+                              ? "border-[#c3f400]/70 bg-[#c3f400]/15 text-[#c3f400]"
+                              : "border-[#444933] bg-[#151818] text-[#8e9379] hover:border-[#c3f400]/40 hover:text-[#c3f400]"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-1.5 px-1 text-[10px] text-[#8e9379]">
                   <span className="flex items-center gap-1.5">
                     {new Date(msg.sent_at).toLocaleTimeString("he-IL", {

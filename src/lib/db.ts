@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 14;
+const SCHEMA_VERSION = 16;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -85,6 +85,16 @@ async function menuSchemaNeedsMigration() {
 
 async function addColumnIfMissing(table: "menu_meals" | "menu_items", column: string, definition: string) {
   if (await hasColumn(table, column)) return;
+  await db.execute({ sql: `ALTER TABLE ${table} ADD COLUMN ${definition}`, args: [] });
+}
+
+async function tableHasColumn(table: string, column: string) {
+  const result = await db.execute({ sql: `PRAGMA table_info(${table})`, args: [] });
+  return result.rows.some((row) => String(row.name) === column);
+}
+
+async function addGenericColumnIfMissing(table: string, column: string, definition: string) {
+  if (await tableHasColumn(table, column)) return;
   await db.execute({ sql: `ALTER TABLE ${table} ADD COLUMN ${definition}`, args: [] });
 }
 
@@ -405,6 +415,25 @@ async function runInit() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS assistant_feedback (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      message_id TEXT NOT NULL REFERENCES assistant_messages(id) ON DELETE CASCADE,
+      action TEXT NOT NULL CHECK(action IN ('liked', 'disliked', 'saved')),
+      note TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS assistant_preferences (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      liked_notes TEXT NOT NULL DEFAULT '[]',
+      disliked_notes TEXT NOT NULL DEFAULT '[]',
+      saved_notes TEXT NOT NULL DEFAULT '[]',
+      profile_json TEXT NOT NULL DEFAULT '{}',
+      feedback_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS audit_log (
       id TEXT PRIMARY KEY,
       event TEXT NOT NULL,
@@ -501,6 +530,7 @@ async function runInit() {
     CREATE INDEX IF NOT EXISTS idx_chat_message_reactions_message ON chat_message_reactions(message_id);
     CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
     CREATE INDEX IF NOT EXISTS idx_assistant_messages_user_created ON assistant_messages(user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_assistant_feedback_user_created ON assistant_feedback(user_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
     CREATE INDEX IF NOT EXISTS idx_audit_log_event ON audit_log(event);
     CREATE INDEX IF NOT EXISTS idx_tzameret_foods_name ON tzameret_foods(name_he);
@@ -609,6 +639,8 @@ async function runInit() {
   });
 
   await migrateMenuOptionsSchema();
+
+  await addGenericColumnIfMissing("assistant_preferences", "profile_json", "profile_json TEXT NOT NULL DEFAULT '{}'");
 
   // Derive a plain username from the email address for existing users.
   await db.execute({

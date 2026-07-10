@@ -12,6 +12,7 @@ export interface AssistantUserContext {
   todayCalories: number;
   latestWeightKg: number | null;
   targetWeightKg: number | null;
+  preferenceSummary?: string | null;
 }
 
 export interface AssistantHistoryMessage {
@@ -31,5 +32,9 @@ export function buildContextBlock(context: AssistantUserContext): string {
   if (context.latestWeightKg) lines.push(`משקל אחרון: ${context.latestWeightKg} ק"ג.`);
   if (context.targetWeightKg) lines.push(`משקל יעד: ${context.targetWeightKg} ק"ג.`);
   lines.push(`השתמש בנתונים כדי להתאים את התשובה — אל תדקלם אותם סתם.`);
+  if (context.preferenceSummary) {
+    lines.push("# מה הבוט למד על הטעם של המתאמן");
+    lines.push(context.preferenceSummary);
+  }
   return lines.join("\n");
 }

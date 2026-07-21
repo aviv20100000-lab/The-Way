@@ -120,7 +120,7 @@ export default function ConnectSetup({ notifStatus, isPwa, enableNotifications }
                 <div className="mt-6 space-y-2.5">
                   <div className="flex items-start gap-3 rounded-xl bg-[#1a1c1c]/75 px-3 py-2.5 text-xs leading-5 text-[#c4c9ac]">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[11px] font-bold text-[#c3f400]">1</span>
-                    <p>פתח ב־Safari ולחץ על <strong className="text-white">סמל השיתוף</strong> בתחתית המסך.</p>
+                    <p>פתח ב־Safari ולחץ על <strong className="text-white">סמל השיתוף</strong> (ריבוע עם חץ כלפי מעלה) בשורת הכלים.</p>
                   </div>
                   <div className="flex items-start gap-3 rounded-xl bg-[#1a1c1c]/75 px-3 py-2.5 text-xs leading-5 text-[#c4c9ac]">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#c3f400]/10 text-[11px] font-bold text-[#c3f400]">2</span>

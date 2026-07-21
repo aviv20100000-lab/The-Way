@@ -15,15 +15,22 @@ export async function GET() {
 
     const coachId = resolveCoachId(user as Parameters<typeof resolveCoachId>[0]);
     const inDefaultGroup = await isInDefaultGroup(user);
-    const canSeeDefaultGroup = Boolean(coachId) && inDefaultGroup;
+
+    const selfRes = await db.execute({ sql: "SELECT dm_coach_only FROM users WHERE id = ?", args: [user.id] });
+    const dmCoachOnly = Number(selfRes.rows[0]?.dm_coach_only ?? 0) === 1;
+    const canSeeDefaultGroup = Boolean(coachId) && inDefaultGroup && !dmCoachOnly;
 
     const contactsPromise = coachId
-      ? db.execute({
-          sql: `SELECT id, name, role, username, avatar_url FROM users
-                WHERE (id = ? OR coach_id = ?) AND id != ?
-                ORDER BY role DESC, name ASC`,
-          args: [coachId, coachId, user.id],
-        })
+      ? db.execute(
+          dmCoachOnly
+            ? { sql: `SELECT id, name, role, username, avatar_url FROM users WHERE id = ?`, args: [coachId] }
+            : {
+                sql: `SELECT id, name, role, username, avatar_url FROM users
+                      WHERE (id = ? OR coach_id = ?) AND id != ?
+                      ORDER BY role DESC, name ASC`,
+                args: [coachId, coachId, user.id],
+              }
+        )
       : Promise.resolve({ rows: [] });
 
     const unreadPromise = db.execute({

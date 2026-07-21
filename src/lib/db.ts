@@ -633,6 +633,13 @@ async function runInit() {
     // Column already exists — ignore
   }
 
+  // Restricted client accounts (e.g. test users): see only the coach in chat, no other clients.
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN dm_coach_only INTEGER NOT NULL DEFAULT 0", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
   await db.execute({
     sql: "CREATE INDEX IF NOT EXISTS idx_chat_messages_group_id ON chat_messages(group_id)",
     args: [],

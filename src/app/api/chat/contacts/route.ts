@@ -18,12 +18,19 @@ export async function GET() {
 
     let contacts: { id: string; name: string; role: string; username: string; avatar_url: string | null }[] = [];
     if (coachId) {
-      const membersRes = await db.execute({
-        sql: `SELECT id, name, role, username, avatar_url FROM users
-              WHERE (id = ? OR coach_id = ?) AND id != ?
-              ORDER BY role DESC, name ASC`,
-        args: [coachId, coachId, user.id],
-      });
+      const selfRes = await db.execute({ sql: "SELECT dm_coach_only FROM users WHERE id = ?", args: [user.id] });
+      const dmCoachOnly = Number(selfRes.rows[0]?.dm_coach_only ?? 0) === 1;
+
+      const membersRes = await db.execute(
+        dmCoachOnly
+          ? { sql: `SELECT id, name, role, username, avatar_url FROM users WHERE id = ?`, args: [coachId] }
+          : {
+              sql: `SELECT id, name, role, username, avatar_url FROM users
+                    WHERE (id = ? OR coach_id = ?) AND id != ?
+                    ORDER BY role DESC, name ASC`,
+              args: [coachId, coachId, user.id],
+            }
+      );
       contacts = membersRes.rows as unknown as { id: string; name: string; role: string; username: string; avatar_url: string | null }[];
     }
 

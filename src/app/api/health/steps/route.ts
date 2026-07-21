@@ -70,14 +70,14 @@ export async function GET(req: NextRequest) {
 
   if (type === "leaderboard") {
     const userRes = await db.execute({
-      sql: "SELECT coach_id, role, in_default_group FROM users WHERE id = ?",
+      sql: "SELECT coach_id, role, in_default_group, dm_coach_only FROM users WHERE id = ?",
       args: [user.id],
     });
 
-    const userData = userRes.rows[0] as unknown as { coach_id: string | null; role: string; in_default_group: number | null };
+    const userData = userRes.rows[0] as unknown as { coach_id: string | null; role: string; in_default_group: number | null; dm_coach_only: number | null };
     const coachId = userData?.role === "coach" ? user.id : userData?.coach_id;
 
-    if (!coachId) {
+    if (!coachId || Number(userData?.dm_coach_only) === 1) {
       return NextResponse.json({ entries: [], hasCompetition: false, groupName: null });
     }
 

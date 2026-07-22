@@ -43,7 +43,8 @@ async function handle(req: NextRequest) {
 
   await initDb();
   const rows = (await db.execute({
-    sql: `SELECT ps.endpoint, ps.p256dh, ps.auth, g.weigh_in_frequency_weeks
+    sql: `SELECT ps.endpoint, ps.p256dh, ps.auth, g.weigh_in_frequency_weeks,
+                 u.name AS user_name, u.username AS user_username
           FROM push_subscriptions ps
           JOIN users u ON u.id = ps.user_id
           JOIN goals g ON g.user_id = u.id
@@ -60,6 +61,7 @@ async function handle(req: NextRequest) {
 
   let sent = 0;
   let failed = 0;
+  const failedNames: string[] = [];
   for (const row of due) {
     try {
       await webpush.sendNotification(
@@ -69,6 +71,7 @@ async function handle(req: NextRequest) {
       sent++;
     } catch {
       failed++;
+      failedNames.push(`${row.user_name} (${row.user_username})`);
       await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint = ?", args: [row.endpoint as string] });
     }
   }
@@ -76,7 +79,7 @@ async function handle(req: NextRequest) {
   await sendTelegramAlert(
     `⚖️ <b>Weigh-in Reminder</b>\n` +
     `📨 נשלח ל: ${sent} מתאמנים\n` +
-    `❌ נכשל: ${failed}\n` +
+    `❌ נכשל: ${failed}${failedNames.length ? ` — ${failedNames.join(", ")}` : ""}\n` +
     `📋 רלוונטיים השבוע: ${due.length} מתוך ${rows.length} עם תזכורת מוגדרת`
   );
 

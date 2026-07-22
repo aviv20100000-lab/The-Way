@@ -87,7 +87,7 @@ async function handle(req: NextRequest) {
 
     await initDb();
     const subs = (await db.execute({
-      sql: `SELECT ps.* FROM push_subscriptions ps
+      sql: `SELECT ps.*, u.name AS user_name, u.username AS user_username FROM push_subscriptions ps
             JOIN users u ON u.id = ps.user_id
             WHERE u.role = 'client'`,
     })).rows;
@@ -97,6 +97,7 @@ async function handle(req: NextRequest) {
 
     let sent = 0;
     let failed = 0;
+    const failedNames: string[] = [];
     for (const sub of subs) {
       try {
         await webpush.sendNotification(
@@ -106,6 +107,7 @@ async function handle(req: NextRequest) {
         sent++;
       } catch {
         failed++;
+        failedNames.push(`${sub.user_name} (${sub.user_username})`);
         await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint=?", args: [sub.endpoint as string] });
       }
     }
@@ -114,7 +116,7 @@ async function handle(req: NextRequest) {
       `✅ <b>Water Reminder</b> — נשלח\n` +
       `🌡️ טמפרטורה: ${Math.round(temp)}°\n` +
       `📨 נשלח ל: ${sent} משתמשים\n` +
-      `❌ נכשל (subscription נמחקה): ${failed}\n` +
+      `❌ נכשל (subscription נמחקה): ${failed}${failedNames.length ? ` — ${failedNames.join(", ")}` : ""}\n` +
       `📋 סה"כ subscriptions: ${subs.length}`
     );
 

@@ -7,12 +7,25 @@ import { getCsrfToken } from "@/lib/csrf-client";
 function GyroscopeCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // HARD RULE, same as the background video below: this animation must NOT start
+  // before the window load event. Each frame draws ~750 stroked segments plus a
+  // shadowBlur'd bloom — expensive enough on an iPhone to pin the main thread, and
+  // a pinned main thread starves the tasks that complete the navigation. That was
+  // the real cause of the 20s white screen on first Safari visit (2026-07-27):
+  // /ping.html and /forgot-password both loaded in under a second, only /login
+  // stalled, and one telemetry report showed even module init pushed to 20.2s.
+  // Also pauses when the tab is hidden and stays still under prefers-reduced-motion.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext("2d");
     if (!context) return;
     const ctx = context;
+
+    let raf: number | undefined;
+    let started = false;
+    let disposed = false;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     // 2x DPR — crisp on retina
     const dpr = window.devicePixelRatio || 1;
@@ -41,8 +54,6 @@ function GyroscopeCanvas() {
         trail: [],
       }))
     );
-
-    let raf: number;
 
     function rotX(x: number, y: number, z: number, a: number) {
       return { x, y: y * Math.cos(a) - z * Math.sin(a), z: y * Math.sin(a) + z * Math.cos(a) };
@@ -138,7 +149,7 @@ function GyroscopeCanvas() {
       });
     }
 
-    function draw() {
+    function drawScene() {
       ctx.clearRect(0, 0, W, H);
 
       // pulsing center ambient glow
@@ -154,13 +165,56 @@ function GyroscopeCanvas() {
         ring.yAngle += ring.speed;
         drawRing(ring, dots[i]);
       });
+    }
 
-
+    function draw() {
+      drawScene();
       raf = requestAnimationFrame(draw);
     }
 
-    draw();
-    return () => cancelAnimationFrame(raf);
+    // One static frame for reduced-motion users: same picture, no rAF loop.
+    function drawStillFrame() {
+      const previous = rings.map((ring) => ring.yAngle);
+      drawScene();
+      rings.forEach((ring, index) => { ring.yAngle = previous[index]; });
+    }
+
+    const stop = () => {
+      if (raf !== undefined) cancelAnimationFrame(raf);
+      raf = undefined;
+    };
+
+    const resume = () => {
+      if (disposed || reduceMotion || raf !== undefined || document.hidden) return;
+      raf = requestAnimationFrame(draw);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) stop();
+      else resume();
+    };
+
+    const start = () => {
+      if (started || disposed) return;
+      started = true;
+      window.removeEventListener("load", start);
+      if (reduceMotion) {
+        drawStillFrame();
+        return;
+      }
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      resume();
+    };
+
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start, { once: true });
+
+    return () => {
+      disposed = true;
+      stop();
+      window.removeEventListener("load", start);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   return <canvas ref={canvasRef} className="w-full h-full" style={{ display: "block" }} />;

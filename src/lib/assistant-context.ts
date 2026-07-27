@@ -5,6 +5,18 @@ export const ASSISTANT_NAME = "העוזר";
 export const ASSISTANT_MAX_INPUT_CHARS = 500;
 export const ASSISTANT_HISTORY_LIMIT = 12;
 
+export interface AssistantMenuOption {
+  label: string;
+  calories: number;
+  items: string[];
+}
+
+export interface AssistantMenuMeal {
+  label: string;
+  status: "planned" | "other" | null;
+  options: AssistantMenuOption[];
+}
+
 export interface AssistantUserContext {
   name: string;
   dailyCalories: number | null;
@@ -13,6 +25,8 @@ export interface AssistantUserContext {
   latestWeightKg: number | null;
   targetWeightKg: number | null;
   preferenceSummary?: string | null;
+  todayMenu?: AssistantMenuMeal[] | null;
+  todayMenuDayName?: string | null;
 }
 
 export interface AssistantHistoryMessage {
@@ -32,6 +46,22 @@ export function buildContextBlock(context: AssistantUserContext): string {
   if (context.latestWeightKg) lines.push(`משקל אחרון: ${context.latestWeightKg} ק"ג.`);
   if (context.targetWeightKg) lines.push(`משקל יעד: ${context.targetWeightKg} ק"ג.`);
   lines.push(`השתמש בנתונים כדי להתאים את התשובה — אל תדקלם אותם סתם.`);
+  if (context.todayMenu?.length) {
+    lines.push(`# התפריט שהמאמן בנה לו${context.todayMenuDayName ? ` ל${context.todayMenuDayName}` : ""}`);
+    for (const meal of context.todayMenu) {
+      const mark = meal.status === "planned" ? "כבר אכל" : meal.status === "other" ? "אכל משהו אחר" : "עדיין לא סימן";
+      lines.push(`${meal.label} — ${mark}:`);
+      for (const option of meal.options) {
+        const items = option.items.length ? option.items.join(", ") : "אין פריטים";
+        lines.push(`  ${option.label} (${option.calories} קל'): ${items}`);
+      }
+    }
+    lines.push(
+      `כשהוא שואל מה לאכול — הצע קודם מהתפריט הזה, מארוחה שעדיין לא סומנה. ` +
+      `אל תמציא מזון או כמויות שלא כתובים כאן. אם הוא אומר שהוא רוצה משהו אחר, ` +
+      `או שמה שהוא מחפש לא נמצא בתפריט — תעזור לו לבחור משהו קרוב בקלוריות ותגיד לו לסמן "אכלתי משהו אחר".`
+    );
+  }
   if (context.preferenceSummary) {
     lines.push("# מה הבוט למד על הטעם של המתאמן");
     lines.push(context.preferenceSummary);

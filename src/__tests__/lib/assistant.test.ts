@@ -46,6 +46,41 @@ describe("buildContextBlock", () => {
     expect(block).toContain("מה הבוט למד");
     expect(block).toContain("קוטג'");
   });
+
+  it("lays out today's coach menu with what is still unmarked", () => {
+    const block = buildContextBlock({
+      ...baseContext,
+      todayMenuDayName: "שני",
+      todayMenu: [
+        {
+          label: "בוקר",
+          status: "planned",
+          options: [{ label: "אפשרות א׳", calories: 420, items: ["חביתה 100 ג׳", "לחם 60 ג׳"] }],
+        },
+        {
+          label: "צהריים",
+          status: null,
+          options: [
+            { label: "אפשרות א׳", calories: 600, items: ["חזה עוף 150 ג׳"] },
+            { label: "אפשרות ב׳", calories: 580, items: ["טונה 120 ג׳"] },
+          ],
+        },
+        { label: "ערב", status: "other", options: [{ label: "אפשרות א׳", calories: 500, items: ["סלט 200 ג׳"] }] },
+      ],
+    });
+    expect(block).toContain("התפריט שהמאמן בנה לו לשני");
+    expect(block).toContain("בוקר — כבר אכל");
+    expect(block).toContain("צהריים — עדיין לא סימן");
+    expect(block).toContain("ערב — אכל משהו אחר");
+    expect(block).toContain("אפשרות ב׳ (580 קל'): טונה 120 ג׳");
+    expect(block).toContain("אל תמציא מזון");
+  });
+
+  it("says nothing about a menu when the client has none", () => {
+    const block = buildContextBlock({ ...baseContext, todayMenu: null });
+    expect(block).not.toContain("התפריט שהמאמן בנה");
+    expect(block).not.toContain("אל תמציא מזון");
+  });
 });
 
 describe("assistant limits", () => {

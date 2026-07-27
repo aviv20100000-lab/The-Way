@@ -4,6 +4,8 @@ import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
 import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
+import { weekdayOfDayKey } from "@/lib/menu-week";
+import type { AssistantMenuMeal, AssistantMenuOption } from "@/lib/assistant-context";
 import { buildPreferenceSummary, parseMemoryList, parsePreferenceProfile } from "@/lib/assistant-learning";
 import {
   generateAssistantReply,
@@ -51,11 +53,49 @@ export async function GET() {
   });
 }
 
+const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+type MenuRow = {
+  meal_id: string;
+  meal_label: string;
+  option_id: string;
+  option_label: string;
+  name_he: string | null;
+  grams: number | null;
+  calories: number | null;
+  selection_status: string | null;
+};
+
+// The join returns one row per menu item, so fold it back into meals -> options -> items.
+function groupTodayMenu(rows: MenuRow[]): AssistantMenuMeal[] {
+  const meals = new Map<string, AssistantMenuMeal & { optionIndex: Map<string, AssistantMenuOption> }>();
+  for (const row of rows) {
+    let meal = meals.get(row.meal_id);
+    if (!meal) {
+      const status = row.selection_status === "planned" || row.selection_status === "other" ? row.selection_status : null;
+      meal = { label: String(row.meal_label), status, options: [], optionIndex: new Map() };
+      meals.set(row.meal_id, meal);
+    }
+    let option = meal.optionIndex.get(row.option_id);
+    if (!option) {
+      option = { label: String(row.option_label), calories: 0, items: [] };
+      meal.optionIndex.set(row.option_id, option);
+      meal.options.push(option);
+    }
+    if (row.name_he) {
+      option.items.push(`${row.name_he} ${Math.round(Number(row.grams) || 0)} ג׳`);
+      option.calories += Math.round(Number(row.calories) || 0);
+    }
+  }
+  return [...meals.values()].map(({ label, status, options }) => ({ label, status, options }));
+}
+
 async function loadUserContext(userId: string, name: string): Promise<AssistantUserContext> {
   // Jerusalem day, like every other endpoint — a UTC date would make the bot
   // quote yesterday's calorie total to anyone chatting before 03:00.
-  const { startUtc, endUtc } = getDayRangeUtc(getTodayDayKey());
-  const [goalsRes, caloriesRes, weightRes, preferencesRes] = await Promise.all([
+  const todayKey = getTodayDayKey();
+  const { startUtc, endUtc } = getDayRangeUtc(todayKey);
+  const [goalsRes, caloriesRes, weightRes, preferencesRes, menuRes] = await Promise.all([
     db.execute({
       sql: "SELECT daily_calories, daily_protein_g, target_weight_kg FROM goals WHERE user_id = ?",
       args: [userId],
@@ -85,11 +125,35 @@ async function loadUserContext(userId: string, name: string): Promise<AssistantU
       sql: "SELECT liked_notes, disliked_notes, saved_notes, profile_json, feedback_count FROM assistant_preferences WHERE user_id = ?",
       args: [userId],
     }),
+    // Today's slice of the coach's published menu, plus what the client already
+    // marked today. Without this the bot invents food instead of steering him to
+    // the plan the coach actually wrote.
+    db.execute({
+      sql: `SELECT mm.id AS meal_id, mm.label AS meal_label, mm.sort_order AS meal_order,
+                   mo.id AS option_id, mo.label AS option_label, mo.sort_order AS option_order,
+                   mi.name_he, mi.grams, mi.calories,
+                   s.status AS selection_status
+            FROM menu_plans mp
+            JOIN menu_days md ON md.menu_plan_id = mp.id
+            JOIN menu_meals mm ON mm.menu_day_id = md.id
+            JOIN menu_meal_options mo ON mo.menu_meal_id = mm.id
+            LEFT JOIN menu_items mi ON mi.menu_meal_option_id = mo.id
+            LEFT JOIN menu_meal_selections s ON s.menu_meal_id = mm.id AND s.day_key = ?
+            WHERE md.day_index = ?
+              AND mp.id = (
+                SELECT id FROM menu_plans
+                WHERE client_id = ? AND status = 'published'
+                ORDER BY updated_at DESC, created_at DESC LIMIT 1
+              )
+            ORDER BY mm.sort_order, mo.sort_order, mi.rowid`,
+      args: [todayKey, weekdayOfDayKey(todayKey), userId],
+    }),
   ]);
 
   const goals = goalsRes.rows[0] as
     | { daily_calories?: number | null; daily_protein_g?: number | null; target_weight_kg?: number | null }
     | undefined;
+  const menu = groupTodayMenu(menuRes.rows as unknown as MenuRow[]);
   const preferenceRow = preferencesRes.rows[0] as
     | { liked_notes?: string | null; disliked_notes?: string | null; saved_notes?: string | null; profile_json?: string | null; feedback_count?: number | null }
     | undefined;
@@ -101,6 +165,8 @@ async function loadUserContext(userId: string, name: string): Promise<AssistantU
     todayCalories: Math.round(Number(caloriesRes.rows[0]?.total_calories) || 0),
     latestWeightKg: weightRes.rows[0]?.weight_kg ? Number(weightRes.rows[0].weight_kg) : null,
     targetWeightKg: goals?.target_weight_kg ? Number(goals.target_weight_kg) : null,
+    todayMenu: menu.length ? menu : null,
+    todayMenuDayName: menu.length ? DAY_NAMES[weekdayOfDayKey(todayKey)] : null,
     preferenceSummary: preferenceRow
       ? buildPreferenceSummary({
           likedNotes: parseMemoryList(preferenceRow.liked_notes),

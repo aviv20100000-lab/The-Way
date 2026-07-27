@@ -17,9 +17,35 @@ const beVietnamPro = Be_Vietnam_Pro({
   display: "swap",
 });
 
+// Absolute URLs are required for link previews — WhatsApp, Telegram and iMessage
+// will not resolve a relative og:image. Override per deployment with
+// NEXT_PUBLIC_SITE_URL if the domain ever changes.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://the-way-app-two.vercel.app";
+const title = "THE WAY";
+const description = "מעקב תזונה וכושר בגובה העיניים";
+
 export const metadata: Metadata = {
-  title: "THE WAY",
-  description: "מעקב תזונה וכושר בגובה העיניים",
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  applicationName: title,
+  // These tags are server-rendered into the HTML and only ever fetched by link
+  // crawlers, never by the browser on page load — no effect on load time.
+  openGraph: {
+    type: "website",
+    siteName: title,
+    title,
+    description,
+    url: "/",
+    locale: "he_IL",
+    images: [{ url: "/og.png", width: 1200, height: 630, type: "image/png", alt: title }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["/og.png"],
+  },
 };
 
 export const viewport: Viewport = {

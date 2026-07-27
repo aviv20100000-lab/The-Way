@@ -22,12 +22,15 @@ const beVietnamPro = Be_Vietnam_Pro({
 // NEXT_PUBLIC_SITE_URL if the domain ever changes.
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://the-way-app-two.vercel.app";
 const title = "THE WAY";
-const description = "מעקב תזונה וכושר בגובה העיניים";
 
+// No description anywhere on purpose. The tagline is already inside og.png, and
+// chat clients print the description as a separate line above the image, so any
+// description here shows the same sentence twice. Telegram falls back
+// og:description -> twitter:description -> <meta name="description">, so all three
+// have to stay absent for that line to disappear.
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
-  description,
   applicationName: title,
   // These tags are server-rendered into the HTML and only ever fetched by link
   // crawlers, never by the browser on page load — no effect on load time.
@@ -35,7 +38,6 @@ export const metadata: Metadata = {
     type: "website",
     siteName: title,
     title,
-    description,
     url: "/",
     locale: "he_IL",
     images: [{ url: "/og.png", width: 1200, height: 630, type: "image/png", alt: title }],
@@ -43,7 +45,6 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title,
-    description,
     images: ["/og.png"],
   },
 };

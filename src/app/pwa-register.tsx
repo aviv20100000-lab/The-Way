@@ -152,7 +152,7 @@ function injectManifest() {
   if (!document.querySelector('link[rel="apple-touch-icon"]')) {
     const icon = document.createElement("link");
     icon.rel = "apple-touch-icon";
-    icon.href = "/icon-192.png";
+    icon.href = "/apple-touch-icon.png";
     document.head.appendChild(icon);
   }
   const appleMeta = [

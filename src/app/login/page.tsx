@@ -343,10 +343,37 @@ export default function LoginPage() {
         </>
       )}
 
-      {/* Background glow */}
+      {/* Background glow — radial gradients, never filter: blur().
+          These were `blur-[140px]` and `blur-[120px]` over 384px/288px circles.
+          iOS rasterizes a blur that large on the CPU, and it pinned the main
+          thread long enough to hold the entire navigation: the login page showed
+          a white screen for ~21s on iPhone Safari while /forgot-password — same
+          layout, same fonts, same glass-card backdrop-filter, no blur filter —
+          came up in half a second (2026-07-27). A gradient paints the same soft
+          glow for free. Do not reintroduce large blur radii on this page. */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-[#c3f400]/6 blur-[140px]" />
-        <div className="absolute bottom-20 -left-20 w-72 h-72 rounded-full bg-[#c3f400]/4 blur-[120px]" />
+        <div
+          className="absolute rounded-full"
+          style={{
+            top: "-280px",
+            right: "-280px",
+            width: "800px",
+            height: "800px",
+            background:
+              "radial-gradient(circle, rgba(195,244,0,0.05) 0%, rgba(195,244,0,0.022) 38%, rgba(195,244,0,0) 70%)",
+          }}
+        />
+        <div
+          className="absolute rounded-full"
+          style={{
+            bottom: "-100px",
+            left: "-260px",
+            width: "650px",
+            height: "650px",
+            background:
+              "radial-gradient(circle, rgba(195,244,0,0.035) 0%, rgba(195,244,0,0.015) 38%, rgba(195,244,0,0) 70%)",
+          }}
+        />
       </div>
 
       {/* Branding */}

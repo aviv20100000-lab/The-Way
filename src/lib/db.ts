@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 17;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -517,6 +517,21 @@ async function runInit() {
       fat REAL NOT NULL DEFAULT 0
     );
 
+    -- What the client actually ate for a planned meal, on a REAL date. The plan
+    -- itself is per weekday and reused every week, so the mark cannot live on
+    -- menu_meals — it would replay every week and leave no adherence history.
+    -- status 'planned' = ate the chosen option; 'other' = ate something else.
+    CREATE TABLE IF NOT EXISTS menu_meal_selections (
+      menu_meal_id TEXT NOT NULL REFERENCES menu_meals(id) ON DELETE CASCADE,
+      day_key TEXT NOT NULL,
+      option_id TEXT,
+      status TEXT NOT NULL CHECK(status IN ('planned', 'other')) DEFAULT 'planned',
+      selected_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (menu_meal_id, day_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_menu_meal_selections_day ON menu_meal_selections(day_key);
+
     CREATE INDEX IF NOT EXISTS idx_menu_plans_coach_client ON menu_plans(coach_id, client_id, updated_at);
     CREATE INDEX IF NOT EXISTS idx_menu_plans_client_status ON menu_plans(client_id, status, updated_at);
     CREATE INDEX IF NOT EXISTS idx_menu_days_plan ON menu_days(menu_plan_id, day_index);
@@ -648,6 +663,17 @@ async function runInit() {
   await migrateMenuOptionsSchema();
 
   await addGenericColumnIfMissing("assistant_preferences", "profile_json", "profile_json TEXT NOT NULL DEFAULT '{}'");
+
+  // One-time carry-over of the old single-slot marks (menu_meals.selected_option_id)
+  // into the dated selections table, using the day the mark was made. Idempotent:
+  // the PRIMARY KEY makes a second run a no-op.
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO menu_meal_selections (menu_meal_id, day_key, option_id, status, selected_at)
+          SELECT id, date(selected_at), selected_option_id, 'planned', selected_at
+          FROM menu_meals
+          WHERE selected_option_id IS NOT NULL AND selected_at IS NOT NULL`,
+    args: [],
+  });
 
   // Derive a plain username from the email address for existing users.
   await db.execute({

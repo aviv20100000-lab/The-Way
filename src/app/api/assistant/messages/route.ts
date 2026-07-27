@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
+import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
 import { buildPreferenceSummary, parseMemoryList, parsePreferenceProfile } from "@/lib/assistant-learning";
 import {
   generateAssistantReply,
@@ -51,7 +52,9 @@ export async function GET() {
 }
 
 async function loadUserContext(userId: string, name: string): Promise<AssistantUserContext> {
-  const today = new Date().toISOString().split("T")[0];
+  // Jerusalem day, like every other endpoint — a UTC date would make the bot
+  // quote yesterday's calorie total to anyone chatting before 03:00.
+  const { startUtc, endUtc } = getDayRangeUtc(getTodayDayKey());
   const [goalsRes, caloriesRes, weightRes, preferencesRes] = await Promise.all([
     db.execute({
       sql: "SELECT daily_calories, daily_protein_g, target_weight_kg FROM goals WHERE user_id = ?",
@@ -64,15 +67,15 @@ async function loadUserContext(userId: string, name: string): Promise<AssistantU
                 FROM meals m
                 JOIN meal_items mi ON mi.meal_id = m.id
                 JOIN foods f ON f.id = mi.food_id
-                WHERE m.user_id = ? AND DATE(m.logged_at) = ?
+                WHERE m.user_id = ? AND m.logged_at >= ? AND m.logged_at < ?
               ), 0)
               +
               COALESCE((
                 SELECT ROUND(SUM(total_calories))
                 FROM ai_meal_logs
-                WHERE user_id = ? AND DATE(logged_at) = ?
+                WHERE user_id = ? AND logged_at >= ? AND logged_at < ?
               ), 0) AS total_calories`,
-      args: [userId, today, userId, today],
+      args: [userId, startUtc, endUtc, userId, startUtc, endUtc],
     }),
     db.execute({
       sql: "SELECT weight_kg FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC LIMIT 1",

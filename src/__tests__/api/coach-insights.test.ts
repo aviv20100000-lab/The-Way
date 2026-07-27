@@ -29,6 +29,7 @@ describe("GET /api/coach/insights", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     const { GET } = await import("@/app/api/coach/insights/route");
@@ -37,7 +38,7 @@ describe("GET /api/coach/insights", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(body.clients[0].id).toBe("client-1");
-    expect(mockExecute).toHaveBeenCalledTimes(5);
+    expect(mockExecute).toHaveBeenCalledTimes(6);
     for (const [statement] of mockExecute.mock.calls) expect(statement.args).toEqual(["coach-1"]);
   });
 });

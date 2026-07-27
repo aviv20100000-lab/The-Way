@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { v4 as uuid } from "uuid";
-import { resolveCoachId } from "@/lib/chat-group";
+import { canAccessDefaultGroup, getDefaultGroupMemberIds, resolveCoachId } from "@/lib/chat-group";
 import { sendSecurityAlert } from "@/lib/security-alerts";
 import { pushToUsers, setupVapid } from "@/lib/chat-push";
 
@@ -55,6 +55,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "אין הרשאה לשתף לקבוצה הזאת" }, { status: 403 });
     }
 
+    // The shared meal lands in the default group feed, so the sharer must actually
+    // belong to it — same rule the text-message path enforces.
+    if (!(await canAccessDefaultGroup(user))) {
+      return NextResponse.json({ error: "אינך חבר בקבוצה" }, { status: 403 });
+    }
+
     const caption = `${user.name} שיתף/ה ארוחה - ${Math.round(Number(meal.total_calories) || 0)} קל'`;
     const messageId = uuid();
 
@@ -73,11 +79,7 @@ export async function POST(req: NextRequest) {
 
     try {
       setupVapid();
-      const membersRes = await db.execute({
-        sql: `SELECT id FROM users WHERE id = ? OR coach_id = ?`,
-        args: [coachId, coachId],
-      });
-      const memberIds = (membersRes.rows as unknown as { id: string }[]).map((row) => row.id).filter((id) => id !== user.id);
+      const memberIds = (await getDefaultGroupMemberIds(coachId)).filter((id) => id !== user.id);
       const payload = JSON.stringify({
         title: `📸 ${user.name}`,
         body: caption,

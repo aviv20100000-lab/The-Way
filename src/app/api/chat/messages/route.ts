@@ -4,7 +4,7 @@ import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
 import { sendSecurityAlert } from "@/lib/security-alerts";
 import { pushToUsers, setupVapid } from "@/lib/chat-push";
-import { isGroupMember, isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
+import { canAccessDefaultGroup, getDefaultGroupMemberIds, isGroupMember, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
 
 type MessageRow = { id: string } & Record<string, unknown>;
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
     const coachId = resolveCoachId(user as Parameters<typeof resolveCoachId>[0]);
     if (!coachId) return NextResponse.json({ messages: [] });
 
-    if (!(await isInDefaultGroup(user))) {
+    if (!(await canAccessDefaultGroup(user))) {
       return NextResponse.json({ error: "אינך חבר בקבוצה" }, { status: 403 });
     }
 
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "המשתמש אינו משויך לקבוצה" }, { status: 403 });
     }
 
-    if (!hasReceiver && !hasGroup && !(await isInDefaultGroup(user))) {
+    if (!hasReceiver && !hasGroup && !(await canAccessDefaultGroup(user))) {
       return NextResponse.json({ error: "אינך חבר בקבוצה" }, { status: 403 });
     }
 
@@ -255,13 +255,7 @@ export async function POST(req: NextRequest) {
           .filter((memberId) => memberId !== user.id);
         await pushToUsers(memberIds, payload);
       } else {
-        const membersRes = await db.execute({
-          sql: `SELECT id FROM users WHERE id = ? OR (coach_id = ? AND in_default_group = 1)`,
-          args: [coachId, coachId],
-        });
-        const memberIds = (membersRes.rows as unknown as { id: string }[])
-          .map((row) => row.id)
-          .filter((memberId) => memberId !== user.id);
+        const memberIds = (await getDefaultGroupMemberIds(coachId)).filter((memberId) => memberId !== user.id);
         await pushToUsers(memberIds, payload);
       }
     } catch (pushErr) {

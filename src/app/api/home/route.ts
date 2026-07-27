@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
+import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
 
 // Combined home endpoint — replaces 4 separate API calls with 1
 export async function GET() {
@@ -9,14 +10,17 @@ export async function GET() {
 
   await initDb();
   const u = user as { id: string; coach_id?: string; role: string };
-  const today = new Date().toISOString().split("T")[0];
+  // "Today" must be the Jerusalem day, matching every other endpoint. A raw UTC
+  // date rolls over at 03:00 local time, so the home tab used to show yesterday's
+  // totals until 03:00 while /api/health/water already showed the new day.
+  const { startUtc, endUtc } = getDayRangeUtc(getTodayDayKey());
 
   // All DB queries in parallel — single session lookup, single initDb
   const [quotesRes, waterRes, goalsRes, streakRes, stepsRes, caloriesRes, totalStepsRes, profileRes] = await Promise.all([
     db.execute("SELECT text FROM quotes WHERE active = 1"),
     db.execute({
-      sql: "SELECT amount_ml FROM water_logs WHERE user_id = ? AND DATE(logged_at) = ?",
-      args: [u.id, today],
+      sql: "SELECT amount_ml FROM water_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ?",
+      args: [u.id, startUtc, endUtc],
     }),
     db.execute({
       sql: "SELECT target_weight_kg, daily_water_ml, daily_calories, daily_protein_g, daily_steps, weigh_in_frequency_weeks, weigh_in_weekday FROM goals WHERE user_id = ?",
@@ -27,8 +31,8 @@ export async function GET() {
       args: [u.id],
     }),
     db.execute({
-      sql: "SELECT COALESCE(SUM(steps), 0) as steps FROM steps_logs WHERE user_id = ? AND DATE(logged_at) = ?",
-      args: [u.id, today],
+      sql: "SELECT COALESCE(SUM(steps), 0) as steps FROM steps_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ?",
+      args: [u.id, startUtc, endUtc],
     }),
     db.execute({
       sql: `SELECT
@@ -37,15 +41,15 @@ export async function GET() {
                 FROM meals m
                 JOIN meal_items mi ON mi.meal_id = m.id
                 JOIN foods f ON f.id = mi.food_id
-                WHERE m.user_id = ? AND DATE(m.logged_at) = ?
+                WHERE m.user_id = ? AND m.logged_at >= ? AND m.logged_at < ?
               ), 0)
               +
               COALESCE((
                 SELECT ROUND(SUM(total_calories))
                 FROM ai_meal_logs
-                WHERE user_id = ? AND DATE(logged_at) = ?
+                WHERE user_id = ? AND logged_at >= ? AND logged_at < ?
               ), 0) AS total_calories`,
-      args: [u.id, today, u.id, today],
+      args: [u.id, startUtc, endUtc, u.id, startUtc, endUtc],
     }),
     db.execute({
       sql: "SELECT COALESCE(SUM(steps), 0) as total_steps FROM steps_logs WHERE user_id = ?",

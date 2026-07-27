@@ -23,6 +23,32 @@ export async function isInDefaultGroup(user: { id: string; role: string }): Prom
   return result.rows.length > 0;
 }
 
+// Everyone who should receive a push for the coach's default (all-hands) group:
+// the coach, plus clients who are actually in the group and not restricted to
+// coach-only visibility. Both push call sites must use this — sending to every
+// client of the coach notifies people who get a 403 when they open the message.
+export async function getDefaultGroupMemberIds(coachId: string): Promise<string[]> {
+  const result = await db.execute({
+    sql: `SELECT id FROM users
+          WHERE id = ?
+             OR (coach_id = ? AND role = 'client' AND in_default_group = 1 AND dm_coach_only = 0)`,
+    args: [coachId, coachId],
+  });
+  return (result.rows as unknown as { id: string }[]).map((row) => String(row.id));
+}
+
+// Can this user read/write the coach's default group feed?
+// dm_coach_only clients see only their coach, so they must be kept out of the feed
+// in both directions — otherwise their message shows up for every other client.
+export async function canAccessDefaultGroup(user: { id: string; role: string }): Promise<boolean> {
+  if (user.role === "coach") return true;
+  const result = await db.execute({
+    sql: "SELECT 1 FROM users WHERE id = ? AND in_default_group = 1 AND dm_coach_only = 0 LIMIT 1",
+    args: [user.id],
+  });
+  return result.rows.length > 0;
+}
+
 export async function isGroupMember(groupId: string, userId: string): Promise<boolean> {
   const result = await db.execute({
     sql: `SELECT 1

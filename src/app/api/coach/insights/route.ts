@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
-import { buildCoachInsights, type InsightClientInput, type InsightMealInput, type InsightStepsInput, type InsightWeightInput } from "@/lib/coach-insights";
+import { buildCoachInsights, type InsightClientInput, type InsightMealInput, type InsightMenuSelectionInput, type InsightStepsInput, type InsightWeightInput } from "@/lib/coach-insights";
 
 function proteinFromAiResponse(value: unknown) {
   try {
@@ -23,7 +23,7 @@ export async function GET() {
   }
 
   await initDb();
-  const [clientsRes, aiMealsRes, quickMealsRes, weightsRes, stepsRes] = await Promise.all([
+  const [clientsRes, aiMealsRes, quickMealsRes, weightsRes, stepsRes, menuSelectionsRes] = await Promise.all([
     db.execute({
       sql: `SELECT u.id, u.name, u.avatar_url, u.created_at,
                    g.daily_calories, g.daily_protein_g, g.daily_steps,
@@ -75,6 +75,23 @@ export async function GET() {
             ORDER BY sl.logged_at ASC`,
       args: [coach.id],
     }),
+    // Menu marks count as a nutrition report. Calories come from the option the
+    // client actually picked; an "other" mark carries no calories by design.
+    db.execute({
+      sql: `SELECT mp.client_id AS user_id, s.day_key, s.status,
+                   COALESCE(SUM(mi.calories), 0) AS calories,
+                   COALESCE(SUM(mi.protein), 0) AS protein_g
+            FROM menu_meal_selections s
+            JOIN menu_meals mm ON mm.id = s.menu_meal_id
+            JOIN menu_days md ON md.id = mm.menu_day_id
+            JOIN menu_plans mp ON mp.id = md.menu_plan_id
+            JOIN users u ON u.id = mp.client_id
+            LEFT JOIN menu_items mi ON mi.menu_meal_option_id = s.option_id
+            WHERE u.role = 'client' AND u.coach_id = ?
+              AND s.day_key >= date('now', '-30 days')
+            GROUP BY s.menu_meal_id, s.day_key, mp.client_id, s.status`,
+      args: [coach.id],
+    }),
   ]);
 
   const clients: InsightClientInput[] = clientsRes.rows.map((row) => ({
@@ -112,8 +129,16 @@ export async function GET() {
     logged_at: String(row.logged_at),
   }));
 
+  const menuSelections: InsightMenuSelectionInput[] = menuSelectionsRes.rows.map((row) => ({
+    user_id: String(row.user_id),
+    day_key: String(row.day_key),
+    status: String(row.status) === "other" ? "other" : "planned",
+    calories: Number(row.calories) || 0,
+    protein_g: Number(row.protein_g) || 0,
+  }));
+
   return NextResponse.json(
-    buildCoachInsights({ clients, meals: [...aiMeals, ...quickMeals], weights, steps }),
+    buildCoachInsights({ clients, meals: [...aiMeals, ...quickMeals], weights, steps, menuSelections }),
     { headers: { "Cache-Control": "private, no-store" } }
   );
 }

@@ -5,11 +5,22 @@ import { withCsrf } from "@/lib/csrf-client";
 
 type MenuItem = { id: string; name_he: string; grams: number; calories: number };
 type MenuOption = { id: string; menu_meal_id: string; label: string; sort_order: number; items: MenuItem[] };
-type MenuMeal = { id: string; menu_day_id: string; label: string; sort_order: number; selected_option_id: string | null; options: MenuOption[] };
+type MenuMeal = { id: string; menu_day_id: string; label: string; sort_order: number; options: MenuOption[] };
 type MenuDay = { id: string; day_index: number; meals: MenuMeal[] };
-type MenuPlan = { id: string; title: string; daily_calories_target: number | null; days: MenuDay[] };
+type MenuSelection = { menu_meal_id: string; day_key: string; option_id: string | null; status: "planned" | "other" };
+type MenuPlan = {
+  id: string;
+  title: string;
+  daily_calories_target: number | null;
+  days: MenuDay[];
+  today_key: string;
+  week_day_keys: string[];
+  selections: MenuSelection[];
+};
 
 const DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+const selectionKey = (mealId: string, dayKey: string) => `${mealId}|${dayKey}`;
 
 export default function ClientMenuView() {
   const [plan, setPlan] = useState<MenuPlan | null>(null);
@@ -27,7 +38,14 @@ export default function ClientMenuView() {
         const response = await fetch("/api/menus/current", { cache: "no-store" });
         if (!response.ok) throw new Error("לא ניתן לטעון את התפריט");
         const data = await response.json();
-        if (active) setPlan(data);
+        if (!active) return;
+        setPlan(data);
+        // Trust the server's Jerusalem "today" over the device clock — otherwise a
+        // phone on another timezone would mark the wrong date.
+        if (data?.today_key && Array.isArray(data.week_day_keys)) {
+          const todayIndex = data.week_day_keys.indexOf(data.today_key);
+          if (todayIndex >= 0) setSelectedDay(todayIndex);
+        }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "לא ניתן לטעון את התפריט");
       } finally {
@@ -40,35 +58,60 @@ export default function ClientMenuView() {
   const day = plan?.days.find((entry) => Number(entry.day_index) === selectedDay);
   const meals = day?.meals ?? [];
 
+  // The plan is per weekday but a mark belongs to a real date, so resolve the
+  // selected weekday to its date in the current week before reading any mark.
+  const dayKey = plan?.week_day_keys?.[selectedDay] ?? null;
+  const isFuture = Boolean(dayKey && plan?.today_key && dayKey > plan.today_key);
+  const isToday = Boolean(dayKey && dayKey === plan?.today_key);
+
+  const selectionMap = useMemo(() => {
+    const map = new Map<string, MenuSelection>();
+    for (const selection of plan?.selections ?? []) {
+      map.set(selectionKey(selection.menu_meal_id, selection.day_key), selection);
+    }
+    return map;
+  }, [plan?.selections]);
+
+  const selectionFor = (mealId: string) => (dayKey ? selectionMap.get(selectionKey(mealId, dayKey)) ?? null : null);
+
   const consumed = useMemo(() => meals.reduce((sum, meal) => {
-    const chosen = meal.options.find((option) => option.id === meal.selected_option_id);
+    const selection = dayKey ? selectionMap.get(selectionKey(meal.id, dayKey)) : null;
+    if (!selection || selection.status !== "planned") return sum;
+    const chosen = meal.options.find((option) => option.id === selection.option_id);
     return sum + (chosen?.items.reduce((itemSum, item) => itemSum + Number(item.calories || 0), 0) ?? 0);
-  }, 0), [meals]);
+  }, 0), [meals, selectionMap, dayKey]);
 
   const target = Number(plan?.daily_calories_target || 0);
   const progress = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0;
-  const completedMeals = meals.filter((meal) => Boolean(meal.selected_option_id)).length;
-  const pendingMeals = Math.max(0, meals.length - completedMeals);
+  const markedMeals = meals.filter((meal) => Boolean(selectionFor(meal.id)));
+  const completedMeals = markedMeals.filter((meal) => selectionFor(meal.id)?.status === "planned").length;
+  const offPlanMeals = markedMeals.length - completedMeals;
+  const pendingMeals = Math.max(0, meals.length - markedMeals.length);
   const remainingCalories = target > 0 ? Math.max(0, Math.round(target - consumed)) : null;
   const exceededCalories = target > 0 ? Math.max(0, Math.round(consumed - target)) : 0;
 
-  const selectOption = async (mealId: string, optionId: string, alreadySelected: boolean) => {
-    if (!plan || savingMealId) return;
-    const nextOptionId = alreadySelected ? null : optionId;
+  // `next` is the mark to store for this meal on the resolved date, or null to clear it.
+  const saveSelection = async (mealId: string, next: { optionId: string | null; status: "planned" | "other" } | null) => {
+    if (!plan || !dayKey || savingMealId || isFuture) return;
     const previous = plan;
+    const key = selectionKey(mealId, dayKey);
+    const withoutThisMark = plan.selections.filter((selection) => selectionKey(selection.menu_meal_id, selection.day_key) !== key);
     setSavingMealId(mealId);
     setPlan({
       ...plan,
-      days: plan.days.map((entry) => ({
-        ...entry,
-        meals: entry.meals.map((meal) => meal.id === mealId ? { ...meal, selected_option_id: nextOptionId } : meal),
-      })),
+      selections: next
+        ? [...withoutThisMark, { menu_meal_id: mealId, day_key: dayKey, option_id: next.optionId, status: next.status }]
+        : withoutThisMark,
     });
     try {
       const response = await fetch(`/api/menus/meals/${mealId}/select`, {
         method: "PATCH",
         headers: await withCsrf({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ optionId: nextOptionId }),
+        body: JSON.stringify(
+          next
+            ? { dayKey, optionId: next.status === "other" ? null : next.optionId, status: next.status }
+            : { dayKey, optionId: null }
+        ),
       });
       if (!response.ok) throw new Error("שמירת הבחירה נכשלה");
     } catch (cause) {
@@ -78,6 +121,12 @@ export default function ClientMenuView() {
       setSavingMealId(null);
     }
   };
+
+  const selectOption = (mealId: string, optionId: string, alreadySelected: boolean) =>
+    saveSelection(mealId, alreadySelected ? null : { optionId, status: "planned" });
+
+  const markOffPlan = (mealId: string, alreadyOffPlan: boolean) =>
+    saveSelection(mealId, alreadyOffPlan ? null : { optionId: null, status: "other" });
 
   const remindCoach = async () => {
     if (reminding) return;
@@ -123,12 +172,20 @@ export default function ClientMenuView() {
           <div className="min-w-0">
             <p className="text-[11px] font-black tracking-[0.2em] text-[#c3f400]">התפריט שלי</p>
             <h2 className="mt-2 truncate text-2xl font-black text-white">{plan.title}</h2>
-            <p className="mt-1 text-xs text-[#8e9379]">{DAYS[selectedDay]} · התוכנית שלך להיום</p>
+            <p className="mt-1 text-xs text-[#8e9379]">{DAYS[selectedDay]} · {isToday ? "התוכנית שלך להיום" : isFuture ? "עוד לא הגיע" : "התוכנית שלך ליום הזה"}</p>
             <div className="mt-4 flex items-center gap-2 text-xs">
               <span className="rounded-full border border-[#38bdf8]/30 bg-[#38bdf8]/10 px-2 py-1 font-bold text-[#7dd3fc]">
-                {pendingMeals > 0 ? "מעקב יומי" : "היום הושלם"}
+                {isFuture ? "תצוגה מוקדמת" : pendingMeals > 0 ? "מעקב יומי" : "היום הושלם"}
               </span>
-              <span className="truncate text-[#c4c9ac]">{pendingMeals > 0 ? `${pendingMeals} ארוחות עדיין לא סומנו` : "כל הארוחות סומנו"}</span>
+              <span className="truncate text-[#c4c9ac]">
+                {isFuture
+                  ? "אפשר לסמן רק מהיום שהגיע"
+                  : pendingMeals > 0
+                    ? `${pendingMeals} ארוחות עדיין לא סומנו`
+                    : offPlanMeals > 0
+                      ? `כל הארוחות סומנו · ${offPlanMeals} מחוץ לתפריט`
+                      : "כל הארוחות סומנו"}
+              </span>
             </div>
           </div>
           <div className="shrink-0 text-left">
@@ -175,24 +232,28 @@ export default function ClientMenuView() {
           <div className="pointer-events-none absolute bottom-6 right-[13px] top-6 w-px bg-gradient-to-b from-[#c3f400]/50 via-[#444933] to-transparent" />
           {meals.map((meal, mealIndex) => {
             const hasMultipleOptions = meal.options.length > 1;
+            const selection = selectionFor(meal.id);
+            const isOffPlan = selection?.status === "other";
+            const onPlan = selection?.status === "planned";
             return (
               <article key={meal.id} className="relative pr-9">
-                <div className={`absolute right-0 top-5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-black ${meal.selected_option_id ? "border-[#c3f400] bg-[#c3f400] text-[#161e00]" : "border-[#444933] bg-[#111413] text-[#8e9379]"}`}>
-                  {meal.selected_option_id ? "✓" : mealIndex + 1}
+                <div className={`absolute right-0 top-5 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-black ${onPlan ? "border-[#c3f400] bg-[#c3f400] text-[#161e00]" : isOffPlan ? "border-[#fbbf24] bg-[#fbbf24] text-[#3b2f00]" : "border-[#444933] bg-[#111413] text-[#8e9379]"}`}>
+                  {onPlan ? "✓" : isOffPlan ? "≠" : mealIndex + 1}
                 </div>
-                <div className={`overflow-hidden rounded-2xl border transition ${meal.selected_option_id ? "border-[#c3f400]/30 bg-[#182015]" : "border-[#33372b] bg-[#151814]"}`}>
+                <div className={`overflow-hidden rounded-2xl border transition ${onPlan ? "border-[#c3f400]/30 bg-[#182015]" : isOffPlan ? "border-[#fbbf24]/30 bg-[#1f1b10]" : "border-[#33372b] bg-[#151814]"}`}>
                   <div className="flex items-center justify-between gap-3 px-4 py-3">
                     <h3 className="font-black text-white">{meal.label}</h3>
-                    {meal.selected_option_id && <span className="text-[10px] font-bold text-[#c3f400]">נאכל</span>}
+                    {onPlan && <span className="text-[10px] font-bold text-[#c3f400]">נאכל</span>}
+                    {isOffPlan && <span className="text-[10px] font-bold text-[#fbbf24]">משהו אחר</span>}
                   </div>
                   <div className="px-3 pb-3">
                     {meal.options.map((option) => {
-                      const isSelected = meal.selected_option_id === option.id;
+                      const isSelected = selection?.status === "planned" && selection.option_id === option.id;
                       const optionCalories = option.items.reduce((sum, item) => sum + Number(item.calories || 0), 0);
                       return (
                         <div key={option.id} className={`border-t border-white/10 px-1 py-3 ${isSelected ? "text-white" : "text-[#9da58c]"}`}>
-                          <button type="button" aria-label={`${isSelected ? "סומן כאכלתי" : "סמן כאכלתי"}${hasMultipleOptions ? `: ${option.label}` : ""}`} aria-pressed={isSelected} disabled={savingMealId === meal.id} onClick={() => void selectOption(meal.id, option.id, isSelected)}
-                            className="flex w-full items-center justify-between gap-3 text-right transition hover:text-white">
+                          <button type="button" aria-label={`${isSelected ? "סומן כאכלתי" : "סמן כאכלתי"}${hasMultipleOptions ? `: ${option.label}` : ""}`} aria-pressed={isSelected} disabled={savingMealId === meal.id || isFuture} onClick={() => void selectOption(meal.id, option.id, isSelected)}
+                            className="flex w-full items-center justify-between gap-3 text-right transition hover:text-white disabled:cursor-not-allowed">
                             <span className="flex min-w-0 items-center gap-2">
                               <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${isSelected ? "border-[#c3f400] bg-[#c3f400]" : "border-[#444933]"}`}>
                                 {isSelected && <span className="text-xs font-black text-[#161e00]">✓</span>}
@@ -213,6 +274,15 @@ export default function ClientMenuView() {
                         </div>
                       );
                     })}
+                    {!isFuture && (
+                      <div className="border-t border-white/10 px-1 pt-3">
+                        <button type="button" aria-pressed={isOffPlan} disabled={savingMealId === meal.id}
+                          onClick={() => void markOffPlan(meal.id, isOffPlan)}
+                          className={`w-full rounded-xl border px-3 py-2 text-xs font-bold transition ${isOffPlan ? "border-[#fbbf24] bg-[#fbbf24]/10 text-[#fbbf24]" : "border-[#444933] text-[#8e9379] hover:border-[#fbbf24]/40 hover:text-[#fbbf24]"}`}>
+                          {isOffPlan ? "סומן: אכלתי משהו אחר — בטל" : "אכלתי משהו אחר"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </article>

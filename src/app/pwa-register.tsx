@@ -36,7 +36,28 @@ function recordVisibility(event: string, persisted?: boolean) {
   }
 }
 
+// Captured the moment this module is evaluated. The stall reports show every
+// resource finishing inside 24ms and then a ~21s gap before any JS runs at all,
+// which the existing fields cannot explain. These four decide between the two
+// remaining stories:
+//   - real wall time passed while the user waited  -> wallGapMs ≈ duration
+//   - Safari prewarmed the page and it sat idle    -> wallGapMs ≈ duration but
+//     activationStart > 0 or navigationType is unexpected
+//   - the page was blank vs. rendered during it    -> bodyTextLenAtInit
+let moduleInitWall: number | undefined;
+let moduleInitPerf: number | undefined;
+let bodyTextLenAtInit: number | undefined;
+let bodyChildrenAtInit: number | undefined;
+
 if (typeof window !== "undefined" && typeof document !== "undefined") {
+  moduleInitWall = Date.now();
+  try {
+    moduleInitPerf = Math.round(performance.now());
+    bodyTextLenAtInit = document.body?.innerText?.length;
+    bodyChildrenAtInit = document.body?.childElementCount;
+  } catch {
+    // Diagnostics only.
+  }
   recordVisibility("module-init");
   document.addEventListener("visibilitychange", () => recordVisibility("visibilitychange"));
   window.addEventListener("pagehide", (event) => recordVisibility("pagehide", event.persisted));
@@ -116,6 +137,18 @@ function reportNavigation(phase: "stuck" | "final") {
             effectiveType: connection?.effectiveType,
             downlink: connection?.downlink,
             resourceCount: resources.length,
+            // See the moduleInit* capture above — these separate a real wait from
+            // a prewarmed page that merely sat idle before the user opened it.
+            navigationType: navigation?.type,
+            activationStart:
+              navigation && "activationStart" in navigation
+                ? Math.round((navigation as PerformanceNavigationTiming & { activationStart: number }).activationStart)
+                : undefined,
+            wallGapMs:
+              moduleInitWall === undefined ? undefined : Math.round(moduleInitWall - performance.timeOrigin),
+            moduleInitPerf,
+            bodyTextLenAtInit,
+            bodyChildrenAtInit,
             slowResources,
           }),
           keepalive: true,

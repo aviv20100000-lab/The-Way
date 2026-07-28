@@ -286,8 +286,13 @@ html[dir="ltr"] {
   height: 500px;
   top: -160px;
   right: -100px;
-  background: radial-gradient(circle at 40% 40%, rgba(195, 244, 0, 0.28) 0%, transparent 65%);
-  filter: blur(60px);
+  /* No filter: blur() here. The background is already a radial gradient that fades
+     to transparent, so the blur added almost nothing visually — but these blobs
+     animate forever, so every frame paid for a full CPU rasterization pass on the
+     trainee's home screen. A 140px blur on the login page is what caused the 20s
+     white screen on iPhone Safari (2026-07-27); this is the same cost, smaller and
+     continuous. The falloff is stretched to 72% to keep the same soft edge. */
+  background: radial-gradient(circle at 40% 40%, rgba(195, 244, 0, 0.28) 0%, transparent 72%);
   animation: auroraDrift1 34s ease-in-out infinite;
 }
 .aurora-blob--cyan {
@@ -295,8 +300,8 @@ html[dir="ltr"] {
   height: 440px;
   top: 45%;
   left: -140px;
-  background: radial-gradient(circle at 60% 50%, rgba(56, 189, 248, 0.22) 0%, transparent 65%);
-  filter: blur(65px);
+  /* Same as --lime above: gradient only, no blur filter. */
+  background: radial-gradient(circle at 60% 50%, rgba(56, 189, 248, 0.22) 0%, transparent 72%);
   animation: auroraDrift2 44s ease-in-out infinite;
 }
 .aurora-grain {

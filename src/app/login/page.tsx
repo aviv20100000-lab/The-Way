@@ -228,6 +228,36 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean | null>(null);
   const [showVideo, setShowVideo] = useState(false);
+
+  // Already signed in? Go straight to the dashboard instead of asking for the
+  // password again. Deliberately checked here rather than in middleware or a
+  // server component:
+  //   - middleware can only verify the JWT signature, not session_version, so a
+  //     revoked session (e.g. after a password reset) would bounce
+  //     /login -> /client -> /login forever;
+  //   - a server component would make this page dynamic and cost it the static
+  //     render, which is the one thing this page cannot afford.
+  // /api/auth/me runs the full check, so a revoked session correctly stays here.
+  // The form is never hidden while this runs: signed-out visitors are the common
+  // case and must not wait on it.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!active || !response.ok) return;
+        const sessionUser = await response.json();
+        if (!active || (sessionUser?.role !== "coach" && sessionUser?.role !== "client")) return;
+        // Hard navigation — a client-side push does not reliably carry the session
+        // cookie in the standalone iOS PWA.
+        window.location.href = sessionUser.role === "coach" ? "/coach" : "/client";
+      } catch {
+        // Offline or the check failed — just leave the form up.
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches);

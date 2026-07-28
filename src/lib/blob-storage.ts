@@ -32,6 +32,22 @@ export async function uploadGroupPhoto(
   return uploadPhoto(imageBuffer, `chat-groups/${groupId}`, contentType);
 }
 
+// A meal photo URL is supplied by the client after it uploads, so it must be
+// proven to be a blob we issued *for that user* before it is stored on a meal —
+// otherwise anyone could attach an arbitrary URL to their own meal row.
+export function isOwnMealPhotoUrl(url: string, userId: string): boolean {
+  if (typeof url !== "string" || url.length > 500) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "https:") return false;
+  if (!parsed.hostname.endsWith(".public.blob.vercel-storage.com")) return false;
+  return parsed.pathname.startsWith(`/meal-photos/${userId}/`);
+}
+
 async function uploadPhoto(
   imageBuffer: Buffer,
   pathPrefix: string,

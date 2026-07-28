@@ -4,6 +4,7 @@ import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
 import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
 import { diffScanItems } from "@/lib/scan-corrections";
+import { isOwnMealPhotoUrl } from "@/lib/blob-storage";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -14,7 +15,7 @@ export async function GET() {
 
   const [aiRes, quickRes, goalRes] = await Promise.all([
     db.execute({
-      sql: `SELECT id, total_calories, ai_response, logged_at FROM ai_meal_logs
+      sql: `SELECT id, total_calories, ai_response, photo_url, logged_at FROM ai_meal_logs
             WHERE user_id = ? AND logged_at >= datetime('now', '-35 days')
             ORDER BY logged_at DESC LIMIT 300`,
       args: [user.id],
@@ -41,6 +42,7 @@ export async function GET() {
     id: r.id as string,
     total_calories: r.total_calories as number,
     logged_at: r.logged_at as string,
+    photo_url: r.photo_url ? String(r.photo_url) : null,
     source: "ai" as const,
     items: (() => {
       try { return JSON.parse(r.ai_response as string).items ?? []; } catch { return []; }
@@ -138,11 +140,17 @@ export async function POST(req: NextRequest) {
     }
     const total = items.reduce((sum: number, item: { calories: number }) => sum + item.calories, 0);
 
+    // The scan photo is kept with the meal so the coach can see what was eaten
+    // without the trainee having to share it to the group. Only a blob this user
+    // uploaded is accepted — never an arbitrary URL from the request body.
+    const rawPhotoUrl = typeof body.photo_url === "string" ? body.photo_url.trim() : "";
+    const photoUrl = rawPhotoUrl && isOwnMealPhotoUrl(rawPhotoUrl, user.id) ? rawPhotoUrl : "";
+
     const id = uuid();
     await db.execute({
       sql: `INSERT INTO ai_meal_logs (id, user_id, photo_url, ai_response, total_calories, logged_at)
             VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-      args: [id, user.id, "", JSON.stringify({ items }), total],
+      args: [id, user.id, photoUrl, JSON.stringify({ items }), total],
     });
 
     await recordScanCorrections(user.id, id, body.scan_original, items);

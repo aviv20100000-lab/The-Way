@@ -7,6 +7,9 @@ export interface Meal {
   total_calories: number;
   logged_at: string;
   source?: "ai" | "quick";
+  // Present once the meal was scanned from a photo. Saved with every scan now, so
+  // the coach sees the plate without the trainee having to share it to the group.
+  photo_url?: string | null;
   items: {
     name?: unknown;
     calories?: unknown;
@@ -48,6 +51,7 @@ export default function MealHistory({
 }) {
   const [view, setView] = useState<"day" | "week" | "month">("day");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [openPhoto, setOpenPhoto] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -160,6 +164,17 @@ export default function MealHistory({
                   <div key={m.id} className="rounded-xl border border-[#444933] bg-[#242727] p-3">
                     <div className="flex items-center justify-between gap-3 border-b border-[#444933]/70 pb-2">
                       <div className="flex items-center gap-1.5">
+                        {m.photo_url && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setOpenPhoto(m.photo_url ?? null); }}
+                            className="shrink-0 overflow-hidden rounded-lg border border-[#444933] transition hover:border-[#c3f400]/60"
+                            aria-label="הצג את תמונת הארוחה"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={m.photo_url} alt="" className="h-10 w-10 object-cover" loading="lazy" />
+                          </button>
+                        )}
                         <span className="text-xs text-[#8e9379]">
                           {toDate(m.logged_at).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jerusalem" })}
                         </span>
@@ -229,6 +244,27 @@ export default function MealHistory({
         <button type="button" onClick={onShowAll} className="w-full rounded-xl border border-[#444933] py-2.5 text-sm font-semibold text-[#c3f400] transition-colors hover:bg-[#c3f400]/5">
           לכל ההיסטוריה
         </button>
+      )}
+
+      {openPhoto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="תמונת הארוחה"
+          onClick={() => setOpenPhoto(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={openPhoto} alt="תמונת הארוחה" className="max-h-full max-w-full rounded-2xl object-contain" />
+          <button
+            type="button"
+            onClick={() => setOpenPhoto(null)}
+            aria-label="סגור"
+            className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1.5 text-sm font-bold text-white"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );

@@ -288,6 +288,27 @@ export function useFoodTracking() {
     }
   }, [loadMyMeals]);
 
+  // Uploads the photo that was just scanned and returns its URL, or "" if there is
+  // nothing to upload or the upload failed. Never throws: a picture is a nice-to-
+  // have, and losing it must not stop the meal from being logged.
+  const uploadScanPhoto = useCallback(async (): Promise<string> => {
+    if (!lastPhotoBlob) return "";
+    try {
+      const headers: HeadersInit = {};
+      const csrfToken = await getCsrfToken();
+      if (csrfToken) headers["x-csrf-token"] = csrfToken;
+
+      const form = new FormData();
+      form.append("photo", lastPhotoBlob);
+      const res = await fetch("/api/foods/meals/photo-upload", { method: "POST", headers, body: form });
+      if (!res.ok) return "";
+      const data = await res.json();
+      return typeof data.url === "string" ? data.url : "";
+    } catch {
+      return "";
+    }
+  }, [lastPhotoBlob]);
+
   const logMeal = useCallback(
     async (items: { name: string; calories: number; estimated_weight_g: number }[], total: number) => {
       setMealSaved("saving");
@@ -302,10 +323,20 @@ export function useFoodTracking() {
           headers["x-csrf-token"] = csrfToken;
         }
 
+        // Keep the scanned photo with the meal so the coach can see it without the
+        // trainee having to share it to the group. Best-effort on purpose: if the
+        // upload fails the meal still saves, just without a picture.
+        const photoUrl = await uploadScanPhoto();
+
         const res = await fetch("/api/foods/meals", {
           method: "POST",
           headers,
-          body: JSON.stringify({ items, total_calories: total, scan_original: scanSnapshotRef.current }),
+          body: JSON.stringify({
+            items,
+            total_calories: total,
+            scan_original: scanSnapshotRef.current,
+            photo_url: photoUrl,
+          }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -322,7 +353,7 @@ export function useFoodTracking() {
         setMealSaved("error");
       }
     },
-    [loadMyMeals]
+    [loadMyMeals, uploadScanPhoto]
   );
 
   const shareMealToGroup = useCallback(async (mealId: string) => {

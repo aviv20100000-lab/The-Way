@@ -34,6 +34,9 @@ export function useFoodTracking() {
   // Set when the daily scan quota is used up, so the UI can point the trainee at
   // the manual quick-logger instead of leaving them on an error with nowhere to go.
   const [scanLimitReached, setScanLimitReached] = useState(false);
+  // What the scan proposed before the trainee touched it. Null for manual entries,
+  // which are not scan results and must not be logged as corrections.
+  const scanSnapshotRef = useRef<{ name: string; estimated_weight_g: number; calories: number }[] | null>(null);
   const [mealSaved, setMealSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [myMeals, setMyMeals] = useState<MyMeal[]>([]);
   const [todayCalories, setTodayCalories] = useState(0);
@@ -90,6 +93,7 @@ export function useFoodTracking() {
     setAnalyzing(true);
     setFoodError("");
     setScanLimitReached(false);
+    scanSnapshotRef.current = null;
     setAiResult(null);
     setMealSaved("idle");
     setMealShared(false);
@@ -122,6 +126,15 @@ export function useFoodTracking() {
         if (data?.limit_reached) setScanLimitReached(true);
         throw new Error(data.error || "שגיאה");
       }
+      // Snapshot what the scan proposed, before any editing. Sent back on save so
+      // the server can record what the trainee corrected — the only evidence of
+      // where the scan is actually weak. Copied, not referenced: the items below
+      // are edited in place.
+      scanSnapshotRef.current = (data.items ?? []).map((item: { name?: string; estimated_weight_g?: number; calories?: number }) => ({
+        name: String(item.name ?? ""),
+        estimated_weight_g: Number(item.estimated_weight_g) || 0,
+        calories: Number(item.calories) || 0,
+      }));
       setAiResult(data);
       setMealSaved("idle");
     } catch (e: unknown) {
@@ -292,12 +305,15 @@ export function useFoodTracking() {
         const res = await fetch("/api/foods/meals", {
           method: "POST",
           headers,
-          body: JSON.stringify({ items, total_calories: total }),
+          body: JSON.stringify({ items, total_calories: total, scan_original: scanSnapshotRef.current }),
         });
         if (res.ok) {
           const data = await res.json();
           setLastSavedMealId(typeof data.id === "string" ? data.id : null);
           setMealSaved("saved");
+          // Consumed — a second save of the same meal must not log the same
+          // corrections twice.
+          scanSnapshotRef.current = null;
           await loadMyMeals(true);
         } else {
           setMealSaved("error");
@@ -367,6 +383,7 @@ export function useFoodTracking() {
   }, []);
 
   const resetAiResult = useCallback(() => {
+    scanSnapshotRef.current = null;
     setAiResult(null);
     setFoodError("");
     setMealSaved("idle");
@@ -378,6 +395,8 @@ export function useFoodTracking() {
   }, []);
 
   const startManualEntry = useCallback(() => {
+    // A hand-typed meal is not a scan result — nothing to compare it against.
+    scanSnapshotRef.current = null;
     setAiResult({
       items: [{ name: "", estimated_weight_g: 100, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }],
       total_calories: 0,

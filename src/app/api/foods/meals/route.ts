@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
 import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
+import { diffScanItems } from "@/lib/scan-corrections";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -73,6 +74,44 @@ export async function GET() {
   });
 }
 
+// Records how the trainee corrected the scan. Strictly best-effort: the meal is
+// already saved by the time this runs, and losing a diagnostic row must never
+// turn a successful save into an error the trainee sees.
+async function recordScanCorrections(
+  userId: string,
+  mealId: string,
+  scanOriginal: unknown,
+  finalItems: Array<{ name: string; calories: number; estimated_weight_g: number }>
+) {
+  if (!Array.isArray(scanOriginal) || scanOriginal.length === 0) return;
+  try {
+    const corrections = diffScanItems(scanOriginal.slice(0, 30), finalItems);
+    if (corrections.length === 0) return;
+    await db.batch(
+      corrections.slice(0, 30).map((correction) => ({
+        sql: `INSERT INTO scan_corrections
+                (id, user_id, meal_id, kind, ai_name, final_name, ai_grams, final_grams, ai_calories, final_calories)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          uuid(),
+          userId,
+          mealId,
+          correction.kind,
+          correction.ai_name,
+          correction.final_name,
+          correction.ai_grams,
+          correction.final_grams,
+          correction.ai_calories,
+          correction.final_calories,
+        ],
+      })),
+      "write"
+    );
+  } catch (error) {
+    console.error("scan-corrections log failed:", error instanceof Error ? error.message : String(error));
+  }
+}
+
 export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
@@ -105,6 +144,8 @@ export async function POST(req: NextRequest) {
             VALUES (?, ?, ?, ?, ?, datetime('now'))`,
       args: [id, user.id, "", JSON.stringify({ items }), total],
     });
+
+    await recordScanCorrections(user.id, id, body.scan_original, items);
 
     return NextResponse.json({ id });
   } catch (error) {

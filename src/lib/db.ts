@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 17;
+const SCHEMA_VERSION = 18;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -433,6 +433,26 @@ async function runInit() {
       feedback_count INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Every time a trainee corrects what the food scan proposed, the difference is
+    -- recorded here. This is the only evidence of where the scan is actually weak;
+    -- without it, prompt changes are guesswork. Never surfaced to trainees.
+    CREATE TABLE IF NOT EXISTS scan_corrections (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      meal_id TEXT,
+      kind TEXT NOT NULL CHECK(kind IN ('renamed', 'edited', 'added', 'removed')),
+      ai_name TEXT,
+      final_name TEXT,
+      ai_grams REAL,
+      final_grams REAL,
+      ai_calories REAL,
+      final_calories REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_scan_corrections_created ON scan_corrections(created_at);
+    CREATE INDEX IF NOT EXISTS idx_scan_corrections_ai_name ON scan_corrections(ai_name);
 
     CREATE TABLE IF NOT EXISTS audit_log (
       id TEXT PRIMARY KEY,

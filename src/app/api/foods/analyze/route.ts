@@ -5,11 +5,23 @@ import {
   isAnthropicImageMediaType,
   MAX_ANTHROPIC_IMAGE_BYTES,
 } from "@/lib/anthropic";
-import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
+import { checkPersistentRateLimit, formatResetIn, refundPersistentRateLimit } from "@/lib/ratelimit";
 import { matchTzameret } from "@/lib/tzameret";
 
 export async function POST(req: NextRequest) {
   const timingStartedAt = Date.now();
+  // Set once the daily quota has actually been spent. Every path that returns
+  // without a real analysis gives it back: a rejected file or a model outage must
+  // not cost the trainee one of their three scans for the day.
+  let consumedQuotaKey: string | null = null;
+  const failed = async (body: Record<string, unknown>, status: number) => {
+    if (consumedQuotaKey) {
+      await refundPersistentRateLimit(consumedQuotaKey);
+      consumedQuotaKey = null;
+    }
+    return NextResponse.json(body, { status });
+  };
+
   try {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
@@ -25,6 +37,9 @@ export async function POST(req: NextRequest) {
         { status: 429 }
       );
     }
+    // A denied request never incremented the counter, so only mark the quota spent
+    // once the check has passed.
+    consumedQuotaKey = `foods-analyze:${user.id}`;
 
     const formData = await req.formData();
     const photo = formData.get("photo");
@@ -34,11 +49,11 @@ export async function POST(req: NextRequest) {
       : "unknown";
 
     if (!(photo instanceof File)) {
-      return NextResponse.json({ error: "צריך להעלות תמונה" }, { status: 400 });
+      return failed({ error: "צריך להעלות תמונה" }, 400);
     }
 
     if (!isAnthropicImageMediaType(photo.type)) {
-      return NextResponse.json({ error: "רק קבצי תמונה מותרים (JPEG, PNG, WebP, GIF)" }, { status: 400 });
+      return failed({ error: "רק קבצי תמונה מותרים (JPEG, PNG, WebP, GIF)" }, 400);
     }
 
     const buffer = Buffer.from(await photo.arrayBuffer());
@@ -46,11 +61,11 @@ export async function POST(req: NextRequest) {
     const sizeKB = Math.round(buffer.length / 1024);
 
     if (buffer.length === 0) {
-      return NextResponse.json({ error: "התמונה ריקה" }, { status: 400 });
+      return failed({ error: "התמונה ריקה" }, 400);
     }
 
     if (buffer.length > MAX_ANTHROPIC_IMAGE_BYTES) {
-      return NextResponse.json({ error: "התמונה גדולה מדי (מקסימום 7.5MB)" }, { status: 413 });
+      return failed({ error: "התמונה גדולה מדי (מקסימום 7.5MB)" }, 413);
     }
 
     console.log(`analyze-food: received ${sizeKB}KB, type=${photo.type}`);
@@ -128,6 +143,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("analyze-food error:", msg);
-    return NextResponse.json({ error: "אירעה שגיאה בניתוח התמונה. נסה שוב מאוחר יותר." }, { status: 500 });
+    return failed({ error: "אירעה שגיאה בניתוח התמונה. נסה שוב מאוחר יותר." }, 500);
   }
 }

@@ -132,6 +132,23 @@ export async function checkPersistentRateLimit(
   };
 }
 
+// Give one unit of quota back. Quota is consumed up front, before the work it
+// pays for runs, so a request that fails without delivering anything would
+// otherwise still cost the user — painful on a small daily budget like the three
+// meal scans. Only refund inside the same window: once reset_at has passed the
+// counter belongs to a new window and must not be touched.
+export async function refundPersistentRateLimit(key: string): Promise<void> {
+  try {
+    await initDb();
+    await db.execute({
+      sql: "UPDATE rate_limits SET count = MAX(count - 1, 0) WHERE key = ? AND reset_at > ?",
+      args: [key, Date.now()],
+    });
+  } catch {
+    // Best-effort: a failed refund must never turn one failure into two.
+  }
+}
+
 // Clean up old entries every hour
 setInterval(() => {
   const now = Date.now();

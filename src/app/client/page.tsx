@@ -107,13 +107,20 @@ export default function ClientPage() {
   const previousWaterTotalRef = useRef<number | null>(null);
   const celebratedMilestonesRef = useRef<Set<string> | null>(null);
   const homeRefreshReadyRef = useRef(false);
+  const quickLoggerRef = useRef<HTMLDivElement | null>(null);
 
   // Hooks
   const { user, isLoading, logout } = useAuth();
   const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, weighInFrequencyWeeks, weighInWeekday, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
-  const { analyzing, aiResult, foodError, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
+  const { analyzing, aiResult, foodError, scanLimitReached, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, hasCompetition, competitionGroupName, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
+
+  // Out of scans for today — walk the trainee down to the manual logger.
+  useEffect(() => {
+    if (!scanLimitReached) return;
+    quickLoggerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [scanLimitReached]);
 
   const handleSaveWeight = async () => {
     if (await saveWeight()) setSuccessMessage("המשקל נשמר");
@@ -582,10 +589,18 @@ export default function ClientPage() {
               />
             </motion.div>
 
-            <QuickMealLogger onSaved={() => {
-              loadHome();
-              loadMyMeals(true);
-            }} />
+            {/* When the daily scan quota runs out the scanner tells the trainee to
+                log the meal here, so bring it into view and mark it rather than
+                leaving them to find it. */}
+            <div
+              ref={quickLoggerRef}
+              className={`rounded-2xl transition-shadow ${scanLimitReached ? "ring-2 ring-[#c3f400] ring-offset-2 ring-offset-[#0c0f0f]" : ""}`}
+            >
+              <QuickMealLogger onSaved={() => {
+                loadHome();
+                loadMyMeals(true);
+              }} />
+            </div>
 
             {homeLoaded && missingCoachGoals.length > 0 && (
               <div className="glass-card rounded-2xl border border-[#444933] p-4">

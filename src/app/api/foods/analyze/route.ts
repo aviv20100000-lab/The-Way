@@ -15,8 +15,13 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
     const rateLimit = await checkPersistentRateLimit(`foods-analyze:${user.id}`, "mealScan");
     if (!rateLimit.allowed) {
+      // Not a dead end: the manual quick-logger sits right below the scanner, so
+      // point there instead of telling the trainee to come back tomorrow.
       return NextResponse.json(
-        { error: `הגעת למגבלת 3 סריקות ארוחה ליום. נסה שוב בעוד ${formatResetIn(rateLimit.resetIn)} 🙏` },
+        {
+          error: `נגמרו לך הסריקות להיום. אפשר להוסיף את הארוחה ידנית ברישום המהיר שמתחת 👇 (הסריקות מתחדשות בעוד ${formatResetIn(rateLimit.resetIn)})`,
+          limit_reached: true,
+        },
         { status: 429 }
       );
     }

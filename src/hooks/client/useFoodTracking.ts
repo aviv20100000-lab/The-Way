@@ -31,6 +31,9 @@ export function useFoodTracking() {
   const [analyzing, setAnalyzing] = useState(false);
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [foodError, setFoodError] = useState("");
+  // Set when the daily scan quota is used up, so the UI can point the trainee at
+  // the manual quick-logger instead of leaving them on an error with nowhere to go.
+  const [scanLimitReached, setScanLimitReached] = useState(false);
   const [mealSaved, setMealSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [myMeals, setMyMeals] = useState<MyMeal[]>([]);
   const [todayCalories, setTodayCalories] = useState(0);
@@ -86,6 +89,7 @@ export function useFoodTracking() {
   const analyzeFood = useCallback(async (file: File) => {
     setAnalyzing(true);
     setFoodError("");
+    setScanLimitReached(false);
     setAiResult(null);
     setMealSaved("idle");
     setMealShared(false);
@@ -114,7 +118,10 @@ export function useFoodTracking() {
         headers,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "שגיאה");
+      if (!res.ok) {
+        if (data?.limit_reached) setScanLimitReached(true);
+        throw new Error(data.error || "שגיאה");
+      }
       setAiResult(data);
       setMealSaved("idle");
     } catch (e: unknown) {
@@ -390,6 +397,7 @@ export function useFoodTracking() {
     analyzing,
     aiResult,
     foodError,
+    scanLimitReached,
     mealSaved,
     myMeals,
     todayCalories,

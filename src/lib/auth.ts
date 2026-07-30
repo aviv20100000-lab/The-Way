@@ -154,10 +154,14 @@ export async function createUser(data: { name: string; username: string; passwor
   return { id, name: data.name, username, email, role: data.role, coach_id: data.coachId ?? null };
 }
 
-export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean; active: boolean })[]> {
+export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean; active: boolean; has_push: boolean })[]> {
   await ensureDb();
   const res = await db.execute({
     sql: `SELECT u.id, u.name, u.email, u.username, u.role, u.coach_id, u.in_default_group, u.active,
+            -- Whether any device is registered to THIS account. A push endpoint
+            -- belongs to one account at a time, so a coach testing on their own
+            -- phone can be reachable while their trainee account is not.
+            EXISTS(SELECT 1 FROM push_subscriptions p WHERE p.user_id = u.id) AS has_push,
             CASE WHEN g.user_id IS NOT NULL AND (
               g.target_weight_kg IS NOT NULL OR g.daily_calories IS NOT NULL OR
               g.daily_protein_g IS NOT NULL OR g.daily_water_ml IS NOT NULL OR
@@ -181,5 +185,6 @@ export async function getClientsByCoach(coachId: string): Promise<(User & { has_
     has_goals: Boolean(r.has_goals),
     in_default_group: Boolean(r.in_default_group),
     active: Number(r.active ?? 1) === 1,
+    has_push: Boolean(r.has_push),
   }));
 }

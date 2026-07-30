@@ -11,6 +11,8 @@ export interface CoachClient {
   in_default_group: boolean;
   /** false = the account is switched off and cannot log in. Data is untouched. */
   active: boolean;
+  /** false = no device is registered to this account, so a push has nowhere to go. */
+  has_push: boolean;
 }
 
 interface ClientListCardProps {
@@ -43,6 +45,14 @@ export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpen
                   כבוי
                 </span>
               )}
+              {!client.has_push && (
+                <span
+                  title={`${client.name} לא אישר התראות באפליקציה, אז אי אפשר לשלוח לו תזכורת`}
+                  className="shrink-0 rounded-full border border-[#444933] bg-[#1e2020] px-2 py-0.5 text-[10px] font-bold text-[#8e9379]"
+                >
+                  🔕 בלי התראות
+                </span>
+              )}
             </div>
             {/* Username, not email: accounts are created with a username and the
                 stored address is an internal placeholder nobody should see. */}
@@ -50,10 +60,16 @@ export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpen
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
+          {/* Left clickable even without a subscription: pressing it is how the
+              coach finds out, and the reply says plainly that nothing was sent. */}
           <button onClick={() => onSendMealReminder(client)}
-            aria-label={`שלח ל${client.name} תזכורת לצלם את הארוחה`}
-            title={`שלח ל${client.name} תזכורת לצלם את הארוחה`}
-            className="rounded-lg bg-[#282a2b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#333535] transition-all">
+            aria-label={client.has_push
+              ? `שלח ל${client.name} תזכורת לצלם את הארוחה`
+              : `${client.name} לא אישר התראות — אי אפשר לשלוח לו תזכורת`}
+            title={client.has_push
+              ? `שלח ל${client.name} תזכורת לצלם את הארוחה`
+              : `${client.name} לא אישר התראות — אי אפשר לשלוח לו תזכורת`}
+            className={`rounded-lg bg-[#282a2b] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#333535] ${client.has_push ? "" : "opacity-40"}`}>
             📸
           </button>
           <button onClick={() => onOpenData(client)}

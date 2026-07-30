@@ -9,6 +9,8 @@ export interface CoachClient {
   has_goals: boolean;
   avatar_url: string | null;
   in_default_group: boolean;
+  /** false = the account is switched off and cannot log in. Data is untouched. */
+  active: boolean;
 }
 
 interface ClientListCardProps {
@@ -18,9 +20,10 @@ interface ClientListCardProps {
   onOpenWizard: (client: CoachClient) => void;
   onAvatarUploaded: (clientId: string, url: string) => void;
   onToggleGroup: (client: CoachClient) => void;
+  onSendMealReminder: (client: CoachClient) => void;
 }
 
-export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpenWizard, onAvatarUploaded, onToggleGroup }: ClientListCardProps) {
+export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpenWizard, onAvatarUploaded, onToggleGroup, onSendMealReminder }: ClientListCardProps) {
   return (
     <div className="rounded-2xl glass-card p-5  transition-all duration-300 hover:shadow-lg">
       <div className="flex items-center justify-between gap-3">
@@ -33,13 +36,26 @@ export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpen
             onUploaded={(url) => onAvatarUploaded(client.id, url)}
           />
           <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-white">{client.name}</p>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-base font-semibold text-white">{client.name}</p>
+              {!client.active && (
+                <span className="shrink-0 rounded-full border border-red-400/40 bg-red-400/15 px-2 py-0.5 text-[10px] font-bold text-red-200">
+                  כבוי
+                </span>
+              )}
+            </div>
             {/* Username, not email: accounts are created with a username and the
                 stored address is an internal placeholder nobody should see. */}
             <p className="truncate text-xs font-normal text-[#8e9379]" dir="ltr">{client.username ?? client.email}</p>
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
+          <button onClick={() => onSendMealReminder(client)}
+            aria-label={`שלח ל${client.name} תזכורת לצלם את הארוחה`}
+            title={`שלח ל${client.name} תזכורת לצלם את הארוחה`}
+            className="rounded-lg bg-[#282a2b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#333535] transition-all">
+            📸
+          </button>
           <button onClick={() => onOpenData(client)}
             aria-label={`צפה בנתונים של ${client.name}`}
             title={`צפה בנתונים של ${client.name}`}

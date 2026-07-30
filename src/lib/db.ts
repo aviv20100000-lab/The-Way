@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 18;
+const SCHEMA_VERSION = 19;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -249,6 +249,7 @@ async function runInit() {
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('coach', 'client')),
       coach_id TEXT REFERENCES users(id),
+      active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -407,6 +408,11 @@ async function runInit() {
       reset_at INTEGER NOT NULL
     );
 
+    -- WARNING: the ON DELETE CASCADE below is a lie on any database created
+    -- before it was added. CREATE TABLE IF NOT EXISTS never rewrites an existing
+    -- table, so production still has this FK as NO ACTION (verified 2026-07-30).
+    -- Never assume a cascade here — see deleteTraineeCascade in trainee-deletion.ts,
+    -- which deletes these rows explicitly.
     CREATE TABLE IF NOT EXISTS assistant_messages (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -671,6 +677,15 @@ async function runInit() {
   // Restricted client accounts (e.g. test users): see only the coach in chat, no other clients.
   try {
     await db.execute({ sql: "ALTER TABLE users ADD COLUMN dm_coach_only INTEGER NOT NULL DEFAULT 0", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
+  // Account switch. 0 blocks login and kills any live session without touching a
+  // single row of data — the reversible alternative to deleting a trainee who
+  // stopped training. Everyone existing stays enabled (DEFAULT 1).
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1", args: [] });
   } catch {
     // Column already exists — ignore
   }

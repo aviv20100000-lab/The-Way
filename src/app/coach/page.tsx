@@ -10,6 +10,7 @@ import CoachActivityNotifications from "@/components/coach/CoachActivityNotifica
 import CoachInsightsPanel from "@/components/coach/CoachInsightsPanel";
 import CoachMealsPanel, { type CoachMealLog } from "@/components/coach/CoachMealsPanel";
 import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
+import DeleteTrainee from "@/components/coach/DeleteTrainee";
 import { welcomeMessage } from "@/lib/welcome-message";
 import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
@@ -164,6 +165,37 @@ export default function CoachPage() {
     } catch (e) {
       console.error("Error toggling group membership:", e);
       setClients((current) => current.map((item) => item.id === client.id ? { ...item, in_default_group: client.in_default_group } : item));
+    }
+  }, []);
+
+  /**
+   * A nudge to photograph the meal, to one trainee, right now. The whole point is
+   * that it takes one press from the client list — a reminder the coach has to
+   * compose is a reminder the coach does not send.
+   */
+  const sendMealReminder = useCallback(async (client: CoachClient) => {
+    setSuccessMessage(null);
+    try {
+      const res = await fetch("/api/push/send", {
+        method: "POST",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          userId: client.id,
+          title: "אל תשכח לצלם 📸",
+          body: "צלם את הארוחה ושלח, לפני שאתה מתחיל לאכול.",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "send failed");
+      // sent === 0 means the trainee never allowed notifications on any device.
+      setSuccessMessage(
+        data.sent > 0
+          ? `נשלחה תזכורת ל${client.name}`
+          : `ל${client.name} אין התראות פעילות — הוא צריך לאשר אותן באפליקציה`
+      );
+    } catch (e) {
+      console.error("Error sending meal reminder:", e);
+      setSuccessMessage("שליחת התזכורת נכשלה");
     }
   }, []);
 
@@ -644,11 +676,19 @@ export default function CoachPage() {
                   onOpenWizard={setWizardClient}
                   onAvatarUploaded={(clientId, url) => setClients((current) => current.map((item) => item.id === clientId ? { ...item, avatar_url: url } : item))}
                   onToggleGroup={(selected) => void toggleGroupMembership(selected)}
+                  onSendMealReminder={(selected) => void sendMealReminder(selected)}
                 />
                 <button type="button" onClick={() => { setMenuClient(client); setTab("menus"); }}
                   className="w-full rounded-xl border border-[#c3f400]/25 bg-[#c3f400]/10 py-2.5 text-sm font-bold text-[#c3f400] transition hover:bg-[#c3f400]/15">
                   🍽️ בניית תפריט
                 </button>
+                <DeleteTrainee
+                  traineeId={client.id}
+                  traineeName={client.name}
+                  active={client.active}
+                  onDeleted={() => setClients((current) => current.filter((item) => item.id !== client.id))}
+                  onActiveChanged={(active) => setClients((current) => current.map((item) => item.id === client.id ? { ...item, active } : item))}
+                />
               </div>
             ))}
 

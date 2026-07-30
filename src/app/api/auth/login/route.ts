@@ -69,6 +69,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Checked only after the password is verified, so a switched-off account is not
+  // a way to probe which usernames exist.
+  if (!user.active) {
+    return NextResponse.json(
+      { error: "החשבון הזה כבוי. פנה למאמן שלך." },
+      { status: 403 }
+    );
+  }
+
   await setSession({
     id: user.id,
     name: user.name,

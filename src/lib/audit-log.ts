@@ -8,7 +8,10 @@ export type AuditEvent =
   | "password_reset_success"
   | "password_reset_invalid_token"
   | "profile_password_changed"
-  | "cross_user_probe_blocked";
+  | "cross_user_probe_blocked"
+  | "trainee_enabled"
+  | "trainee_disabled"
+  | "trainee_deleted";
 
 function maskIp(ip: string): string {
   if (!ip || ip === "unknown") return "unknown";

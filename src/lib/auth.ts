@@ -69,11 +69,14 @@ export async function getSessionUser(): Promise<User | null> {
     const userId = payload.sub as string;
     // ver defaults to 1 for old tokens that pre-date session revocation
     const tokenVer = (payload.ver as number | null) ?? 1;
-    const res = await db.execute({ sql: "SELECT id, name, email, role, coach_id, username, session_version FROM users WHERE id = ?", args: [userId] });
+    const res = await db.execute({ sql: "SELECT id, name, email, role, coach_id, username, session_version, active FROM users WHERE id = ?", args: [userId] });
     const row = res.rows[0];
     if (!row) return null;
     const dbVer = (row.session_version as number | null) ?? 1;
     if (tokenVer !== dbVer) return null; // session revoked (e.g. after password reset)
+    // A switched-off account loses its session on the very next request, without
+    // waiting for the token to expire and without touching session_version.
+    if (Number(row.active ?? 1) !== 1) return null;
     return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, username: row.username as string };
   } catch {
     return null;
@@ -86,7 +89,7 @@ export async function getUserByEmail(email: string) {
   const res = await db.execute({ sql: "SELECT * FROM users WHERE lower(trim(email)) = ?", args: [normalized] });
   const row = res.rows[0];
   if (!row) return undefined;
-  return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string };
+  return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string, active: Number(row.active ?? 1) === 1 };
 }
 
 export async function getUserByUsername(username: string) {
@@ -105,7 +108,7 @@ export async function getUserByUsername(username: string) {
   });
   const row = res.rows[0];
   if (!row) return undefined;
-  return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string };
+  return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string, active: Number(row.active ?? 1) === 1 };
 }
 
 /**
@@ -151,10 +154,10 @@ export async function createUser(data: { name: string; username: string; passwor
   return { id, name: data.name, username, email, role: data.role, coach_id: data.coachId ?? null };
 }
 
-export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean })[]> {
+export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean; active: boolean })[]> {
   await ensureDb();
   const res = await db.execute({
-    sql: `SELECT u.id, u.name, u.email, u.username, u.role, u.coach_id, u.in_default_group,
+    sql: `SELECT u.id, u.name, u.email, u.username, u.role, u.coach_id, u.in_default_group, u.active,
             CASE WHEN g.user_id IS NOT NULL AND (
               g.target_weight_kg IS NOT NULL OR g.daily_calories IS NOT NULL OR
               g.daily_protein_g IS NOT NULL OR g.daily_water_ml IS NOT NULL OR
@@ -170,9 +173,13 @@ export async function getClientsByCoach(coachId: string): Promise<(User & { has_
     id: r.id as string,
     name: r.name as string,
     email: r.email as string,
+    // Selected above but previously dropped here, so every card fell back to the
+    // internal placeholder address instead of the username the client logs in with.
+    username: (r.username as string | null) ?? undefined,
     role: r.role as "coach" | "client",
     coach_id: r.coach_id as string | null,
     has_goals: Boolean(r.has_goals),
     in_default_group: Boolean(r.in_default_group),
+    active: Number(r.active ?? 1) === 1,
   }));
 }

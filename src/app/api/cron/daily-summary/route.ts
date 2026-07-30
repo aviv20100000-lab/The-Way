@@ -113,7 +113,7 @@ async function handle(req: NextRequest) {
     });
 
     const subs = (await db.execute({
-      sql: `SELECT endpoint, p256dh, auth
+      sql: `SELECT id, endpoint, p256dh, auth
             FROM push_subscriptions
             WHERE user_id = ?`,
       args: [coachId],
@@ -140,8 +140,9 @@ async function handle(req: NextRequest) {
       } catch {
         notificationsFailed++;
         await db.execute({
-          sql: "DELETE FROM push_subscriptions WHERE endpoint = ?",
-          args: [String(sub.endpoint)],
+          // By id: the endpoint may be shared with another account on that device.
+          sql: "DELETE FROM push_subscriptions WHERE id = ?",
+          args: [String(sub.id)],
         });
       }
     }

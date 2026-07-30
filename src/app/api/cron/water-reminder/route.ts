@@ -108,7 +108,8 @@ async function handle(req: NextRequest) {
       } catch {
         failed++;
         failedNames.push(`${sub.user_name} (${sub.user_username})`);
-        await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint=?", args: [sub.endpoint as string] });
+        // By id: the endpoint may be shared with another account on that device.
+        await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id=?", args: [sub.id as string] });
       }
     }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCsrfToken } from "@/lib/csrf-client";
+import { currentPushEndpoint } from "@/lib/push-client";
 
 interface User {
   id: string;
@@ -53,10 +54,17 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      const headers: HeadersInit = {};
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
       const csrfToken = await getCsrfToken();
       if (csrfToken) headers["x-csrf-token"] = csrfToken;
-      await fetch("/api/auth/logout", { method: "POST", headers });
+      // Tells the server which device this is, so it releases only this
+      // account's notifications here and not another account's on the same phone.
+      const endpoint = await currentPushEndpoint();
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ endpoint }),
+      });
       // Wipe ALL cached data (home/chat/water/weight/user) so the next login
       // never briefly shows a different account's stale numbers.
       sessionStorage.clear();

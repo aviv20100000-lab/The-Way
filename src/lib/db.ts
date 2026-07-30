@@ -31,7 +31,7 @@ const db = {
 };
 
 // Bump this whenever a migration is added below.
-const SCHEMA_VERSION = 19;
+const SCHEMA_VERSION = 20;
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -86,6 +86,53 @@ async function menuSchemaNeedsMigration() {
 async function addColumnIfMissing(table: "menu_meals" | "menu_items", column: string, definition: string) {
   if (await hasColumn(table, column)) return;
   await db.execute({ sql: `ALTER TABLE ${table} ADD COLUMN ${definition}`, args: [] });
+}
+
+/**
+ * True while push_subscriptions still carries the original UNIQUE(endpoint),
+ * which allowed only one account per device. Detected from the actual indexes
+ * rather than from the CREATE statement in this file — a table that already
+ * exists is never rewritten by CREATE TABLE IF NOT EXISTS, so what is declared
+ * above and what is deployed can differ.
+ */
+async function pushSubscriptionsNeedRebuild() {
+  const indexes = await db.execute({ sql: "PRAGMA index_list(push_subscriptions)", args: [] });
+  for (const index of indexes.rows) {
+    // origin 'u' = created by a UNIQUE constraint in the table definition.
+    if (Number(index.unique) !== 1 || String(index.origin) !== "u") continue;
+    const info = await db.execute({ sql: `PRAGMA index_info(${String(index.name)})`, args: [] });
+    const columns = info.rows.map((r) => String(r.name));
+    if (columns.length === 1 && columns[0] === "endpoint") return true;
+  }
+  return false;
+}
+
+/**
+ * Widens the uniqueness of push_subscriptions from (endpoint) to
+ * (endpoint, user_id). SQLite cannot drop a UNIQUE constraint in place, so the
+ * table is rebuilt. Every existing row is carried over untouched — the old
+ * constraint was stricter, so nothing can collide under the new one.
+ */
+async function migratePushSubscriptionsSchema() {
+  if (!(await pushSubscriptionsNeedRebuild())) return;
+
+  await db.executeMultiple(`
+    PRAGMA foreign_keys=OFF;
+    CREATE TABLE push_subscriptions_rebuild (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(endpoint, user_id)
+    );
+    INSERT INTO push_subscriptions_rebuild (id, user_id, endpoint, p256dh, auth, created_at)
+      SELECT id, user_id, endpoint, p256dh, auth, created_at FROM push_subscriptions;
+    DROP TABLE push_subscriptions;
+    ALTER TABLE push_subscriptions_rebuild RENAME TO push_subscriptions;
+    PRAGMA foreign_keys=ON;
+  `);
 }
 
 async function tableHasColumn(table: string, column: string) {
@@ -338,13 +385,20 @@ async function runInit() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- UNIQUE is (endpoint, user_id), NOT endpoint alone. One phone can hold the
+    -- subscriptions of several accounts at once — a coach who also has a trainee
+    -- account, or a shared family device. With endpoint alone unique, whoever
+    -- logged in last silently stole the device from everyone else.
+    -- Consequence: never delete a dead subscription by endpoint, only by id, or
+    -- one account's cleanup wipes another account's row on the same device.
     CREATE TABLE IF NOT EXISTS push_subscriptions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
-      endpoint TEXT NOT NULL UNIQUE,
+      endpoint TEXT NOT NULL,
       p256dh TEXT NOT NULL,
       auth TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(endpoint, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS ai_meal_logs (
@@ -696,6 +750,12 @@ async function runInit() {
   });
 
   await migrateMenuOptionsSchema();
+  await migratePushSubscriptionsSchema();
+
+  await db.execute({
+    sql: "CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id)",
+    args: [],
+  });
 
   await addGenericColumnIfMissing("assistant_preferences", "profile_json", "profile_json TEXT NOT NULL DEFAULT '{}'");
 

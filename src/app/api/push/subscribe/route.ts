@@ -31,10 +31,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "auth לא תקין" }, { status: 400 });
   }
 
+  // Keyed on (endpoint, user_id), so subscribing here does not take the device
+  // away from another account signed in on the same phone. Each account keeps
+  // its own row until it logs out.
   await db.execute({
     sql: `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth)
           VALUES (?,?,?,?,?)
-          ON CONFLICT(endpoint) DO UPDATE SET user_id=excluded.user_id, p256dh=excluded.p256dh, auth=excluded.auth`,
+          ON CONFLICT(endpoint, user_id) DO UPDATE SET p256dh=excluded.p256dh, auth=excluded.auth`,
     args: [uuid(), session.id, endpoint, keys.p256dh, keys.auth],
   });
 

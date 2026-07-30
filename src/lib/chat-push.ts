@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import webpush from "web-push";
 
 type PushSubscriptionRow = {
+  id: string;
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -20,7 +21,7 @@ export async function pushToUsers(userIds: string[], payload: string) {
 
   const placeholders = userIds.map(() => "?").join(",");
   const rows = (await db.execute({
-    sql: `SELECT ps.endpoint, ps.p256dh, ps.auth
+    sql: `SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth
           FROM push_subscriptions ps
           WHERE ps.user_id IN (${placeholders})`,
     args: userIds,
@@ -36,9 +37,11 @@ export async function pushToUsers(userIds: string[], payload: string) {
         payload
       );
     } catch {
+      // By id, not by endpoint: the same device may hold another account's
+      // subscription, and that row is not ours to delete.
       await db.execute({
-        sql: "DELETE FROM push_subscriptions WHERE endpoint = ?",
-        args: [sub.endpoint],
+        sql: "DELETE FROM push_subscriptions WHERE id = ?",
+        args: [sub.id],
       });
     }
   }

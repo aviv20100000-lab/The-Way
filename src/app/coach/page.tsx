@@ -14,6 +14,7 @@ import DeleteTrainee from "@/components/coach/DeleteTrainee";
 import { welcomeMessage } from "@/lib/welcome-message";
 import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
+import { currentPushEndpoint } from "@/lib/push-client";
 
 const AddClientForm = dynamic(() => import("@/components/coach/AddClientForm"), {
   loading: () => <div className="skeleton h-48 rounded-3xl" />,
@@ -248,7 +249,14 @@ export default function CoachPage() {
   }, [router]);
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST", headers: await withCsrf() });
+    // Sending the endpoint releases only this account's notifications on this
+    // device — a trainee account signed in on the same phone keeps its own.
+    const endpoint = await currentPushEndpoint();
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: await withCsrf({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ endpoint }),
+    });
     // Wipe ALL cached data (home/chat/water/weight/user) so the next login
     // never briefly shows a different account's stale numbers.
     sessionStorage.clear();

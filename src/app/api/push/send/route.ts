@@ -50,8 +50,9 @@ export async function POST(req: NextRequest) {
       );
       sent++;
     } catch {
-      // Remove expired subscription
-      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint=?", args: [sub.endpoint as string] });
+      // Remove expired subscription — by id, because the same device can hold
+      // another account's subscription with the identical endpoint.
+      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id=?", args: [sub.id as string] });
     }
   }
 

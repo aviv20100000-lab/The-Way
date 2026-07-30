@@ -5,7 +5,7 @@ import webpush from "web-push";
 
 export const dynamic = "force-dynamic";
 
-type Sub = { endpoint: string; p256dh: string; auth: string };
+type Sub = { id: string; endpoint: string; p256dh: string; auth: string };
 
 function setupVapid() {
   webpush.setVapidDetails(
@@ -27,7 +27,8 @@ async function sendToSubs(subs: Sub[], payload: string) {
       sent++;
     } catch {
       failed++;
-      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint = ?", args: [sub.endpoint] });
+      // By id: another account on the same device has its own row here.
+      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id = ?", args: [sub.id] });
     }
   }
   return { sent, failed };
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (type === "morning") {
     const rows = (await db.execute({
       sql: `
-        SELECT ps.endpoint, ps.p256dh, ps.auth
+        SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth
         FROM push_subscriptions ps
         JOIN users u ON u.id = ps.user_id
         WHERE u.id = ? OR u.coach_id = ?
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
 
   // Default: test push to self only
   const rows = (await db.execute({
-    sql: "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?",
+    sql: "SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?",
     args: [user.id],
   })).rows as unknown as Sub[];
 

@@ -43,7 +43,7 @@ async function handle(req: NextRequest) {
 
   await initDb();
   const rows = (await db.execute({
-    sql: `SELECT ps.endpoint, ps.p256dh, ps.auth, g.weigh_in_frequency_weeks,
+    sql: `SELECT ps.id, ps.endpoint, ps.p256dh, ps.auth, g.weigh_in_frequency_weeks,
                  u.name AS user_name, u.username AS user_username
           FROM push_subscriptions ps
           JOIN users u ON u.id = ps.user_id
@@ -72,7 +72,8 @@ async function handle(req: NextRequest) {
     } catch {
       failed++;
       failedNames.push(`${row.user_name} (${row.user_username})`);
-      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint = ?", args: [row.endpoint as string] });
+      // By id: the endpoint may be shared with another account on that device.
+      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id = ?", args: [row.id as string] });
     }
   }
 

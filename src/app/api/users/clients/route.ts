@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, createUser, getClientsByCoach } from "@/lib/auth";
 import { ensureSeed } from "@/lib/seed";
-import { validateEmail, validatePassword, validateName } from "@/lib/validation";
+import { validatePassword, validateName, validateUsername } from "@/lib/validation";
 import db from "@/lib/db";
 
 export async function GET() {
@@ -25,9 +25,9 @@ export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user || user.role !== "coach") return NextResponse.json({ error: "גישה נדחתה" }, { status: 403 });
 
-  const { name, email, password } = await req.json();
+  const { name, username, password } = await req.json();
 
-  if (!name || !email || !password) {
+  if (!name || !username || !password) {
     return NextResponse.json({ error: "נא למלא את כל השדות" }, { status: 400 });
   }
 
@@ -35,8 +35,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "שם לא תקין (2-100 תווים)" }, { status: 400 });
   }
 
-  if (!validateEmail(email)) {
-    return NextResponse.json({ error: "אימייל לא תקין" }, { status: 400 });
+  const usernameCheck = validateUsername(username);
+  if (!usernameCheck.valid) {
+    return NextResponse.json({ error: usernameCheck.error }, { status: 400 });
   }
 
   const passwordCheck = validatePassword(password);
@@ -45,12 +46,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const client = await createUser({ name, email, password, role: "client", coachId: user.id });
+    const client = await createUser({ name, username, password, role: "client", coachId: user.id });
     return NextResponse.json(client);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "";
     if (errorMsg.includes("UNIQUE constraint failed")) {
-      return NextResponse.json({ error: "האימייל כבר קיים במערכת" }, { status: 409 });
+      return NextResponse.json({ error: "שם המשתמש כבר תפוס" }, { status: 409 });
     }
     return NextResponse.json({ error: "שגיאה בהוספת מתאמן" }, { status: 500 });
   }

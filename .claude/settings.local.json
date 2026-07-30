@@ -175,7 +175,10 @@
       "Bash(curl -s \"https://the-way-app-two.vercel.app/api/cron/test-db-fail\")",
       "Bash(curl -s \"https://the-way-app-two.vercel.app/api/cron/boom\")",
       "Bash(gunzip)",
-      "Bash(curl -X POST http://localhost:3000/api/generate-water-image -H \"Content-Type: application/json\")"
+      "Bash(curl -X POST http://localhost:3000/api/generate-water-image -H \"Content-Type: application/json\")",
+      "Bash(gh issue *)",
+      "PowerShell(gh issue list --limit 20 2>&1)",
+      "PowerShell(gh repo view --json hasIssuesEnabled,url 2>&1)"
     ]
   }
 }

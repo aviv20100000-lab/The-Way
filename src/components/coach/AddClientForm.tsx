@@ -1,6 +1,6 @@
 export interface NewClientInput {
   name: string;
-  email: string;
+  username: string;
   password: string;
   groupIds: string[];
 }
@@ -22,10 +22,15 @@ export default function AddClientForm({ value, groups, error, onChange, onCancel
       <input placeholder="שם" value={value.name}
         onChange={(event) => onChange({ ...value, name: event.target.value })}
         className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all" />
-      <input placeholder="אימייל" value={value.email} dir="ltr"
-        onChange={(event) => onChange({ ...value, email: event.target.value })}
+      {/* Username, not email. The client logs in with exactly this string, so
+          it is dir="ltr" and autocorrect is off — an iPhone keyboard used to
+          capitalise the first letter and the account became unreachable. */}
+      <input placeholder="שם משתמש באנגלית" value={value.username} dir="ltr"
+        autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
+        onChange={(event) => onChange({ ...value, username: event.target.value })}
         className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all" />
-      <input placeholder="סיסמה" type="password" value={value.password} dir="ltr"
+      <input placeholder="סיסמה" value={value.password} dir="ltr"
+        autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
         onChange={(event) => onChange({ ...value, password: event.target.value })}
         className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all" />
       <div>

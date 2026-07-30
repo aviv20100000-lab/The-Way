@@ -4,6 +4,8 @@ export interface CoachClient {
   id: string;
   name: string;
   email: string;
+  /** What the client types at login. Preferred over email for display. */
+  username?: string;
   has_goals: boolean;
   avatar_url: string | null;
   in_default_group: boolean;
@@ -32,7 +34,9 @@ export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpen
           />
           <div className="min-w-0">
             <p className="truncate text-base font-semibold text-white">{client.name}</p>
-            <p className="truncate text-xs font-normal text-[#8e9379]" dir="ltr">{client.email}</p>
+            {/* Username, not email: accounts are created with a username and the
+                stored address is an internal placeholder nobody should see. */}
+            <p className="truncate text-xs font-normal text-[#8e9379]" dir="ltr">{client.username ?? client.email}</p>
           </div>
         </div>
         <div className="flex shrink-0 gap-2">

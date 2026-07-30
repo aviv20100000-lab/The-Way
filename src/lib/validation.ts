@@ -5,6 +5,26 @@ export function validateEmail(email: string): boolean {
   return email.length <= 255 && emailRegex.test(email);
 }
 
+/**
+ * Username is what a client actually types to log in — email was removed from
+ * the signup flow (owner decision 2026-07-30). Latin letters, digits, dot,
+ * dash and underscore only: the login field is dir="ltr" and a Hebrew or
+ * spaced username is a guaranteed support call.
+ */
+export function validateUsername(username: string): { valid: boolean; error?: string } {
+  const value = username.trim();
+  if (value.length < 3) {
+    return { valid: false, error: "שם משתמש חייב להיות לפחות 3 תווים" };
+  }
+  if (value.length > 40) {
+    return { valid: false, error: "שם משתמש ארוך מדי (מקסימום 40 תווים)" };
+  }
+  if (!/^[a-zA-Z0-9._-]+$/.test(value)) {
+    return { valid: false, error: "שם משתמש באנגלית בלבד, ללא רווחים" };
+  }
+  return { valid: true };
+}
+
 export function validatePassword(password: string): { valid: boolean; error?: string } {
   // Deliberately relaxed policy (owner decision 2026-07-04): friends-only app,
   // usability wins. Minimum 4 characters, no complexity requirements.

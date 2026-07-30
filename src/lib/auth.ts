@@ -108,22 +108,53 @@ export async function getUserByUsername(username: string) {
   return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, password_hash: row.password_hash as string };
 }
 
-export async function createUser(data: { name: string; email: string; password: string; role: "coach" | "client"; coachId?: string }) {
+/**
+ * Domain for the internal placeholder address.
+ *
+ * Signup asks for a username, not an email (owner decision 2026-07-30), but
+ * users.email is NOT NULL UNIQUE and login still accepts an email, so every
+ * account needs one. `.invalid` is reserved by RFC 2606 and can never resolve,
+ * so a placeholder can never accidentally reach a real inbox.
+ */
+const INTERNAL_EMAIL_DOMAIN = "theway.invalid";
+
+/** The placeholder address stored for a username-only account. */
+export function internalEmailFor(username: string) {
+  return `${normalizeLoginValue(username)}@${INTERNAL_EMAIL_DOMAIN}`;
+}
+
+/** True when the address is a placeholder and must never be shown to anyone. */
+export function isInternalEmail(email: string | null | undefined) {
+  return typeof email === "string" && email.endsWith(`@${INTERNAL_EMAIL_DOMAIN}`);
+}
+
+/**
+ * Creates an account from a username.
+ *
+ * Previously this took an email and derived the username from its local part,
+ * so the coach had to invent an address per client. Now the coach types the
+ * username the client actually types at login, and the stored email is a
+ * placeholder that is never displayed.
+ *
+ * Password reset is unaffected: it delivers the reset link over Telegram to the
+ * coach, not to the address on the account.
+ */
+export async function createUser(data: { name: string; username: string; password: string; role: "coach" | "client"; coachId?: string }) {
   await ensureDb();
   const id = uuid();
   const passwordHash = await bcrypt.hash(data.password, 10);
-  const normalizedEmail = normalizeLoginValue(data.email);
-  const username = normalizedEmail.split("@")[0];
+  const username = normalizeLoginValue(data.username);
+  const email = internalEmailFor(username);
   // New clients start OUTSIDE the default chat group — the coach adds them explicitly.
   const inDefaultGroup = data.role === "coach" ? 1 : 0;
-  await db.execute({ sql: "INSERT INTO users (id, name, email, username, password_hash, role, coach_id, in_default_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", args: [id, data.name, normalizedEmail, username, passwordHash, data.role, data.coachId ?? null, inDefaultGroup] });
-  return { id, name: data.name, email: normalizedEmail, role: data.role, coach_id: data.coachId ?? null };
+  await db.execute({ sql: "INSERT INTO users (id, name, email, username, password_hash, role, coach_id, in_default_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", args: [id, data.name, email, username, passwordHash, data.role, data.coachId ?? null, inDefaultGroup] });
+  return { id, name: data.name, username, email, role: data.role, coach_id: data.coachId ?? null };
 }
 
 export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean })[]> {
   await ensureDb();
   const res = await db.execute({
-    sql: `SELECT u.id, u.name, u.email, u.role, u.coach_id, u.in_default_group,
+    sql: `SELECT u.id, u.name, u.email, u.username, u.role, u.coach_id, u.in_default_group,
             CASE WHEN g.user_id IS NOT NULL AND (
               g.target_weight_kg IS NOT NULL OR g.daily_calories IS NOT NULL OR
               g.daily_protein_g IS NOT NULL OR g.daily_water_ml IS NOT NULL OR

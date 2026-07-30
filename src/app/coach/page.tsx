@@ -10,6 +10,7 @@ import CoachActivityNotifications from "@/components/coach/CoachActivityNotifica
 import CoachInsightsPanel from "@/components/coach/CoachInsightsPanel";
 import CoachMealsPanel, { type CoachMealLog } from "@/components/coach/CoachMealsPanel";
 import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
+import { welcomeMessage } from "@/lib/welcome-message";
 import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
 
@@ -68,7 +69,14 @@ export default function CoachPage() {
   const [clients, setClients] = useState<CoachClient[]>([]);
   const [clientGroupFilter, setClientGroupFilter] = useState<"all" | "in" | "out">("all");
   const [showAddClient, setShowAddClient] = useState(false);
-  const [newClient, setNewClient] = useState({ name: "", email: "", password: "", groupIds: [] as string[] });
+  const [newClient, setNewClient] = useState({ name: "", username: "", password: "", groupIds: [] as string[] });
+  /**
+   * The credentials that were actually saved, kept so the coach can send them.
+   * The password is hashed the moment it reaches the server, so this is the
+   * only window in which it can be handed over.
+   */
+  const [justCreated, setJustCreated] = useState<{ name: string; username: string; password: string } | null>(null);
+  const [welcomeCopied, setWelcomeCopied] = useState(false);
   const [addError, setAddError] = useState("");
   const [addWarning, setAddWarning] = useState("");
   const [groupOptions, setGroupOptions] = useState<CoachGroupOption[]>([{ id: "default", name: "קבוצה ראשית" }]);
@@ -222,12 +230,18 @@ export default function CoachPage() {
     const res = await fetch("/api/users/clients", {
       method: "POST",
       headers: await withCsrf({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ name: newClient.name, email: newClient.email, password: newClient.password }),
+      body: JSON.stringify({ name: newClient.name, username: newClient.username, password: newClient.password }),
     });
     const data = await res.json();
     if (!res.ok) { setAddError(data.error); return; }
     setShowAddClient(false);
-    setNewClient({ name: "", email: "", password: "", groupIds: [] });
+    setJustCreated({
+      name: newClient.name,
+      username: String(data.username ?? newClient.username).trim().toLowerCase(),
+      password: newClient.password,
+    });
+    setWelcomeCopied(false);
+    setNewClient({ name: "", username: "", password: "", groupIds: [] });
     setSuccessMessage("המתאמן נוסף");
     void loadClients();
 
@@ -545,6 +559,57 @@ export default function CoachPage() {
 
             {clientGroupFilter === "all" && clientsOutOfGroup > 0 && (
               <p className="-mt-3 text-xs text-[#8e9379]">המתאמנים שבקבוצה מוצגים ראשונים; מי שמחוץ לקבוצה מופיע בתחתית.</p>
+            )}
+
+            {/*
+              Credentials for the client who was just created, with a ready to
+              send message. The password is hashed on the server, so once this
+              card is dismissed it cannot be recovered — only replaced.
+            */}
+            {justCreated && (
+              <div className="space-y-3 rounded-2xl border border-[#c3f400]/30 bg-[#c3f400]/5 p-4">
+                <div>
+                  <p className="text-base font-semibold text-white">{justCreated.name} נוסף</p>
+                  <p className="mt-1 text-xs text-[#c4c9ac]">
+                    אלה הפרטים המדויקים לכניסה. תשלח לו אותם עכשיו, אחרי שתסגור לא תוכל לראות את הסיסמה שוב.
+                  </p>
+                </div>
+
+                <div className="space-y-1 rounded-xl bg-[#1a1c1c]/70 px-4 py-3 text-sm" dir="ltr">
+                  <p className="text-white">{justCreated.username}</p>
+                  <p className="text-white">{justCreated.password}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard
+                        ?.writeText(welcomeMessage(justCreated))
+                        .then(() => setWelcomeCopied(true))
+                        .catch(() => setWelcomeCopied(false));
+                    }}
+                    className="flex-1 rounded-xl bg-[#c3f400] px-4 py-2.5 text-sm font-bold text-[#0c0f0f] transition hover:brightness-95"
+                  >
+                    {welcomeCopied ? "הועתק" : "העתק הודעה לוואטסאפ"}
+                  </button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(welcomeMessage(justCreated))}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 rounded-xl border border-[#444933] px-4 py-2.5 text-center text-sm font-semibold text-[#c4c9ac] transition hover:border-[#c3f400]/40"
+                  >
+                    פתח בוואטסאפ
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setJustCreated(null)}
+                    className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#8e9379]"
+                  >
+                    סיימתי
+                  </button>
+                </div>
+              </div>
             )}
 
             {showAddClient && (

@@ -154,7 +154,7 @@ export async function createUser(data: { name: string; username: string; passwor
   return { id, name: data.name, username, email, role: data.role, coach_id: data.coachId ?? null };
 }
 
-export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean; active: boolean; has_push: boolean })[]> {
+export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean; active: boolean; has_push: boolean; group_ids: string[] })[]> {
   await ensureDb();
   const res = await db.execute({
     sql: `SELECT u.id, u.name, u.email, u.username, u.role, u.coach_id, u.in_default_group, u.active,
@@ -162,6 +162,13 @@ export async function getClientsByCoach(coachId: string): Promise<(User & { has_
             -- belongs to one account at a time, so a coach testing on their own
             -- phone can be reachable while their trainee account is not.
             EXISTS(SELECT 1 FROM push_subscriptions p WHERE p.user_id = u.id) AS has_push,
+            -- The named chat groups this client is in. A correlated subquery, not
+            -- a join: joining chat_group_members would multiply the row per group
+            -- and quietly break has_goals below.
+            (SELECT GROUP_CONCAT(gm.group_id, '||')
+               FROM chat_group_members gm
+               JOIN chat_groups cg ON cg.id = gm.group_id
+              WHERE gm.user_id = u.id AND cg.coach_id = ?) AS group_ids,
             CASE WHEN g.user_id IS NOT NULL AND (
               g.target_weight_kg IS NOT NULL OR g.daily_calories IS NOT NULL OR
               g.daily_protein_g IS NOT NULL OR g.daily_water_ml IS NOT NULL OR
@@ -171,7 +178,7 @@ export async function getClientsByCoach(coachId: string): Promise<(User & { has_
           LEFT JOIN goals g ON g.user_id = u.id
           WHERE u.coach_id = ?
           ORDER BY u.name`,
-    args: [coachId],
+    args: [coachId, coachId],
   });
   return res.rows.map((r) => ({
     id: r.id as string,
@@ -186,5 +193,6 @@ export async function getClientsByCoach(coachId: string): Promise<(User & { has_
     in_default_group: Boolean(r.in_default_group),
     active: Number(r.active ?? 1) === 1,
     has_push: Boolean(r.has_push),
+    group_ids: r.group_ids ? String(r.group_ids).split("||") : [],
   }));
 }

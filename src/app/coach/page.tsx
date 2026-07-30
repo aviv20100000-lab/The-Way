@@ -9,7 +9,7 @@ import CoachDailySummary from "@/components/coach/CoachDailySummary";
 import CoachActivityNotifications from "@/components/coach/CoachActivityNotifications";
 import CoachInsightsPanel from "@/components/coach/CoachInsightsPanel";
 import CoachMealsPanel, { type CoachMealLog } from "@/components/coach/CoachMealsPanel";
-import ClientListCard, { type CoachClient } from "@/components/coach/ClientListCard";
+import ClientListCard, { DEFAULT_GROUP_ID, type CoachClient, type CoachGroupOption } from "@/components/coach/ClientListCard";
 import DeleteTrainee from "@/components/coach/DeleteTrainee";
 import { welcomeMessage } from "@/lib/welcome-message";
 import SuccessToast from "@/components/SuccessToast";
@@ -54,11 +54,6 @@ interface ClientSummary {
   goals: { target_weight_kg: number | null; daily_calories: number | null; daily_protein_g: number | null; daily_water_ml: number; daily_steps: number | null };
 }
 
-interface CoachGroupOption {
-  id: string;
-  name: string;
-}
-
 const EMPTY_GOALS: Goals = { target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null, weigh_in_weekday: null };
 
 export default function CoachPage() {
@@ -81,7 +76,7 @@ export default function CoachPage() {
   const [welcomeCopied, setWelcomeCopied] = useState(false);
   const [addError, setAddError] = useState("");
   const [addWarning, setAddWarning] = useState("");
-  const [groupOptions, setGroupOptions] = useState<CoachGroupOption[]>([{ id: "default", name: "קבוצה ראשית" }]);
+  const [groupOptions, setGroupOptions] = useState<CoachGroupOption[]>([{ id: DEFAULT_GROUP_ID, name: "קבוצה ראשית" }]);
   const [selectedClient, setSelectedClient] = useState<CoachClient | null>(null);
   const [clientGoals, setClientGoals] = useState<Goals>(EMPTY_GOALS);
   const [savingGoals, setSavingGoals] = useState(false);
@@ -145,27 +140,52 @@ export default function CoachPage() {
       const namedGroups = Array.isArray(groupsData.groups)
         ? groupsData.groups.map((group: { id: string; name: string }) => ({ id: group.id, name: group.name }))
         : [];
-      setGroupOptions([{ id: "default", name: defaultName }, ...namedGroups]);
+      setGroupOptions([{ id: DEFAULT_GROUP_ID, name: defaultName }, ...namedGroups]);
     } catch (error) {
       console.error("Error loading coach groups:", error);
-      setGroupOptions([{ id: "default", name: "קבוצה ראשית" }]);
+      setGroupOptions([{ id: DEFAULT_GROUP_ID, name: "קבוצה ראשית" }]);
     }
   }, []);
 
-  const toggleGroupMembership = useCallback(async (client: CoachClient) => {
-    const nextInGroup = !client.in_default_group;
-    // Optimistic update; revert on failure
-    setClients((current) => current.map((item) => item.id === client.id ? { ...item, in_default_group: nextInGroup } : item));
+  /**
+   * Puts a trainee in a group, or takes them out.
+   *
+   * The main group is a flag on the user row; every named group is a row in
+   * chat_group_members. Two different endpoints, one control on the card.
+   *
+   * This decides the steps competition as well as the chat — a trainee left in
+   * the main group competes against everyone in it, whatever else they belong to.
+   */
+  const toggleGroupMembership = useCallback(async (client: CoachClient, groupId: string, join: boolean) => {
+    const apply = (item: CoachClient) => {
+      if (groupId === DEFAULT_GROUP_ID) return { ...item, in_default_group: join };
+      const group_ids = join
+        ? [...new Set([...item.group_ids, groupId])]
+        : item.group_ids.filter((id) => id !== groupId);
+      return { ...item, group_ids };
+    };
+    // Optimistic; the original object is kept so a failure can put it back.
+    setClients((current) => current.map((item) => item.id === client.id ? apply(item) : item));
+
     try {
-      const res = await fetch("/api/coach/group-membership", {
-        method: "POST",
-        headers: await withCsrf({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ clientId: client.id, inGroup: nextInGroup }),
-      });
+      const isDefault = groupId === DEFAULT_GROUP_ID;
+      const res = await fetch(
+        isDefault
+          ? "/api/coach/group-membership"
+          : `/api/coach/chat-groups/${encodeURIComponent(groupId)}/members`,
+        {
+          // The named-group endpoint uses the verb to say join or leave; the
+          // main-group endpoint is POST either way and carries a flag.
+          method: isDefault || join ? "POST" : "DELETE",
+          headers: await withCsrf({ "Content-Type": "application/json" }),
+          body: JSON.stringify(isDefault ? { clientId: client.id, inGroup: join } : { clientId: client.id }),
+        }
+      );
       if (!res.ok) throw new Error("toggle failed");
     } catch (e) {
       console.error("Error toggling group membership:", e);
-      setClients((current) => current.map((item) => item.id === client.id ? { ...item, in_default_group: client.in_default_group } : item));
+      setClients((current) => current.map((item) => item.id === client.id ? client : item));
+      setSuccessMessage("שיוך הקבוצה נכשל");
     }
   }, []);
 
@@ -286,10 +306,10 @@ export default function CoachPage() {
     void loadClients();
 
     void Promise.allSettled(selectedGroupIds.map(async (groupId) => {
-      const endpoint = groupId === "default"
+      const endpoint = groupId === DEFAULT_GROUP_ID
         ? "/api/coach/group-membership"
         : `/api/coach/chat-groups/${encodeURIComponent(groupId)}/members`;
-      const body = groupId === "default"
+      const body = groupId === DEFAULT_GROUP_ID
         ? { clientId: data.id, inGroup: true }
         : { clientId: data.id };
       const response = await fetch(endpoint, {
@@ -501,13 +521,17 @@ export default function CoachPage() {
     setPullDistance(0);
   };
 
+  // "In a group" means any group, not just the main one: a trainee moved into a
+  // named group and out of the main one is still grouped — and still competing.
+  const isGrouped = (client: CoachClient) => client.in_default_group || client.group_ids.length > 0;
+
   const visibleClients = useMemo(() => {
     return [...clients]
-      .sort((a, b) => Number(b.in_default_group) - Number(a.in_default_group) || a.name.localeCompare(b.name, "he"))
-      .filter((client) => clientGroupFilter === "all" || (clientGroupFilter === "in" ? client.in_default_group : !client.in_default_group));
+      .sort((a, b) => Number(isGrouped(b)) - Number(isGrouped(a)) || a.name.localeCompare(b.name, "he"))
+      .filter((client) => clientGroupFilter === "all" || (clientGroupFilter === "in" ? isGrouped(client) : !isGrouped(client)));
   }, [clients, clientGroupFilter]);
 
-  const clientsInGroup = clients.filter((client) => client.in_default_group).length;
+  const clientsInGroup = clients.filter(isGrouped).length;
   const clientsOutOfGroup = clients.length - clientsInGroup;
 
   return (
@@ -683,7 +707,8 @@ export default function CoachPage() {
                   onOpenGoals={(selected) => void openClientGoals(selected)}
                   onOpenWizard={setWizardClient}
                   onAvatarUploaded={(clientId, url) => setClients((current) => current.map((item) => item.id === clientId ? { ...item, avatar_url: url } : item))}
-                  onToggleGroup={(selected) => void toggleGroupMembership(selected)}
+                  groups={groupOptions}
+                  onToggleGroup={(selected, groupId, join) => void toggleGroupMembership(selected, groupId, join)}
                   onSendMealReminder={(selected) => void sendMealReminder(selected)}
                 />
                 <button type="button" onClick={() => { setMenuClient(client); setTab("menus"); }}

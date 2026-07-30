@@ -1,4 +1,13 @@
+import { useState } from "react";
 import AvatarPhotoPicker from "@/components/AvatarPhotoPicker";
+
+/** A group the coach can put a trainee in. `id` "default" is the main group. */
+export interface CoachGroupOption {
+  id: string;
+  name: string;
+}
+
+export const DEFAULT_GROUP_ID = "default";
 
 export interface CoachClient {
   id: string;
@@ -13,19 +22,32 @@ export interface CoachClient {
   active: boolean;
   /** false = no device is registered to this account, so a push has nowhere to go. */
   has_push: boolean;
+  /** Named chat groups this trainee belongs to. The main group is in_default_group. */
+  group_ids: string[];
 }
 
 interface ClientListCardProps {
   client: CoachClient;
+  groups: CoachGroupOption[];
   onOpenData: (client: CoachClient) => void;
   onOpenGoals: (client: CoachClient) => void;
   onOpenWizard: (client: CoachClient) => void;
   onAvatarUploaded: (clientId: string, url: string) => void;
-  onToggleGroup: (client: CoachClient) => void;
+  onToggleGroup: (client: CoachClient, groupId: string, join: boolean) => void;
   onSendMealReminder: (client: CoachClient) => void;
 }
 
-export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpenWizard, onAvatarUploaded, onToggleGroup, onSendMealReminder }: ClientListCardProps) {
+/** Which of the coach's groups this trainee is currently in. */
+function membershipOf(client: CoachClient, groups: CoachGroupOption[]) {
+  return groups.filter((group) =>
+    group.id === DEFAULT_GROUP_ID ? client.in_default_group : client.group_ids.includes(group.id)
+  );
+}
+
+export default function ClientListCard({ client, groups, onOpenData, onOpenGoals, onOpenWizard, onAvatarUploaded, onToggleGroup, onSendMealReminder }: ClientListCardProps) {
+  const [groupsOpen, setGroupsOpen] = useState(false);
+  const memberOf = membershipOf(client, groups);
+
   return (
     <div className="rounded-2xl glass-card p-5  transition-all duration-300 hover:shadow-lg">
       <div className="flex items-center justify-between gap-3">
@@ -86,18 +108,58 @@ export default function ClientListCard({ client, onOpenData, onOpenGoals, onOpen
           </button>
         </div>
       </div>
+      {/* Chat group is also the steps competition, so this is the control that
+          decides who competes against whom — not only who reads which chat. */}
       <button
-        onClick={() => onToggleGroup(client)}
-        aria-label={client.in_default_group ? `הוצא את ${client.name} מקבוצת הצ'אט` : `הוסף את ${client.name} לקבוצת הצ'אט`}
-        className={`mt-3 flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
-          client.in_default_group
+        type="button"
+        onClick={() => setGroupsOpen((open) => !open)}
+        aria-expanded={groupsOpen}
+        aria-label={`ערוך את הקבוצות של ${client.name}`}
+        className={`mt-3 flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+          memberOf.length > 0
             ? "border-[#c3f400]/30 bg-[#c3f400]/10 text-[#c3f400] hover:bg-[#c3f400]/15"
             : "border-[#444933] bg-[#1e2020] text-[#8e9379] hover:bg-[#282a2b]"
         }`}
       >
-        <span>👥 קבוצת הצ'אט</span>
-        <span className="text-xs font-bold">{client.in_default_group ? "בקבוצה ✓" : "מחוץ לקבוצה — לחץ להוספה"}</span>
+        <span className="shrink-0">👥 קבוצות</span>
+        <span className="truncate text-xs font-bold">
+          {memberOf.length > 0
+            ? `${memberOf.map((group) => group.name).join(" · ")} ${groupsOpen ? "▲" : "▼"}`
+            : `לא בשום קבוצה — לחץ לשייך ${groupsOpen ? "▲" : "▼"}`}
+        </span>
       </button>
+
+      {groupsOpen && (
+        <div className="mt-2 space-y-1.5 rounded-xl border border-[#444933] bg-[#1b1d1d] p-3">
+          <p className="mb-2 text-[11px] leading-relaxed text-[#8e9379]">
+            הקבוצה היא גם קבוצת התחרות בצעדים — מי שיחד כאן, מתחרה יחד שם.
+          </p>
+          {groups.map((group) => {
+            const isMember = group.id === DEFAULT_GROUP_ID
+              ? client.in_default_group
+              : client.group_ids.includes(group.id);
+            return (
+              <button
+                key={group.id}
+                type="button"
+                onClick={() => onToggleGroup(client, group.id, !isMember)}
+                aria-pressed={isMember}
+                className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm font-semibold transition-all ${
+                  isMember
+                    ? "border-[#c3f400]/30 bg-[#c3f400]/10 text-[#c3f400] hover:bg-[#c3f400]/15"
+                    : "border-[#444933] bg-[#232525] text-[#8e9379] hover:bg-[#282a2b]"
+                }`}
+              >
+                <span className="truncate">{group.name}</span>
+                <span className="shrink-0 text-xs font-bold">{isMember ? "בפנים ✓" : "הוסף"}</span>
+              </button>
+            );
+          })}
+          {groups.length === 0 && (
+            <p className="text-sm text-[#8e9379]">אין עדיין קבוצות. אפשר ליצור קבוצה במסך הצ׳אט.</p>
+          )}
+        </div>
+      )}
       {!client.has_goals && (
         <div className="mt-4 flex flex-col gap-3 rounded-xl border border-[#c3f400]/30 bg-[#1b1d1d] p-4 text-white sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-medium">עוד לא הגדרת יעדים ל{client.name}</p>

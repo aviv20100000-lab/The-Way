@@ -11,6 +11,7 @@ export interface TzameretFood {
 
 const COOKING_STATES = new Set([
   "מבושל", "מבושלת", "מטוגן", "מטוגנת", "צלוי", "צלויה", "אפוי", "אפויה",
+  "מאודה", "מאודים", "מאודות",
 ]);
 
 const COOKING_STATE_INFLECTIONS: Record<string, readonly string[]> = {
@@ -22,6 +23,9 @@ const COOKING_STATE_INFLECTIONS: Record<string, readonly string[]> = {
   צלויה: ["צלוי", "צלויה", "צלויים", "צלויות"],
   אפוי: ["אפוי", "אפויה", "אפויים", "אפויות"],
   אפויה: ["אפוי", "אפויה", "אפויים", "אפויות"],
+  מאודה: ["מאודה", "מאודים", "מאודות"],
+  מאודים: ["מאודה", "מאודים", "מאודות"],
+  מאודות: ["מאודה", "מאודים", "מאודות"],
 };
 
 const DESCRIPTORS = new Set([

@@ -101,10 +101,9 @@ export function useFoodTracking() {
     setSharePromptDismissed(false);
     setLastSavedMealId(null);
     try {
-      // 1568px = Anthropic's max long edge — larger gets downscaled server-side
-      // anyway, smaller loses detail the model needs (tuna/cottage-texture misses
-      // were traced to 1200px on tall screenshots).
-      const jpeg = await compressImageToJpeg(file, 1568, 0.9);
+      // Sonnet 5 supports up to 2576px on the long edge. Use 2048px as a middle
+      // ground: more meal detail without jumping to the maximum upload size.
+      const jpeg = await compressImageToJpeg(file, 2048, 0.9);
       setLastPhotoBlob(jpeg);
       const fd = new FormData();
       fd.append("photo", jpeg);

@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
           const modelPer100g = ratio > 0 ? item.calories / ratio : 0;
           if (modelPer100g > 0 && dbFood.calories > 0) {
             const factor = dbFood.calories / modelPer100g;
-            if (factor > 2.5 || factor < 0.4) {
+            if (factor > 1.8 || factor < 0.55) {
               rejectedCount += 1;
               return item;
             }

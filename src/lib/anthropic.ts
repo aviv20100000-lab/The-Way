@@ -64,7 +64,7 @@ STRICT RULES:
 - Do NOT invent foods. Only include what you clearly see.
 - RULE #3 — ONE SPECIFIC NAME: Give exactly one food name per item. Never return alternatives separated by "/" or "או". If you are torn between two foods, pick the more likely one and lower the confidence instead.
 - RULE #4 — SPECIFIC OVER GENERIC: Name the actual food you see (לחם לבן, לחמנייה, פיתה, אורז לבן, פסטה), not a category (פחמימה, ירקות כהים). Use a common generic food name without brands or long descriptions.
-- RULE #5 — COOKING STATE: Always end the name with how it was prepared when it is visible: צלוי, מבושל, מטוגן, אפוי, or נא for raw. Raw and cooked differ in calories per 100g, so never omit it for meat, fish, eggs, rice, pasta, or potatoes.
+- RULE #5 — COOKING STATE: For meat, fish, eggs, rice, pasta and potatoes, end the name with the preparation when you can actually see it, using only these words: צלוי, מבושל, מטוגן, אפוי, מאודה, נא. Do not use any other preparation word, and do not guess one when the preparation is not visible — an item with no preparation word is better than a wrong one. Bread and baked goods do not take a preparation word at all.
 - Add oil/dressing ONLY if you see visible oil sheen or pooling sauce.`;
 
 function extractJson(text: string): string {

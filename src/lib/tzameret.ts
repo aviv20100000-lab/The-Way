@@ -29,6 +29,17 @@ const DESCRIPTORS = new Set([
   "פרוסה", "חתוך", "חתוכה", "מוכן", "מוכנה", "ביתי", "ביתית",
 ]);
 
+// Tzameret names a food as "<family>, <part>, <preparation>", so ordering candidates
+// by name length alone picks whichever part happens to have the shortest word:
+// "בשר עוף, עור, צלוי" (skin, 450 kcal/100g) wins over "בשר עוף, חזה, ללא עצם, צלוי"
+// (195 kcal/100g). None of these parts is what a photo of a plate means, so they get
+// pushed to the back — unless the search term actually asked for one.
+const OFF_CUT_PARTS = ["עור", "עצם", "עצמות", "גב", "צוואר", "שומן"];
+
+// Matched against the name wrapped in delimiters, so "עור" hits the standalone part in
+// "בשר עוף, עור, צלוי" without also hitting שעורה or מעורב.
+const offCutPattern = (part: string) => `%, ${part},%`;
+
 function cookingStatesOf(value: string) {
   return value
     .normalize("NFKC")
@@ -114,13 +125,23 @@ async function findBy(mode: "exact" | "prefix" | "contains", term: string, cooki
   const cookingOrder = preferredInflections.length > 0
     ? `CASE WHEN ${preferredInflections.map(() => "name_he LIKE ? ESCAPE '\\'").join(" OR ")} THEN 0 ELSE 1 END,`
     : "";
+  // Only demote parts the caller did not ask for: a search for "כנף עוף" or "עור" must
+  // still be able to reach them.
+  const offCuts = OFF_CUT_PARTS.filter((part) => !term.includes(part));
+  const offCutOrder = offCuts.length > 0
+    ? `CASE WHEN ${offCuts.map(() => `', ' || name_he || ',' LIKE ? ESCAPE '\\'`).join(" OR ")} THEN 1 ELSE 0 END,`
+    : "";
   const result = await db.execute({
     sql: `SELECT code, name_he, calories, protein, carbs, fat
           FROM tzameret_foods
           WHERE (${condition}) AND name_he NOT LIKE 'FFQ%'
-          ORDER BY ${cookingOrder} length(name_he) ASC, code ASC
+          ORDER BY ${offCutOrder} ${cookingOrder} length(name_he) ASC, code ASC
           LIMIT 8`,
-    args: [...searchArguments, ...preferredInflections.map((inflection) => `%${escapeLike(inflection)}%`)],
+    args: [
+      ...searchArguments,
+      ...offCuts.map((part) => offCutPattern(escapeLike(part))),
+      ...preferredInflections.map((inflection) => `%${escapeLike(inflection)}%`),
+    ],
   });
   return result.rows
     .map((row) => toFood(row as Record<string, unknown>))

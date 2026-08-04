@@ -134,9 +134,11 @@ export default function MealScanner(props: MealScannerProps) {
 
   const handleDishType = useCallback((index: number, dish: string, currentName: string) => {
     setDishTypes(prev => ({ ...prev, [index]: dish }));
-    // Extract meat type if present, build clean name
-    const meatMatch = currentName.match(/עוף|הודו|טלה|בקר|כבש|עגל|מיקס/i);
-    const newName = meatMatch ? `${dish} ${meatMatch[0]}` : dish;
+    // Preparation states extend the existing name; named dishes replace it.
+    const PREPARATION_STATES = ["צלוי", "מבושל", "מטוגן", "טחון"];
+    const newName = PREPARATION_STATES.includes(dish)
+      ? `${currentName} ${dish}`
+      : dish;
     updateItemName(index, newName);
     setTimeout(() => estimateItemNutrition(index), 200);
   }, [updateItemName, estimateItemNutrition]);

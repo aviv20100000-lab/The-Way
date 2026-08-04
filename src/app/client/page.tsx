@@ -620,9 +620,8 @@ export default function ClientPage() {
               </div>
             )}
 
-            {calorieGoalFromGoals && (
-              <p className="text-xs text-[#8e9379]">יעד: {calorieGoalFromGoals} קל׳/יום</p>
-            )}
+            {/* The calorie goal already appears inside the calorie card below, so only
+                the protein goal is surfaced here. */}
             {proteinGoal && <p className="text-xs text-[#8e9379]">יעד חלבון: {proteinGoal} גרם ביום</p>}
 
             <MealHistory
@@ -644,9 +643,11 @@ export default function ClientPage() {
             <TiltCard className="flex flex-col items-center glass-card rounded-2xl p-6 transition-all" delay={0.3} max={10}>
               <ProgressRing pct={stepsPct} size={88} stroke={8} color="#6366f1" track="#333535">
                 <AnimatedScore value={todaySteps} animate={!prefersReducedMotion} className="text-xl font-bold text-white" />
-                <span className="mt-0.5 text-xs font-normal text-[#c4c9ac]">צעדים</span>
               </ProgressRing>
-              <p className="mt-4 text-sm font-semibold tracking-wide text-[#c4c9ac]">צעדים</p>
+              <p className="mt-4 text-sm font-semibold tracking-wide text-white">צעדים</p>
+              {stepsGoal > 0 && (
+                <p className="mt-1 text-xs text-[#c4c9ac]">יעד {stepsGoal.toLocaleString()} צעדים</p>
+              )}
             </TiltCard>
 
             {/* Water */}

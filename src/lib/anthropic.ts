@@ -62,6 +62,9 @@ STRICT RULES:
   • Fish fillet on a plate — even if golden/brown from cooking — has irregular shape and flaky texture → דג (NEVER גבינה, NEVER עוף). גבינה צהובה is ONLY uniform rectangular/square slices or melted on bread/pizza.
   • Identify fish type if possible: סלמון (pink/orange flesh), טונה (dark red), דג לבן (white flaky fillet like בס or דניס).
 - Do NOT invent foods. Only include what you clearly see.
+- RULE #3 — ONE SPECIFIC NAME: Give exactly one food name per item. Never return alternatives separated by "/" or "או". If you are torn between two foods, pick the more likely one and lower the confidence instead.
+- RULE #4 — SPECIFIC OVER GENERIC: Name the actual food you see (לחם לבן, לחמנייה, פיתה, אורז לבן, פסטה), not a category (פחמימה, ירקות כהים). Use a common generic food name without brands or long descriptions.
+- RULE #5 — COOKING STATE: Always end the name with how it was prepared when it is visible: צלוי, מבושל, מטוגן, אפוי, or נא for raw. Raw and cooked differ in calories per 100g, so never omit it for meat, fish, eggs, rice, pasta, or potatoes.
 - Add oil/dressing ONLY if you see visible oil sheen or pooling sauce.`;
 
 function extractJson(text: string): string {
@@ -94,7 +97,7 @@ function parseFoodResponse(text: string) {
 
 export async function analyzeFoodPhoto(imageUrl: string) {
   const response = await createMessage({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 1024,
     messages: [
       {
@@ -147,9 +150,9 @@ export async function analyzeFoodPhotoBase64(base64: string, mediaType: string) 
     : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
   const response = await createMessage({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 2048,
-    temperature: 0.2,
+    thinking: { type: "disabled" },
     tools: [LOG_FOOD_TOOL],
     tool_choice: { type: "any" },
     messages: [
@@ -186,9 +189,9 @@ Return ONLY a raw JSON object (no markdown, no explanation) with realistic estim
 All values are for the full ${grams}g portion. Round to whole numbers. Never return zeros for a real food — give your best estimate.`;
 
   const response = await createMessage({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 256,
-    temperature: 0,
+    thinking: { type: "disabled" },
     messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
   });
 
@@ -221,8 +224,9 @@ function parseStepsResponse(text: string): number {
 
 export async function extractStepsFromScreenshot(imageUrl: string): Promise<number> {
   const response = await createMessage({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 256,
+    thinking: { type: "disabled" },
     messages: [{
       role: "user",
       content: [
@@ -242,8 +246,9 @@ export async function extractStepsFromScreenshotBase64(base64: string, mediaType
     : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
   const response = await createMessage({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 256,
+    thinking: { type: "disabled" },
     messages: [{
       role: "user",
       content: [

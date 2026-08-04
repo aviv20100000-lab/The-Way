@@ -173,9 +173,8 @@ function fallbackTrainerFood(query: string, grams: number): ResolvedItem | null 
 
 export async function importMenuText(text: string): Promise<{ dayGroups: ResolvedDayGroup[]; notFound: string[] }> {
   const response = await createMessage({
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     max_tokens: 4000,
-    temperature: 0.2,
     system: MENU_IMPORT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: text }],
   });

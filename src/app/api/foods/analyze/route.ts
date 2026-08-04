@@ -8,6 +8,25 @@ import {
 import { checkPersistentRateLimit, formatResetIn, refundPersistentRateLimit } from "@/lib/ratelimit";
 import { matchTzameret } from "@/lib/tzameret";
 
+const TZAMERET_TIMEOUT_MS = 2500;
+
+// Aviv is the developer account used to test and tune the scanner, so it has no
+// daily scan cap. Matched on both username and display name so it holds however the
+// account is spelled. Every other user keeps the normal three scans per day.
+const UNLIMITED_SCAN_USERS = ["aviv", "אביב"];
+
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout?: () => void): Promise<T | null> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<null>((resolve) => {
+    timeoutId = setTimeout(() => {
+      onTimeout?.();
+      resolve(null);
+    }, ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
 export async function POST(req: NextRequest) {
   const timingStartedAt = Date.now();
   // Set once the daily quota has actually been spent. Every path that returns
@@ -25,21 +44,26 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
-    const rateLimit = await checkPersistentRateLimit(`foods-analyze:${user.id}`, "mealScan");
-    if (!rateLimit.allowed) {
-      // Not a dead end: the manual quick-logger sits right below the scanner, so
-      // point there instead of telling the trainee to come back tomorrow.
-      return NextResponse.json(
-        {
-          error: `נגמרו לך הסריקות להיום. אפשר להוסיף את הארוחה ידנית ברישום המהיר שמתחת 👇 (הסריקות מתחדשות בעוד ${formatResetIn(rateLimit.resetIn)})`,
-          limit_reached: true,
-        },
-        { status: 429 }
-      );
+    const skipScanQuota = UNLIMITED_SCAN_USERS.includes((user.username ?? "").trim().toLowerCase())
+      || UNLIMITED_SCAN_USERS.includes((user.name ?? "").trim().toLowerCase());
+    if (!skipScanQuota) {
+      const rateLimit = await checkPersistentRateLimit(`foods-analyze:${user.id}`, "mealScan");
+      if (!rateLimit.allowed) {
+        // Not a dead end: the manual quick-logger sits right below the scanner, so
+        // point there instead of telling the trainee to come back tomorrow.
+        return NextResponse.json(
+          {
+            error: `נגמרו לך הסריקות להיום. אפשר להוסיף את הארוחה ידנית ברישום המהיר שמתחת 👇 (הסריקות מתחדשות בעוד ${formatResetIn(rateLimit.resetIn)})`,
+            limit_reached: true,
+          },
+          { status: 429 }
+        );
+      }
+      // A denied request never incremented the counter, so only mark the quota spent
+      // once the check has passed. An exempt tester never consumes quota, so there is
+      // nothing to refund for them either.
+      consumedQuotaKey = `foods-analyze:${user.id}`;
     }
-    // A denied request never incremented the counter, so only mark the quota spent
-    // once the check has passed.
-    consumedQuotaKey = `foods-analyze:${user.id}`;
 
     const formData = await req.formData();
     const photo = formData.get("photo");
@@ -106,13 +130,29 @@ export async function POST(req: NextRequest) {
 
     // Official Tzameret values replace model nutrition whenever the name matches.
     const tzameretStartedAt = Date.now();
+    let timeoutCount = 0;
+    let rejectedCount = 0;
     const enriched = await Promise.all(
       mapped.map(async (item: typeof mapped[number]) => {
         if (!item.name) return item;
         try {
-          const dbFood = await matchTzameret(item.name);
+          const dbFood = await withTimeout(
+            matchTzameret(item.name),
+            TZAMERET_TIMEOUT_MS,
+            () => { timeoutCount += 1; }
+          );
           if (!dbFood) return item;
+          // A contains match can return an unrelated food. If its calorie density
+          // is too far from the model estimate, keep the model values instead.
           const ratio = item.estimated_weight_g / 100;
+          const modelPer100g = ratio > 0 ? item.calories / ratio : 0;
+          if (modelPer100g > 0 && dbFood.calories > 0) {
+            const factor = dbFood.calories / modelPer100g;
+            if (factor > 2.5 || factor < 0.4) {
+              rejectedCount += 1;
+              return item;
+            }
+          }
           return {
             ...item,
             calories: Math.round(dbFood.calories * ratio),
@@ -131,7 +171,7 @@ export async function POST(req: NextRequest) {
     const totalCalories = enriched.reduce((sum: number, item: { calories: number }) => sum + item.calories, 0);
 
     console.log(
-      `analyze-food timing: total=${Date.now() - timingStartedAt}ms parse=${parseFinishedAt - timingStartedAt}ms ai=${aiFinishedAt - aiStartedAt}ms tzameret=${tzameretFinishedAt - tzameretStartedAt}ms size=${sizeKB}KB items=${enriched.length} compression=${clientCompression}`
+      `analyze-food timing: total=${Date.now() - timingStartedAt}ms parse=${parseFinishedAt - timingStartedAt}ms ai=${aiFinishedAt - aiStartedAt}ms tzameret=${tzameretFinishedAt - tzameretStartedAt}ms size=${sizeKB}KB items=${enriched.length} compression=${clientCompression} tzameretTimeouts=${timeoutCount} tzameretRejected=${rejectedCount}`
     );
 
     return NextResponse.json({

@@ -74,6 +74,19 @@ export default function ClientMenuView() {
 
   const selectionFor = (mealId: string) => (dayKey ? selectionMap.get(selectionKey(mealId, dayKey)) ?? null : null);
 
+  // Per-weekday mark status for the day picker, so the trainee can see at a glance
+  // which days are already logged instead of opening each one.
+  const dayStatuses = useMemo(() => DAYS.map((_, index) => {
+    const key = plan?.week_day_keys?.[index];
+    if (!key || !plan?.today_key) return "none" as const;
+    if (key > plan.today_key) return "future" as const;
+    const dayMeals = plan.days.find((entry) => Number(entry.day_index) === index)?.meals ?? [];
+    if (!dayMeals.length) return "none" as const;
+    const marked = dayMeals.filter((meal) => selectionMap.has(selectionKey(meal.id, key))).length;
+    if (marked === 0) return "none" as const;
+    return marked >= dayMeals.length ? ("full" as const) : ("partial" as const);
+  }), [plan?.week_day_keys, plan?.today_key, plan?.days, selectionMap]);
+
   const consumed = useMemo(() => meals.reduce((sum, meal) => {
     const selection = dayKey ? selectionMap.get(selectionKey(meal.id, dayKey)) : null;
     if (!selection || selection.status !== "planned") return sum;
@@ -214,12 +227,24 @@ export default function ClientMenuView() {
       <nav aria-label="בחירת יום" className="space-y-2">
         <p className="px-1 text-[11px] font-bold text-[#8e9379]">בחר יום</p>
         <div className="grid grid-cols-7 gap-1.5">
-          {DAYS.map((label, index) => (
-            <button key={label} type="button" onClick={() => setSelectedDay(index)}
-              className={`w-full rounded-full border px-1 py-2 text-xs font-bold transition ${selectedDay === index ? "border-[#c3f400] bg-[#c3f400] text-[#161e00] shadow-[0_8px_24px_-12px_rgba(195,244,0,0.8)]" : "border-[#444933] bg-[#171a17] text-[#9da58c] hover:border-[#c3f400]/40 hover:text-white"}`}>
-              {label}
-            </button>
-          ))}
+          {DAYS.map((label, index) => {
+            const status = dayStatuses[index];
+            const isActive = selectedDay === index;
+            return (
+              <button key={label} type="button" onClick={() => setSelectedDay(index)}
+                aria-label={`${label}${status === "full" ? " · כל הארוחות סומנו" : status === "partial" ? " · סומן חלקית" : status === "future" ? " · עוד לא הגיע" : " · לא סומן"}`}
+                className={`flex w-full flex-col items-center gap-1 rounded-full border px-1 py-2 text-xs font-bold transition ${isActive ? "border-[#c3f400] bg-[#c3f400] text-[#161e00] shadow-[0_8px_24px_-12px_rgba(195,244,0,0.8)]" : "border-[#444933] bg-[#171a17] text-[#9da58c] hover:border-[#c3f400]/40 hover:text-white"}`}>
+                <span>{label}</span>
+                <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${
+                  status === "full"
+                    ? isActive ? "bg-[#161e00]" : "bg-[#c3f400]"
+                    : status === "partial"
+                      ? isActive ? "bg-[#161e00]/50" : "bg-[#fbbf24]"
+                      : isActive ? "bg-[#161e00]/20" : "bg-[#3a4034]"
+                }`} />
+              </button>
+            );
+          })}
         </div>
       </nav>
 
@@ -266,7 +291,7 @@ export default function ClientMenuView() {
                             {option.items.map((item) => (
                               <p key={item.id} className="flex items-start gap-2 text-sm leading-relaxed">
                                 <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${isSelected ? "bg-[#c3f400]" : "bg-[#59614f]"}`} />
-                                <span>{item.name_he} <span className="text-xs text-[#6e7564]">· {Math.round(Number(item.grams))} ג׳</span></span>
+                                <span>{item.name_he} <span className="text-xs text-[#8e9379]">· {Math.round(Number(item.grams))} ג׳</span></span>
                               </p>
                             ))}
                             {!option.items.length && <p className="text-sm text-[#6e7564]">אין פריטים באפשרות זו</p>}

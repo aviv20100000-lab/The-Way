@@ -50,7 +50,9 @@ function membershipOf(client: CoachClient, groups: CoachGroupOption[]) {
 
 export default function ClientListCard({ client, groups, onOpenData, onOpenGoals, onOpenWizard, onAvatarUploaded, onToggleGroup, onSendMealReminder, onSetGender }: ClientListCardProps) {
   const [groupsOpen, setGroupsOpen] = useState(false);
+  const [genderPickerOpen, setGenderPickerOpen] = useState(false);
   const memberOf = membershipOf(client, groups);
+  const genderLabel = client.gender === "female" ? "נקבה" : client.gender === "male" ? "זכר" : null;
 
   return (
     <div className="rounded-2xl glass-card p-5  transition-all duration-300 hover:shadow-lg">
@@ -114,27 +116,44 @@ export default function ClientListCard({ client, groups, onOpenData, onOpenGoals
       </div>
       {/* Which grammatical gender to address this trainee with in Hebrew text
           (notifications, the assistant). Sits next to the group button because
-          both are per-trainee toggles a coach flips from the same card. */}
-      <div className="mt-3 flex gap-2">
-        {([["male", "זכר"], ["female", "נקבה"]] as const).map(([option, label]) => {
-          const checked = client.gender === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onSetGender(client, option)}
-              aria-pressed={checked}
-              className={`flex-1 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
-                checked
-                  ? "border-[#c3f400]/30 bg-[#c3f400]/10 text-[#c3f400]"
-                  : "border-[#444933] bg-[#1e2020] text-[#8e9379] hover:bg-[#282a2b]"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+          both are per-trainee toggles a coach flips from the same card. Once set,
+          the picker collapses to a small label so a card full of already-set
+          trainees doesn't stay cluttered with two buttons each — "שינוי" reopens
+          it for the rare correction. */}
+      {genderLabel && !genderPickerOpen ? (
+        <div className="mt-3 flex items-center gap-2 text-sm">
+          <span className="text-[#8e9379]">פונה בלשון:</span>
+          <span className="font-semibold text-[#c3f400]">{genderLabel}</span>
+          <button
+            type="button"
+            onClick={() => setGenderPickerOpen(true)}
+            className="mr-auto text-xs font-semibold text-[#8e9379] underline hover:text-[#c3f400]"
+          >
+            שינוי
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          {([["male", "זכר"], ["female", "נקבה"]] as const).map(([option, label]) => {
+            const checked = client.gender === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => { onSetGender(client, option); setGenderPickerOpen(false); }}
+                aria-pressed={checked}
+                className={`flex-1 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                  checked
+                    ? "border-[#c3f400]/30 bg-[#c3f400]/10 text-[#c3f400]"
+                    : "border-[#444933] bg-[#1e2020] text-[#8e9379] hover:bg-[#282a2b]"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {/* Chat group is also the steps competition, so this is the control that
           decides who competes against whom — not only who reads which chat. */}
       <button

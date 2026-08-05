@@ -11,19 +11,22 @@ interface ConnectSetupProps {
   notifStatus: NotificationStatus;
   isPwa: boolean;
   enableNotifications: () => Promise<void>;
+  audience?: "client" | "coach";
 }
 
-export default function ConnectSetup({ notifStatus, isPwa, enableNotifications }: ConnectSetupProps) {
+export default function ConnectSetup({ notifStatus, isPwa, enableNotifications, audience = "client" }: ConnectSetupProps) {
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>(notifStatus);
   const [enablingNotifications, setEnablingNotifications] = useState(false);
   const [skipped, setSkipped] = useState(false);
   const [opened, setOpened] = useState(false);
   const [success, setSuccess] = useState(false);
   const [closed, setClosed] = useState(false);
+  const [setupError, setSetupError] = useState("");
+  const isCoach = audience === "coach";
 
   useEffect(() => {
     const permission = typeof Notification !== "undefined" ? Notification.permission : notifStatus;
-    const derivedStatus: NotificationStatus = permission === "granted"
+    const derivedStatus: NotificationStatus = notifStatus === "granted"
       ? "granted"
       : permission === "denied"
         ? "denied"
@@ -47,12 +50,14 @@ export default function ConnectSetup({ notifStatus, isPwa, enableNotifications }
 
   const handleEnableNotifications = async () => {
     setEnablingNotifications(true);
+    setSetupError("");
     try {
       await enableNotifications();
-      if (typeof Notification !== "undefined") {
-        const permission = Notification.permission;
-        setNotificationStatus(permission === "granted" ? "granted" : permission === "denied" ? "denied" : "unknown");
-      }
+      setNotificationStatus("granted");
+      setSuccess(true);
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "הפעלת ההתראות נכשלה");
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") setNotificationStatus("denied");
     } finally {
       setEnablingNotifications(false);
     }
@@ -99,22 +104,24 @@ export default function ConnectSetup({ notifStatus, isPwa, enableNotifications }
                 </div>
                 <h2 className="text-2xl font-bold text-white">{isPwa ? "הפעלת התראות" : "הוספה למסך הבית"}</h2>
                 <p className="mt-2 text-sm text-[#c4c9ac]">
-                  {isPwa ? "כדי שתקבל את מה שחשוב — בזמן אמת." : "שלב קצר שדרוש כדי לקבל התראות ולהשתמש באפליקציה מהר יותר."}
+                  {isPwa
+                    ? isCoach ? "כדי לקבל הודעות וסיכומים חשובים בזמן אמת." : "כדי שתקבל את מה שחשוב — בזמן אמת."
+                    : "שלב קצר שדרוש כדי לקבל התראות ולהשתמש באפליקציה מהר יותר."}
                 </p>
               </div>
 
               <div className="mt-6 space-y-3 px-1">
                 <div className="flex items-center gap-3 text-sm text-[#c4c9ac]">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c3f400]" aria-hidden="true" />
-                  <span>הודעות מהמאמן ומהקבוצה</span>
+                  <span>{isCoach ? "הודעות חדשות מהמתאמנים" : "הודעות מהמאמן ומהקבוצה"}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-[#c4c9ac]">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c3f400]" aria-hidden="true" />
-                  <span>תזכורות שתייה חכמות</span>
+                  <span>{isCoach ? "סיכומי הפעילות היומיים" : "תזכורות שתייה חכמות"}</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-[#c4c9ac]">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#c3f400]" aria-hidden="true" />
-                  <span>עדכונים והישגים אישיים</span>
+                  <span>{isCoach ? "עדכונים שדורשים את תשומת הלב שלך" : "עדכונים והישגים אישיים"}</span>
                 </div>
               </div>
 
@@ -149,6 +156,12 @@ export default function ConnectSetup({ notifStatus, isPwa, enableNotifications }
                 >
                   {enablingNotifications ? "מפעיל..." : "הפעל התראות"}
                 </button>
+              )}
+
+              {setupError && (
+                <p role="alert" className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-xs text-red-300">
+                  {setupError}
+                </p>
               )}
 
               <button onClick={handleSkip} className="mt-3 w-full py-2 text-xs font-semibold text-[#8e9379]">

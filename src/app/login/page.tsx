@@ -470,7 +470,7 @@ export default function LoginPage() {
           <h2 className="text-2xl font-bold text-white">כניסה</h2>
 
           {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+            <div role="alert" aria-live="polite" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
               <p className="text-sm font-medium text-red-400">{error}</p>
             </div>
           )}

@@ -5,33 +5,16 @@ import {
   setSession,
   verifyPassword,
 } from "@/lib/auth";
-import { checkPersistentRateLimit } from "@/lib/ratelimit";
+import {
+  checkPersistentRateLimit,
+  clearPersistentRateLimitEntry,
+  formatResetIn,
+} from "@/lib/ratelimit";
 import { sendSecurityAlert } from "@/lib/security-alerts";
 import { ensureSeed } from "@/lib/seed";
 
 export async function POST(req: NextRequest) {
   const clientIp = req.headers.get("x-forwarded-for") || "unknown";
-  const rateLimit = await checkPersistentRateLimit(`login:${clientIp}`, "auth");
-
-  if (!rateLimit.allowed) {
-    await sendSecurityAlert({
-      event: "login_rate_limited",
-      severity: "high",
-      ip: clientIp,
-      cooldownMs: 15 * 60 * 1000,
-    });
-
-    return NextResponse.json(
-      { error: "יותר מדי ניסיונות התחברות. נסה שוב בעוד כמה דקות." },
-      {
-        status: 429,
-        headers: { "Retry-After": String(Math.ceil(rateLimit.resetIn / 1000)) },
-      }
-    );
-  }
-
-  await ensureSeed();
-
   const { identifier, email, username, password } = await req.json();
   const loginIdentifier =
     typeof identifier === "string" && identifier.trim()
@@ -48,6 +31,30 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  const normalizedIdentifier = loginIdentifier.toLowerCase();
+  const rateLimitKey = `login:${clientIp}:${encodeURIComponent(normalizedIdentifier)}`;
+  const rateLimit = await checkPersistentRateLimit(rateLimitKey, "auth");
+
+  if (!rateLimit.allowed) {
+    await sendSecurityAlert({
+      event: "login_rate_limited",
+      severity: "high",
+      ip: clientIp,
+      identifier: loginIdentifier,
+      cooldownMs: 15 * 60 * 1000,
+    });
+
+    return NextResponse.json(
+      { error: `יותר מדי ניסיונות התחברות. נסה שוב בעוד ${formatResetIn(rateLimit.resetIn)}.` },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rateLimit.resetIn / 1000)) },
+      }
+    );
+  }
+
+  await ensureSeed();
 
   let user = await getUserByEmail(loginIdentifier);
   if (!user) {
@@ -77,6 +84,8 @@ export async function POST(req: NextRequest) {
       { status: 403 }
     );
   }
+
+  await clearPersistentRateLimitEntry(rateLimitKey);
 
   await setSession({
     id: user.id,

@@ -48,13 +48,32 @@ export async function POST(req: NextRequest) {
     }
 
     const logId = uuid();
-    await db.execute({
-      sql: `INSERT INTO steps_logs (id, user_id, steps, screenshot_url, logged_at)
-            VALUES (?, ?, ?, ?, datetime('now'))`,
-      args: [logId, user.id, steps, ""],
-    });
+    const { startUtc, endUtc } = getDayRangeUtc(getTodayDayKey());
+    const results = await db.batch([
+      {
+        sql: `INSERT INTO steps_logs (id, user_id, steps, screenshot_url, logged_at)
+              VALUES (
+                ?,
+                ?,
+                MAX(?, COALESCE((
+                  SELECT MAX(steps) FROM steps_logs
+                  WHERE user_id = ? AND logged_at >= ? AND logged_at < ?
+                ), 0)),
+                ?,
+                datetime('now')
+              )
+              RETURNING steps`,
+        args: [logId, user.id, steps, user.id, startUtc, endUtc, ""],
+      },
+      {
+        sql: `DELETE FROM steps_logs
+              WHERE user_id = ? AND logged_at >= ? AND logged_at < ? AND id != ?`,
+        args: [user.id, startUtc, endUtc, logId],
+      },
+    ], "write");
+    const savedSteps = Number(results[0].rows[0]?.steps ?? steps);
 
-    return NextResponse.json({ steps });
+    return NextResponse.json({ steps: savedSteps });
   } catch (error) {
     console.error("Steps analysis error:", error);
     return NextResponse.json({ error: "שגיאה בקריאת הצעדים" }, { status: 500 });

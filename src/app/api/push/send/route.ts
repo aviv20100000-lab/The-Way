@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db from "@/lib/db";
 import { ensureSeed } from "@/lib/seed";
+import { isExpiredPushSubscription, logPushFailure } from "@/lib/push-errors";
 import webpush from "web-push";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Encode non-ASCII as \uXXXX so Hebrew survives push encryption intact
-  const payload = JSON.stringify({ title, body, icon: "/icon-192.png", debug: !!debug })
+  const payload = JSON.stringify({ title, body, icon: "/icon-192.png", url: "/client", debug: !!debug })
     .replace(/[^\x00-\x7F]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
   let sent = 0;
 
@@ -49,10 +50,14 @@ export async function POST(req: NextRequest) {
         payload
       );
       sent++;
-    } catch {
-      // Remove expired subscription — by id, because the same device can hold
-      // another account's subscription with the identical endpoint.
-      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id=?", args: [sub.id as string] });
+    } catch (error) {
+      if (isExpiredPushSubscription(error)) {
+        // Remove expired subscription — by id, because the same device can hold
+        // another account's subscription with the identical endpoint.
+        await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id=?", args: [sub.id as string] });
+      } else {
+        logPushFailure("push send", error);
+      }
     }
   }
 

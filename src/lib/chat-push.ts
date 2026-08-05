@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { isExpiredPushSubscription, logPushFailure } from "@/lib/push-errors";
 import webpush from "web-push";
 
 type PushSubscriptionRow = {
@@ -27,22 +28,30 @@ export async function pushToUsers(userIds: string[], payload: string) {
     args: userIds,
   })).rows as unknown as PushSubscriptionRow[];
 
-  for (const sub of rows) {
-    try {
-      await webpush.sendNotification(
-        {
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh, auth: sub.auth },
-        },
-        payload
-      );
-    } catch {
-      // By id, not by endpoint: the same device may hold another account's
-      // subscription, and that row is not ours to delete.
-      await db.execute({
-        sql: "DELETE FROM push_subscriptions WHERE id = ?",
-        args: [sub.id],
-      });
-    }
+  const concurrency = 5;
+  for (let index = 0; index < rows.length; index += concurrency) {
+    const batch = rows.slice(index, index + concurrency);
+    await Promise.allSettled(batch.map(async (sub) => {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          payload
+        );
+      } catch (error) {
+        if (isExpiredPushSubscription(error)) {
+          // By id, not by endpoint: the same device may hold another account's
+          // subscription, and that row is not ours to delete.
+          await db.execute({
+            sql: "DELETE FROM push_subscriptions WHERE id = ?",
+            args: [sub.id],
+          });
+        } else {
+          logPushFailure("chat push", error);
+        }
+      }
+    }));
   }
 }

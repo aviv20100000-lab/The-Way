@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCsrfToken } from "@/lib/csrf-client";
+import { subscribeCurrentDeviceToPush } from "@/lib/push-client";
 
 const CACHE_KEY = "way_client_home";
 
@@ -158,39 +159,14 @@ export function useClientHome() {
   }, []);
 
   const enableNotifications = useCallback(async () => {
-    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
     try {
-      const permission = await Notification.requestPermission();
-      setNotifStatus(permission as "granted" | "denied");
-      if (permission !== "granted") return;
-
-      const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!vapid) return;
-
-      function urlBase64ToUint8Array(base64String: string) {
-        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const rawData = atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-        return outputArray;
-      }
-
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapid),
-      });
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const csrfToken = await getCsrfToken();
-      if (csrfToken) headers["x-csrf-token"] = csrfToken;
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(sub),
-      });
-    } catch (e) {
-      console.error("Error enabling notifications:", e);
+      await subscribeCurrentDeviceToPush();
+      setNotifStatus("granted");
+    } catch (error) {
+      const permission = typeof Notification !== "undefined" ? Notification.permission : "default";
+      setNotifStatus(permission === "denied" ? "denied" : "unknown");
+      console.error("Error enabling notifications:", error);
+      throw error;
     }
   }, []);
 

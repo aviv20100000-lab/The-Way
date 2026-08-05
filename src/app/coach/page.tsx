@@ -13,8 +13,9 @@ import ClientListCard, { DEFAULT_GROUP_ID, type CoachClient, type CoachGroupOpti
 import DeleteTrainee from "@/components/coach/DeleteTrainee";
 import { welcomeMessage } from "@/lib/welcome-message";
 import SuccessToast from "@/components/SuccessToast";
+import ConnectSetup from "@/components/ConnectSetup";
 import { withCsrf } from "@/lib/csrf-client";
-import { currentPushEndpoint } from "@/lib/push-client";
+import { currentPushEndpoint, subscribeCurrentDeviceToPush } from "@/lib/push-client";
 import type { Gender } from "@/lib/types";
 
 const AddClientForm = dynamic(() => import("@/components/coach/AddClientForm"), {
@@ -193,6 +194,9 @@ export default function CoachPage() {
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState("");
   const [testingPush, setTestingPush] = useState(false);
+  const [coachNotifStatus, setCoachNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
+  const [coachIsPwa, setCoachIsPwa] = useState(false);
+  const [coachPushReady, setCoachPushReady] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -362,6 +366,28 @@ export default function CoachPage() {
   }, [loadClients, loadGroupOptions]);
 
   useEffect(() => {
+    setCoachIsPwa(window.matchMedia("(display-mode: standalone)").matches);
+    if (!("Notification" in window)) {
+      setCoachPushReady(true);
+      return;
+    }
+    if (Notification.permission === "denied") {
+      setCoachNotifStatus("denied");
+      setCoachPushReady(true);
+      return;
+    }
+    if (Notification.permission !== "granted") {
+      setCoachPushReady(true);
+      return;
+    }
+
+    subscribeCurrentDeviceToPush({ requestPermission: false })
+      .then(() => setCoachNotifStatus("granted"))
+      .catch((error) => console.error("Error syncing coach notifications:", error))
+      .finally(() => setCoachPushReady(true));
+  }, []);
+
+  useEffect(() => {
     if (tab === "quotes") loadQuotes();
     if (tab === "food") loadFoodLogs();
   }, [tab, loadQuotes, loadFoodLogs]);
@@ -517,6 +543,18 @@ export default function CoachPage() {
       setPushResult(data.ok ? `✅ ${data.message}` : `❌ ${data.error ?? data.message}`);
     } finally {
       setTestingPush(false);
+    }
+  }
+
+  async function enableCoachNotifications() {
+    try {
+      await subscribeCurrentDeviceToPush();
+      setCoachNotifStatus("granted");
+    } catch (error) {
+      if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        setCoachNotifStatus("denied");
+      }
+      throw error;
     }
   }
 
@@ -1199,6 +1237,14 @@ export default function CoachPage() {
       </main>
 
       <SuccessToast message={successMessage} onDismiss={() => setSuccessMessage(null)} />
+      {coachPushReady && (
+        <ConnectSetup
+          audience="coach"
+          notifStatus={coachNotifStatus}
+          isPwa={coachIsPwa}
+          enableNotifications={enableCoachNotifications}
+        />
+      )}
 
       <AnimatePresence>
         {pendingQuoteDelete && (

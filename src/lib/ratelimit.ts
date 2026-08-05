@@ -132,6 +132,14 @@ export async function checkPersistentRateLimit(
   };
 }
 
+export async function clearPersistentRateLimitEntry(key: string): Promise<void> {
+  await initDb();
+  await db.execute({
+    sql: "DELETE FROM rate_limits WHERE key = ?",
+    args: [key],
+  });
+}
+
 // Give one unit of quota back. Quota is consumed up front, before the work it
 // pays for runs, so a request that fails without delivering anything would
 // otherwise still cost the user — painful on a small daily budget like the three

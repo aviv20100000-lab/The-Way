@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import webpush from "web-push";
 import crypto from "crypto";
 import { sendTelegramAlert } from "@/lib/telegram";
+import { isExpiredPushSubscription, logPushFailure } from "@/lib/push-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ async function handle(req: NextRequest) {
     title: "⚖️ זמן להישקל",
     body: "מיד אחרי שקמת ולפני ששתית מים\nככה מקבלים את המספר הכי מדויק 💧🚽\nמחזיקים לך אצבעות 🤞",
     icon: "/icon-192.png",
+    url: "/client",
   });
 
   let sent = 0;
@@ -69,11 +71,15 @@ async function handle(req: NextRequest) {
         payload
       );
       sent++;
-    } catch {
+    } catch (error) {
       failed++;
       failedNames.push(`${row.user_name} (${row.user_username})`);
-      // By id: the endpoint may be shared with another account on that device.
-      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id = ?", args: [row.id as string] });
+      if (isExpiredPushSubscription(error)) {
+        // By id: the endpoint may be shared with another account on that device.
+        await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id = ?", args: [row.id as string] });
+      } else {
+        logPushFailure("weigh-in reminder push", error);
+      }
     }
   }
 

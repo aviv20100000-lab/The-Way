@@ -39,6 +39,7 @@ export function useFoodTracking() {
   const scanSnapshotRef = useRef<{ name: string; estimated_weight_g: number; calories: number }[] | null>(null);
   const [mealSaved, setMealSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [myMeals, setMyMeals] = useState<MyMeal[]>([]);
+  const [mealDeleteError, setMealDeleteError] = useState("");
   const [todayCalories, setTodayCalories] = useState(0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(null);
   const [proteinGoal, setProteinGoal] = useState<number | null>(null);
@@ -276,16 +277,31 @@ export function useFoodTracking() {
   }, []);
 
   const deleteMeal = useCallback(async (id: string, source: "ai" | "quick" = "ai") => {
+    const deletedIndex = myMeals.findIndex((meal) => meal.id === id);
+    const deletedMeal = deletedIndex >= 0 ? myMeals[deletedIndex] : null;
+    setMealDeleteError("");
     setMyMeals((prev) => prev.filter((m) => m.id !== id));
     try {
       const { withCsrf } = await import("@/lib/csrf-client");
       const endpoint = source === "quick" ? `/api/meals/quick/${id}` : `/api/foods/meals/${id}`;
-      await fetch(endpoint, { method: "DELETE", headers: await withCsrf({}) });
-    } catch (e) {
-      console.error("Error deleting meal:", e);
-      loadMyMeals(true);
+      const response = await fetch(endpoint, { method: "DELETE", headers: await withCsrf({}) });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(typeof data.error === "string" ? data.error : "מחיקת הארוחה נכשלה");
+      }
+    } catch (error) {
+      console.error("Error deleting meal:", error);
+      if (deletedMeal) {
+        setMyMeals((current) => {
+          if (current.some((meal) => meal.id === deletedMeal.id)) return current;
+          const restored = [...current];
+          restored.splice(Math.min(deletedIndex, restored.length), 0, deletedMeal);
+          return restored;
+        });
+      }
+      setMealDeleteError(error instanceof Error ? error.message : "לא הצלחנו למחוק את הארוחה");
     }
-  }, [loadMyMeals]);
+  }, [myMeals]);
 
   // Uploads the photo that was just scanned and returns its URL, or "" if there is
   // nothing to upload or the upload failed. Never throws: a picture is a nice-to-
@@ -449,6 +465,7 @@ export function useFoodTracking() {
     scanLimitReached,
     mealSaved,
     myMeals,
+    mealDeleteError,
     todayCalories,
     calorieGoal,
     proteinGoal,

@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
+import { defaultGroupReadKey } from "@/lib/chat-reads";
 
 type MessageRow = { id: string } & Record<string, unknown>;
 
@@ -19,6 +20,7 @@ export async function GET() {
     const selfRes = await db.execute({ sql: "SELECT dm_coach_only FROM users WHERE id = ?", args: [user.id] });
     const dmCoachOnly = Number(selfRes.rows[0]?.dm_coach_only ?? 0) === 1;
     const canSeeDefaultGroup = Boolean(coachId) && inDefaultGroup && !dmCoachOnly;
+    const defaultGroupKey = coachId ? defaultGroupReadKey(coachId) : "";
 
     const contactsPromise = coachId
       ? db.execute(
@@ -48,8 +50,11 @@ export async function GET() {
                   AND group_id IS NULL
                   AND sender_id != ?
                   AND (sender_id = ? OR sender_id IN (SELECT id FROM users WHERE coach_id = ?))
-                  AND is_read = 0`,
-          args: [user.id, coachId, coachId],
+                  AND sent_at > COALESCE(
+                    (SELECT last_read_at FROM chat_group_reads WHERE user_id = ? AND channel_key = ?),
+                    '1970-01-01 00:00:00'
+                  )`,
+          args: [user.id, coachId, coachId, user.id, defaultGroupKey],
         })
       : Promise.resolve({ rows: [{ count: 0 }] });
 
@@ -67,7 +72,7 @@ export async function GET() {
                     m.sender_id = ?
                     OR m.sender_id IN (SELECT id FROM users WHERE coach_id = ?)
                   )
-                ORDER BY m.sent_at ASC
+                ORDER BY m.sent_at DESC
                 LIMIT 100`,
           args: [coachId, coachId],
         })
@@ -75,16 +80,35 @@ export async function GET() {
 
     const namedGroupsPromise = user.role === "coach"
       ? db.execute({
-          sql: "SELECT id, name, image_url AS imageUrl FROM chat_groups WHERE coach_id = ? ORDER BY created_at DESC",
-          args: [user.id],
+          sql: `SELECT g.id, g.name, g.image_url AS imageUrl,
+                       (SELECT COUNT(*) FROM chat_messages m
+                        WHERE m.group_id = g.id
+                          AND m.sender_id != ?
+                          AND m.sent_at > COALESCE(
+                            (SELECT last_read_at FROM chat_group_reads
+                             WHERE user_id = ? AND channel_key = 'named:' || g.id),
+                            '1970-01-01 00:00:00'
+                          )) AS unread_count
+                FROM chat_groups g
+                WHERE g.coach_id = ?
+                ORDER BY g.created_at DESC`,
+          args: [user.id, user.id, user.id],
         })
       : db.execute({
-          sql: `SELECT g.id, g.name, g.image_url AS imageUrl
+          sql: `SELECT g.id, g.name, g.image_url AS imageUrl,
+                       (SELECT COUNT(*) FROM chat_messages m
+                        WHERE m.group_id = g.id
+                          AND m.sender_id != ?
+                          AND m.sent_at > COALESCE(
+                            (SELECT last_read_at FROM chat_group_reads
+                             WHERE user_id = ? AND channel_key = 'named:' || g.id),
+                            '1970-01-01 00:00:00'
+                          )) AS unread_count
                 FROM chat_groups g
                 JOIN chat_group_members gm ON gm.group_id = g.id
                 WHERE gm.user_id = ?
                 ORDER BY g.created_at DESC`,
-          args: [user.id],
+          args: [user.id, user.id, user.id],
         });
 
     const selfAvatarPromise = db.execute({
@@ -106,31 +130,26 @@ export async function GET() {
       defaultGroupNamePromise,
     ]);
 
-    if (canSeeDefaultGroup) {
-      await db.execute({
-        sql: `UPDATE chat_messages SET is_read = 1
-              WHERE receiver_id IS NULL
-                AND group_id IS NULL
-                AND sender_id != ?
-                AND (sender_id = ? OR sender_id IN (SELECT id FROM users WHERE coach_id = ?))
-                AND is_read = 0`,
-        args: [user.id, coachId, coachId],
-      });
-    }
-
     const unreadMap: Record<string, number> = {};
     for (const row of unreadRes.rows) {
       unreadMap[row.sender_id as string] = Number(row.count);
     }
 
-    const messages = await attachChatReactions(groupMessagesRes.rows as unknown as MessageRow[], user.id);
+    const recentRows = Array.from(groupMessagesRes.rows).reverse() as unknown as MessageRow[];
+    const messages = await attachChatReactions(recentRows, user.id);
+    const namedGroups = namedGroupsRes.rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      imageUrl: row.imageUrl ? String(row.imageUrl) : null,
+      unreadCount: Number(row.unread_count ?? 0),
+    }));
 
     return NextResponse.json({
       user: { ...user, avatar_url: selfAvatarRes.rows[0]?.avatar_url ?? null },
       contacts: contactsRes.rows,
       unreadMap,
       groupUnread: Number(groupUnreadRes.rows[0]?.count ?? 0),
-      namedGroups: namedGroupsRes.rows,
+      namedGroups,
       defaultGroupName: (defaultGroupNameRes.rows[0]?.default_group_name as string | null) ?? null,
       inDefaultGroup: canSeeDefaultGroup,
       messages,

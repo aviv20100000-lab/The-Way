@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import webpush from "web-push";
 import crypto from "crypto";
 import { sendTelegramAlert } from "@/lib/telegram";
+import { isExpiredPushSubscription, logPushFailure } from "@/lib/push-errors";
 import type { Gender } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -111,17 +112,21 @@ async function handle(req: NextRequest) {
     for (const sub of subs) {
       try {
         const { title, body } = buildMessage(temp, (sub.user_gender as Gender | null) ?? null);
-        const payload = JSON.stringify({ title, body, icon: "/icon-192.png" });
+        const payload = JSON.stringify({ title, body, icon: "/icon-192.png", url: "/client/water" });
         await webpush.sendNotification(
           { endpoint: sub.endpoint as string, keys: { p256dh: sub.p256dh as string, auth: sub.auth as string } },
           payload
         );
         sent++;
-      } catch {
+      } catch (error) {
         failed++;
         failedNames.push(`${sub.user_name} (${sub.user_username})`);
-        // By id: the endpoint may be shared with another account on that device.
-        await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id=?", args: [sub.id as string] });
+        if (isExpiredPushSubscription(error)) {
+          // By id: the endpoint may be shared with another account on that device.
+          await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id=?", args: [sub.id as string] });
+        } else {
+          logPushFailure("water reminder push", error);
+        }
       }
     }
 
@@ -129,7 +134,7 @@ async function handle(req: NextRequest) {
       `✅ <b>Water Reminder</b> — נשלח\n` +
       `🌡️ טמפרטורה: ${Math.round(temp)}°\n` +
       `📨 נשלח ל: ${sent} משתמשים\n` +
-      `❌ נכשל (subscription נמחקה): ${failed}${failedNames.length ? ` — ${failedNames.join(", ")}` : ""}\n` +
+      `❌ נכשל: ${failed}${failedNames.length ? ` — ${failedNames.join(", ")}` : ""}\n` +
       `📋 סה"כ subscriptions: ${subs.length}`
     );
 

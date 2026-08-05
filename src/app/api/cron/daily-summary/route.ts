@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import webpush from "web-push";
 import crypto from "crypto";
 import { sendTelegramAlert } from "@/lib/telegram";
+import { isExpiredPushSubscription, logPushFailure } from "@/lib/push-errors";
 import { getDailySummary, getYesterdayDayKey, getTodayDayKey } from "@/lib/daily-summary";
 import type { DailySummaryItem } from "@/lib/daily-summary";
 
@@ -113,6 +114,7 @@ async function handle(req: NextRequest) {
       title: "📋 סיכום יומי",
       body,
       icon: "/icon-192.png",
+      url: "/coach",
     });
 
     const subs = (await db.execute({
@@ -140,13 +142,17 @@ async function handle(req: NextRequest) {
           payload
         );
         notificationsSent++;
-      } catch {
+      } catch (error) {
         notificationsFailed++;
-        await db.execute({
-          // By id: the endpoint may be shared with another account on that device.
-          sql: "DELETE FROM push_subscriptions WHERE id = ?",
-          args: [String(sub.id)],
-        });
+        if (isExpiredPushSubscription(error)) {
+          await db.execute({
+            // By id: the endpoint may be shared with another account on that device.
+            sql: "DELETE FROM push_subscriptions WHERE id = ?",
+            args: [String(sub.id)],
+          });
+        } else {
+          logPushFailure("daily summary push", error);
+        }
       }
     }
 

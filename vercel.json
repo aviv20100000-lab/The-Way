@@ -3,19 +3,23 @@
   "crons": [
     {
       "path": "/api/cron/good-morning",
-      "schedule": "0 7 * * *"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/water-reminder",
-      "schedule": "0 9 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/health-check",
-      "schedule": "0 7 * * *"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/weigh-in-reminder",
-      "schedule": "0 6 * * 0"
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/daily-summary",
+      "schedule": "0 4 * * *"
     }
   ]
 }

@@ -63,11 +63,13 @@ export async function POST(req: NextRequest) {
 
     const resetToken = await generateResetToken(user.id, user.email);
     const resetLink = `${req.nextUrl.origin}/reset-password?token=${resetToken}`;
-    await sendTelegramAlert(
+    const telegramSent = await sendTelegramAlert(
       `<b>בקשת איפוס סיסמה</b>\nשם: ${escapeHtml(user.name)}\nאימייל: ${escapeHtml(user.email)}\n${resetLink}`
     );
     const responseBody: { message: string; resetLink?: string } = {
-      ...RESET_RESPONSE,
+      message: telegramSent
+        ? RESET_RESPONSE.message
+        : "לא הצלחנו להעביר את בקשת האיפוס. פנה למאמן שלך.",
     };
 
     if (process.env.NODE_ENV !== "production") {

@@ -24,6 +24,10 @@ export async function GET() {
   }
 
   await initDb();
+  await db.execute({
+    sql: "DELETE FROM coach_activity_reads WHERE coach_id = ? AND read_at < datetime('now', '-30 days')",
+    args: [coach.id],
+  });
 
   const [activityRes, readsRes] = await Promise.all([
     db.execute({

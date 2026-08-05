@@ -33,7 +33,7 @@ const db = {
 // Bump this whenever a migration is added below. If you forget, REQUIRED_USER_COLUMNS
 // (near hasColumn, below) is the second safety net for new users.* columns specifically —
 // but it only covers columns listed there, so still bump this for every migration.
-const SCHEMA_VERSION = 21; // 21: gender column (commit 9d15788) shipped without bumping this — prod never ran the ALTER
+const SCHEMA_VERSION = 22; // 22: per-user group chat read state
 
 // The schema setup below is idempotent but issues several remote round-trips.
 // Cache it so it runs at most once per server process instead of on every
@@ -462,6 +462,13 @@ async function runInit() {
       PRIMARY KEY (group_id, user_id)
     );
 
+    CREATE TABLE IF NOT EXISTS chat_group_reads (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      channel_key TEXT NOT NULL,
+      last_read_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, channel_key)
+    );
+
     CREATE TABLE IF NOT EXISTS chat_message_reactions (
       message_id TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
       user_id TEXT NOT NULL REFERENCES users(id),
@@ -790,6 +797,33 @@ async function runInit() {
   });
 
   await addGenericColumnIfMissing("assistant_preferences", "profile_json", "profile_json TEXT NOT NULL DEFAULT '{}'");
+
+  // Existing users should not receive a flood of historical group messages as
+  // unread when the per-user read-state table first reaches production.
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO chat_group_reads (user_id, channel_key, last_read_at)
+          SELECT id, 'default:' || id, datetime('now')
+          FROM users
+          WHERE role = 'coach'
+          UNION ALL
+          SELECT id, 'default:' || coach_id, datetime('now')
+          FROM users
+          WHERE role = 'client'
+            AND coach_id IS NOT NULL
+            AND in_default_group = 1
+            AND dm_coach_only = 0`,
+    args: [],
+  });
+
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO chat_group_reads (user_id, channel_key, last_read_at)
+          SELECT coach_id, 'named:' || id, datetime('now')
+          FROM chat_groups
+          UNION ALL
+          SELECT gm.user_id, 'named:' || gm.group_id, datetime('now')
+          FROM chat_group_members gm`,
+    args: [],
+  });
 
   // One-time carry-over of the old single-slot marks (menu_meals.selected_option_id)
   // into the dated selections table, using the day the mark was made. Idempotent:

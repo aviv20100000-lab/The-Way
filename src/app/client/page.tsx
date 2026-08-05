@@ -112,7 +112,7 @@ export default function ClientPage() {
   // Hooks
   const { user, isLoading, logout } = useAuth();
   const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, weighInFrequencyWeeks, weighInWeekday, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
-  const { analyzing, aiResult, foodError, scanLimitReached, mealSaved, myMeals, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
+  const { analyzing, aiResult, foodError, scanLimitReached, mealSaved, myMeals, mealDeleteError, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, hasCompetition, competitionGroupName, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
@@ -623,6 +623,12 @@ export default function ClientPage() {
             {/* The calorie goal already appears inside the calorie card below, so only
                 the protein goal is surfaced here. */}
             {proteinGoal && <p className="text-xs text-[#8e9379]">יעד חלבון: {proteinGoal} גרם ביום</p>}
+
+            {mealDeleteError && (
+              <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+                {mealDeleteError}
+              </p>
+            )}
 
             <MealHistory
               meals={myMeals}

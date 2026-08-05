@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
@@ -6,8 +6,14 @@ import { sendSecurityAlert } from "@/lib/security-alerts";
 import { pushToUsers, setupVapid } from "@/lib/chat-push";
 import { canAccessDefaultGroup, getDefaultGroupMemberIds, isGroupMember, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
+import { defaultGroupReadKey, markGroupRead, namedGroupReadKey } from "@/lib/chat-reads";
 
 type MessageRow = { id: string } & Record<string, unknown>;
+
+function chronologicalRows(rows: Iterable<unknown>, incremental: boolean): MessageRow[] {
+  const ordered = Array.from(rows) as MessageRow[];
+  return incremental ? ordered : ordered.reverse();
+}
 
 // GET /api/chat/messages?type=group|private&with=userId
 export async function GET(req: NextRequest) {
@@ -21,6 +27,15 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get("type") ?? "group";
     const withUserId = searchParams.get("with");
     const groupId = searchParams.get("groupId");
+    const rawAfterId = searchParams.get("afterId")?.trim() ?? "";
+    if (rawAfterId.length > 100) {
+      return NextResponse.json({ error: "afterId לא תקין" }, { status: 400 });
+    }
+    const afterId = rawAfterId || null;
+    const cursorSql = afterId
+      ? "AND m.rowid > COALESCE((SELECT rowid FROM chat_messages WHERE id = ?), 0)"
+      : "";
+    const orderSql = afterId ? "ORDER BY m.rowid ASC" : "ORDER BY m.sent_at DESC";
 
     if (type === "namedGroup") {
       if (!groupId) return NextResponse.json({ error: "חסר groupId" }, { status: 400 });
@@ -44,17 +59,15 @@ export async function GET(req: NextRequest) {
               FROM chat_messages m
               JOIN users u ON u.id = m.sender_id
               WHERE m.group_id = ?
-              ORDER BY m.sent_at ASC
+              ${cursorSql}
+              ${orderSql}
               LIMIT 100`,
-        args: [groupId],
+        args: [groupId, ...(afterId ? [afterId] : [])],
       });
 
-      await db.execute({
-        sql: `UPDATE chat_messages SET is_read = 1
-              WHERE group_id = ? AND sender_id != ? AND is_read = 0`,
-        args: [groupId, user.id],
-      });
-      const messages = await attachChatReactions(result.rows as unknown as MessageRow[], user.id);
+      await markGroupRead(user.id, namedGroupReadKey(groupId));
+      const recentRows = chronologicalRows(result.rows, Boolean(afterId));
+      const messages = await attachChatReactions(recentRows, user.id);
       return NextResponse.json({ messages });
     }
 
@@ -93,9 +106,10 @@ export async function GET(req: NextRequest) {
               JOIN users u ON u.id = m.sender_id
               WHERE ((m.sender_id = ? AND m.receiver_id = ?)
                  OR  (m.sender_id = ? AND m.receiver_id = ?))
-              ORDER BY m.sent_at ASC
+              ${cursorSql}
+              ${orderSql}
               LIMIT 100`,
-        args: [user.id, withUserId, withUserId, user.id],
+        args: [user.id, withUserId, withUserId, user.id, ...(afterId ? [afterId] : [])],
       });
 
       await db.execute({
@@ -104,7 +118,8 @@ export async function GET(req: NextRequest) {
         args: [withUserId, user.id],
       });
 
-      const messages = await attachChatReactions(result.rows as unknown as MessageRow[], user.id);
+      const recentRows = chronologicalRows(result.rows, Boolean(afterId));
+      const messages = await attachChatReactions(recentRows, user.id);
       return NextResponse.json({ messages });
     }
 
@@ -128,22 +143,16 @@ export async function GET(req: NextRequest) {
                 m.sender_id = ?
                 OR m.sender_id IN (SELECT id FROM users WHERE coach_id = ?)
               )
-            ORDER BY m.sent_at ASC
+            ${cursorSql}
+            ${orderSql}
             LIMIT 100`,
-      args: [coachId, coachId],
+      args: [coachId, coachId, ...(afterId ? [afterId] : [])],
     });
 
-    await db.execute({
-      sql: `UPDATE chat_messages SET is_read = 1
-            WHERE receiver_id IS NULL
-              AND group_id IS NULL
-              AND sender_id != ?
-              AND (sender_id = ? OR sender_id IN (SELECT id FROM users WHERE coach_id = ?))
-              AND is_read = 0`,
-      args: [user.id, coachId, coachId],
-    });
+    await markGroupRead(user.id, defaultGroupReadKey(coachId));
 
-    const messages = await attachChatReactions(result.rows as unknown as MessageRow[], user.id);
+    const recentRows = chronologicalRows(result.rows, Boolean(afterId));
+    const messages = await attachChatReactions(recentRows, user.id);
     return NextResponse.json({ messages });
   } catch (err) {
     console.error("[chat/messages GET]", err);
@@ -235,32 +244,36 @@ export async function POST(req: NextRequest) {
       args: [id, user.id, hasReceiver ? receiver_id as string : null, hasGroup ? group_id as string : null, content.trim()],
     });
 
-    try {
-      setupVapid();
-      const senderName = (user as { name?: string }).name ?? "מישהו";
-      const preview = content.trim().slice(0, 80);
-      const payload = JSON.stringify({ title: `💬 ${senderName}`, body: preview, icon: "/icon-192.png" });
+    const senderId = user.id;
+    const senderName = (user as { name?: string }).name ?? "מישהו";
+    const preview = content.trim().slice(0, 80);
+    const payload = JSON.stringify({ title: `💬 ${senderName}`, body: preview, icon: "/icon-192.png", url: "/chat" });
 
-      if (hasReceiver && typeof receiver_id === "string") {
-        await pushToUsers([receiver_id], payload);
-      } else if (hasGroup && typeof group_id === "string") {
-        const membersRes = await db.execute({
-          sql: `SELECT coach_id AS id FROM chat_groups WHERE id = ?
-                UNION
-                SELECT user_id AS id FROM chat_group_members WHERE group_id = ?`,
-          args: [group_id, group_id],
-        });
-        const memberIds = (membersRes.rows as unknown as { id: string }[])
-          .map((row) => row.id)
-          .filter((memberId) => memberId !== user.id);
-        await pushToUsers(memberIds, payload);
-      } else {
-        const memberIds = (await getDefaultGroupMemberIds(coachId)).filter((memberId) => memberId !== user.id);
-        await pushToUsers(memberIds, payload);
+    after(async () => {
+      try {
+        setupVapid();
+
+        if (hasReceiver && typeof receiver_id === "string") {
+          await pushToUsers([receiver_id], payload);
+        } else if (hasGroup && typeof group_id === "string") {
+          const membersRes = await db.execute({
+            sql: `SELECT coach_id AS id FROM chat_groups WHERE id = ?
+                  UNION
+                  SELECT user_id AS id FROM chat_group_members WHERE group_id = ?`,
+            args: [group_id, group_id],
+          });
+          const memberIds = (membersRes.rows as unknown as { id: string }[])
+            .map((row) => row.id)
+            .filter((memberId) => memberId !== senderId);
+          await pushToUsers(memberIds, payload);
+        } else {
+          const memberIds = (await getDefaultGroupMemberIds(coachId)).filter((memberId) => memberId !== senderId);
+          await pushToUsers(memberIds, payload);
+        }
+      } catch (pushErr) {
+        console.error("[chat/messages push]", pushErr);
       }
-    } catch (pushErr) {
-      console.error("[chat/messages push]", pushErr);
-    }
+    });
 
     return NextResponse.json({ id });
   } catch (err) {

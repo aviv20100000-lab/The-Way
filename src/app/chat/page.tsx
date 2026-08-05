@@ -21,10 +21,10 @@ const AssistantChatReview = dynamic(() => import("@/components/coach/AssistantCh
   loading: () => <div className="skeleton h-full min-h-80 rounded-3xl" />,
 });
 
-function Avatar({ username, name, avatarUrl, size = 44 }: { username?: string; name: string; avatarUrl?: string | null; size?: number }) {
+function Avatar({ name, avatarUrl, size = 44 }: { name: string; avatarUrl?: string | null; size?: number }) {
   const [failed, setFailed] = useState(false);
   const initials = name.slice(0, 1);
-  const imageSource = avatarUrl || (username ? `/avatars/${username}.jpg` : null);
+  const imageSource = avatarUrl;
 
   useEffect(() => setFailed(false), [imageSource]);
 
@@ -68,7 +68,7 @@ function GroupPhoto({ imageUrl, name }: { imageUrl?: string | null; name: string
 
 interface User { id: string; name: string; role: "coach" | "client"; username: string; avatar_url?: string | null; }
 interface Contact { id: string; name: string; role: "coach" | "client"; username: string; avatar_url?: string | null; }
-interface NamedGroup { id: string; name: string; imageUrl?: string | null; }
+interface NamedGroup { id: string; name: string; imageUrl?: string | null; unreadCount?: number; }
 interface Reaction { emoji: string; count: number; reactedByMe: boolean; }
 interface Message { id: string; sender_id: string; sender_name: string; sender_username?: string; sender_avatar_url?: string | null; content: string; image_url?: string; sent_at: string; is_read: number; pinned?: number | boolean; reactions?: Reaction[]; }
 type ChatMode =
@@ -200,7 +200,12 @@ function contactsEqual(a: Contact[], b: Contact[]) {
 
 function namedGroupsEqual(a: NamedGroup[], b: NamedGroup[]) {
   if (a.length !== b.length) return false;
-  return a.every((group, index) => group.id === b[index].id && group.name === b[index].name && group.imageUrl === b[index].imageUrl);
+  return a.every((group, index) =>
+    group.id === b[index].id &&
+    group.name === b[index].name &&
+    group.imageUrl === b[index].imageUrl &&
+    (group.unreadCount ?? 0) === (b[index].unreadCount ?? 0)
+  );
 }
 
 function messageActivitySignature(messages: Message[]): string {
@@ -415,23 +420,30 @@ export default function ChatPage() {
     } else {
       params.set("type", "group");
     }
+    const incremental = Boolean(opts?.silent && lastMsgId.current);
+    if (incremental && lastMsgId.current) params.set("afterId", lastMsgId.current);
     const res = await fetch(`/api/chat/messages?${params}`);
     if (!res.ok) return;
     const data = await res.json();
-    const msgs: Message[] = data.messages ?? [];
-    if (!opts?.silent) msgs.forEach((message) => initialMessageIds.current.add(message.id));
+    const incoming: Message[] = data.messages ?? [];
+    if (!opts?.silent) incoming.forEach((message) => initialMessageIds.current.add(message.id));
+    let existing = incremental ? messagesRef.current : [];
     const pendingOptimistic = pendingOptimisticMessage.current;
     if (pendingOptimistic) {
-      const confirmedMessage = [...msgs].reverse().find((message) =>
+      const confirmedMessage = [...incoming].reverse().find((message) =>
         message.sender_id === userRef.current?.id &&
         message.content === pendingOptimistic.content &&
         new Date(message.sent_at).getTime() >= pendingOptimistic.sentAt - 60000
       );
       if (confirmedMessage) {
         animatedMessageIds.current.add(confirmedMessage.id);
+        existing = existing.filter((message) => message.id !== pendingOptimistic.id);
         pendingOptimisticMessage.current = null;
       }
     }
+    const merged = new Map(existing.map((message) => [message.id, message]));
+    incoming.forEach((message) => merged.set(message.id, message));
+    const msgs = Array.from(merged.values());
     const newLastId = msgs[msgs.length - 1]?.id ?? null;
     const activityChanged = messageActivitySignature(msgs) !== messageActivitySignature(messagesRef.current);
     if (!opts?.silent || newLastId !== lastMsgId.current || activityChanged) {
@@ -450,6 +462,13 @@ export default function ChatPage() {
       groupUnreadRef.current = 0;
       setGroupUnread(0);
       persistCache({ groupUnread: 0 });
+    } else if (target.type === "namedGroup") {
+      const nextNamedGroups = namedGroupsRef.current.map((group) =>
+        group.id === target.group.id ? { ...group, unreadCount: 0 } : group
+      );
+      namedGroupsRef.current = nextNamedGroups;
+      setNamedGroups(nextNamedGroups);
+      persistCache({ namedGroups: nextNamedGroups });
     }
   }, [persistCache, scrollToBottom]);
 
@@ -465,14 +484,14 @@ export default function ChatPage() {
     loadMessages({ forMode: mode }).then(() => setLoading(false));
   }, [mode, loadMessages]);
 
-  // Separate intervals: messages every 5s, contacts (unread) every 20s
+  // Separate intervals: incremental messages every 12s, contacts (unread) every 20s
   useEffect(() => {
     const msgInterval = setInterval(() => {
       if (document.hidden || !userRef.current) return;
       if (modeRef.current.type === "assistant") return;
       if (modeRef.current.type === "assistantReview") return;
       loadMessages({ silent: true });
-    }, 5000);
+    }, 12000);
     const contactsInterval = setInterval(() => {
       if (document.hidden || !userRef.current) return;
       loadContacts();
@@ -659,7 +678,8 @@ export default function ChatPage() {
     setShowChat(false);
     clearSearch();
   };
-  const totalUnread = groupUnread + Object.values(unreadMap).reduce((a, b) => a + b, 0);
+  const namedGroupUnread = namedGroups.reduce((total, group) => total + (group.unreadCount ?? 0), 0);
+  const totalUnread = groupUnread + namedGroupUnread + Object.values(unreadMap).reduce((a, b) => a + b, 0);
   const isAssistantMode = mode.type === "assistant";
   const isAssistantReviewMode = mode.type === "assistantReview";
   const canPin = user?.role === "coach" && mode.type !== "private" && !isAssistantMode && !isAssistantReviewMode;
@@ -801,6 +821,11 @@ export default function ChatPage() {
           <div className={`truncate text-sm font-semibold ${isActive ? "text-[#c3f400]" : "text-white"}`}>{group.name}</div>
           <div className="truncate text-xs text-[#8e9379]">קבוצה פרטית</div>
         </div>
+        {(group.unreadCount ?? 0) > 0 && (
+          <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#c3f400] px-1 text-xs font-black text-[#161e00]">
+            {group.unreadCount}
+          </span>
+        )}
         {user.role === "coach" && (
           <button type="button"
             onClick={(event) => { event.stopPropagation(); void openEditGroupMembers(group); }}
@@ -825,7 +850,7 @@ export default function ChatPage() {
         className={`mx-3 my-2 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border p-4 text-right shadow-lg transition-all ${isActive ? "border-[#c3f400] bg-[#c3f400]/15" : "border-[#c3f400]/40 bg-gradient-to-l from-[#c3f400]/12 to-[#1e2020] hover:border-[#c3f400]/70"}`}
       >
         <div className="relative shrink-0">
-          <Avatar username={coachContact.username} name={coachContact.name} avatarUrl={coachContact.avatar_url} size={52} />
+          <Avatar name={coachContact.name} avatarUrl={coachContact.avatar_url} size={52} />
           <span className="absolute -bottom-1 -end-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#171919] bg-[#c3f400] text-xs">⭐</span>
         </div>
         <div className="min-w-0 flex-1">
@@ -871,7 +896,7 @@ export default function ChatPage() {
         onClick={() => selectChat({ type: "private", contact: c })}
         className={`mx-3 my-1 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border border-[#232a23] bg-[#121716] px-4 py-3.5 text-right transition-colors md:mx-0 md:my-0 md:w-full md:rounded-none md:border-0 md:bg-transparent ${isActive ? "bg-[#c3f400]/8 border-r-2 border-[#c3f400]" : "hover:bg-[#1e2020]"}`}
       >
-        <Avatar username={c.username} name={c.name} avatarUrl={c.avatar_url} />
+        <Avatar name={c.name} avatarUrl={c.avatar_url} />
         <div className="flex-1 min-w-0">
           <div className={`font-semibold text-sm truncate ${isActive ? "text-[#c3f400]" : "text-white"}`}>{c.name}</div>
           <div className="text-xs text-[#8e9379] truncate">{c.role === "coach" ? "מאמן" : "מתאמן"}</div>
@@ -953,7 +978,7 @@ export default function ChatPage() {
               className={`flex items-end gap-2 ${isMe ? "justify-start" : "justify-end"}`}
             >
               {isMe && (
-                <Avatar username={user.username} name={user.name} avatarUrl={user.avatar_url} size={30} />
+                <Avatar name={user.name} avatarUrl={user.avatar_url} size={30} />
               )}
               <div className={`max-w-[75%] flex flex-col gap-0.5 ${isMe ? "items-start" : "items-end"}`}>
                 {!isMe && <span className="text-xs text-[#8e9379] px-1">{msg.sender_name}</span>}
@@ -1059,7 +1084,7 @@ export default function ChatPage() {
                 </div>
               </div>
               {!isMe && (
-                <Avatar username={msg.sender_username} name={msg.sender_name} avatarUrl={msg.sender_avatar_url} size={30} />
+                <Avatar name={msg.sender_name} avatarUrl={msg.sender_avatar_url} size={30} />
               )}
             </motion.div>
           );

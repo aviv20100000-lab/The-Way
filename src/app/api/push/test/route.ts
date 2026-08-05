@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
+import { isExpiredPushSubscription, logPushFailure } from "@/lib/push-errors";
 import webpush from "web-push";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +26,14 @@ async function sendToSubs(subs: Sub[], payload: string) {
         payload
       );
       sent++;
-    } catch {
+    } catch (error) {
       failed++;
-      // By id: another account on the same device has its own row here.
-      await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id = ?", args: [sub.id] });
+      if (isExpiredPushSubscription(error)) {
+        // By id: another account on the same device has its own row here.
+        await db.execute({ sql: "DELETE FROM push_subscriptions WHERE id = ?", args: [sub.id] });
+      } else {
+        logPushFailure("push test", error);
+      }
     }
   }
   return { sent, failed };
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     if (rows.length === 0) return NextResponse.json({ ok: false, error: "אין subscriptions בכלל" });
 
-    const payload = JSON.stringify({ title: "🌅 בוקר טוב!", body: "בוקר טוב יא כאובים! 💪", icon: "/icon-192.png" });
+    const payload = JSON.stringify({ title: "🌅 בוקר טוב!", body: "בוקר טוב יא כאובים! 💪", icon: "/icon-192.png", url: "/" });
     const { sent, failed } = await sendToSubs(rows, payload);
     return NextResponse.json({ ok: sent > 0, sent, failed, total: rows.length, message: `נשלח ל-${sent} משתמשים` });
   }
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
 
   if (rows.length === 0) return NextResponse.json({ ok: false, error: "אין subscription — הפעל התראות בדף הבית תחילה" });
 
-  const payload = JSON.stringify({ title: "✅ בדיקת התראות", body: "ההתראות עובדות! 🎉", icon: "/icon-192.png" });
+  const payload = JSON.stringify({ title: "✅ בדיקת התראות", body: "ההתראות עובדות! 🎉", icon: "/icon-192.png", url: "/coach" });
   const { sent, failed } = await sendToSubs(rows, payload);
-  return NextResponse.json({ ok: sent > 0, sent, failed, total: rows.length, message: sent > 0 ? "התראת בדיקה נשלחה!" : "כל ה-subscriptions נכשלו ונמחקו" });
+  return NextResponse.json({ ok: sent > 0, sent, failed, total: rows.length, message: sent > 0 ? "התראת בדיקה נשלחה!" : "שליחת ההתראה נכשלה" });
 }

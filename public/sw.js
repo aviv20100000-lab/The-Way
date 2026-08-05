@@ -1,5 +1,5 @@
-// sw version: v6
-const SW_VERSION = "v6";
+// sw version: v7
+const SW_VERSION = "v7";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -33,11 +33,32 @@ self.addEventListener("push", (event) => {
       vibrate: [200, 100, 200],
       dir: "rtl",
       lang: "he",
+      data: { url: typeof data.url === "string" ? data.url : "/" },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow("/"));
+  const requestedUrl = event.notification.data?.url || "/";
+  let targetUrl = new URL("/", self.location.origin);
+  try {
+    const parsedUrl = new URL(requestedUrl, self.location.origin);
+    if (parsedUrl.origin === self.location.origin) targetUrl = parsedUrl;
+  } catch {}
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
+      const matchingWindow = windows.find((client) => client.url === targetUrl.href);
+      if (matchingWindow) return matchingWindow.focus();
+
+      const existingWindow = windows[0];
+      if (existingWindow) {
+        const navigatedWindow = await existingWindow.navigate(targetUrl.href);
+        return navigatedWindow?.focus();
+      }
+
+      return self.clients.openWindow(targetUrl.href);
+    })
+  );
 });

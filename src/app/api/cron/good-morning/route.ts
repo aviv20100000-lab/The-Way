@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import webpush from "web-push";
 import crypto from "crypto";
 import { sendTelegramAlert } from "@/lib/telegram";
+import { isExpiredPushSubscription, logPushFailure } from "@/lib/push-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ async function handle(req: NextRequest) {
     title: "🌅 בוקר טוב!",
     body: "בוקר טוב יא כאובים! 💪",
     icon: "/icon-192.png",
+    url: "/",
   });
 
   let sent = 0;
@@ -57,14 +59,18 @@ async function handle(req: NextRequest) {
         payload
       );
       sent++;
-    } catch {
+    } catch (error) {
       failed++;
       failedNames.push(`${sub.user_name} (${sub.user_username})`);
-      await db.execute({
-        // By id: the endpoint may be shared with another account on that device.
-        sql: "DELETE FROM push_subscriptions WHERE id = ?",
-        args: [sub.id as string],
-      });
+      if (isExpiredPushSubscription(error)) {
+        await db.execute({
+          // By id: the endpoint may be shared with another account on that device.
+          sql: "DELETE FROM push_subscriptions WHERE id = ?",
+          args: [sub.id as string],
+        });
+      } else {
+        logPushFailure("good morning push", error);
+      }
     }
   }
 

@@ -136,10 +136,23 @@ export function useClientHome() {
   useEffect(() => {
     loadHome();
     setIsPwa(window.matchMedia("(display-mode: standalone)").matches);
-    if ("Notification" in window) {
-      const perm = Notification.permission as string;
-      setNotifStatus(perm === "granted" ? "granted" : perm === "denied" ? "denied" : "unknown");
+    if (!("Notification" in window)) return;
+    const perm = Notification.permission as string;
+    if (perm === "denied") {
+      setNotifStatus("denied");
+      return;
     }
+    if (perm !== "granted") return;
+
+    // OS permission being "granted" only means the browser will show a
+    // notification if one arrives — it says nothing about whether the server
+    // still has a matching subscription row (it can be gone after a device
+    // change, a cleared service worker, or a stale row that never landed).
+    // Re-subscribe silently so "granted" in this UI actually means delivery
+    // works, not just that the permission prompt was answered once.
+    subscribeCurrentDeviceToPush({ requestPermission: false })
+      .then(() => setNotifStatus("granted"))
+      .catch((error) => console.error("Error syncing client notifications:", error));
   }, [loadHome]);
 
   const addWater = useCallback(async (ml: number) => {

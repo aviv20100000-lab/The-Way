@@ -486,10 +486,16 @@ export default function ChatPage() {
 
   // Separate intervals: incremental messages every 12s, contacts (unread) every 20s
   useEffect(() => {
+    let tick = 0;
     const msgInterval = setInterval(() => {
       if (document.hidden || !userRef.current) return;
       if (modeRef.current.type === "assistant") return;
       if (modeRef.current.type === "assistantReview") return;
+      tick += 1;
+      // Every 5th poll (~60s), do a full non-incremental resync so messages
+      // deleted by someone else disappear even from chats left open — the
+      // incremental afterId fetch only ever appends, it never removes.
+      if (tick % 5 === 0) lastMsgId.current = null;
       loadMessages({ silent: true });
     }, 12000);
     const contactsInterval = setInterval(() => {

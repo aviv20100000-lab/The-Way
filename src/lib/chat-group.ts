@@ -38,7 +38,7 @@ export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<Pr
   }
 
   const selfResult = await db.execute({
-    sql: "SELECT dm_coach_only FROM users WHERE id = ?",
+    sql: "SELECT dm_coach_only, in_default_group FROM users WHERE id = ?",
     args: [user.id],
   });
   const dmCoachOnly = Number(selfResult.rows[0]?.dm_coach_only ?? 0) === 1;
@@ -49,6 +49,7 @@ export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<Pr
     });
     return coachResult.rows as unknown as PrivateChatContact[];
   }
+  const inDefaultGroup = Number(selfResult.rows[0]?.in_default_group ?? 0) === 1;
 
   const result = await db.execute({
     sql: `SELECT DISTINCT u.id, u.name, u.role, u.username, u.avatar_url
@@ -58,15 +59,18 @@ export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<Pr
                u.role = 'client'
                AND u.coach_id = ?
                AND u.id != ?
-               AND EXISTS (
-                 SELECT 1
-                 FROM chat_group_members mine
-                 JOIN chat_group_members peer ON peer.group_id = mine.group_id
-                 WHERE mine.user_id = ? AND peer.user_id = u.id
+               AND (
+                 EXISTS (
+                   SELECT 1
+                   FROM chat_group_members mine
+                   JOIN chat_group_members peer ON peer.group_id = mine.group_id
+                   WHERE mine.user_id = ? AND peer.user_id = u.id
+                 )
+                 OR (? = 1 AND u.in_default_group = 1 AND u.dm_coach_only = 0)
                )
              )
           ORDER BY u.role DESC, u.name ASC`,
-    args: [coachId, coachId, user.id, user.id],
+    args: [coachId, coachId, user.id, user.id, inDefaultGroup ? 1 : 0],
   });
   return result.rows as unknown as PrivateChatContact[];
 }
@@ -83,7 +87,7 @@ export async function canAccessPrivateChat(actor: ChatUserIdentity, peer: ChatUs
   if (peer.role !== "client") return false;
 
   const selfResult = await db.execute({
-    sql: "SELECT dm_coach_only FROM users WHERE id = ?",
+    sql: "SELECT dm_coach_only, in_default_group FROM users WHERE id = ?",
     args: [actor.id],
   });
   if (Number(selfResult.rows[0]?.dm_coach_only ?? 0) === 1) return false;
@@ -96,7 +100,17 @@ export async function canAccessPrivateChat(actor: ChatUserIdentity, peer: ChatUs
           LIMIT 1`,
     args: [actor.id, peer.id],
   });
-  return sharedGroupResult.rows.length > 0;
+  if (sharedGroupResult.rows.length > 0) return true;
+
+  const actorInDefaultGroup = Number(selfResult.rows[0]?.in_default_group ?? 0) === 1;
+  if (!actorInDefaultGroup) return false;
+
+  const peerFlagsResult = await db.execute({
+    sql: "SELECT in_default_group, dm_coach_only FROM users WHERE id = ?",
+    args: [peer.id],
+  });
+  const peerFlags = peerFlagsResult.rows[0] as unknown as { in_default_group?: number; dm_coach_only?: number } | undefined;
+  return Number(peerFlags?.in_default_group ?? 0) === 1 && Number(peerFlags?.dm_coach_only ?? 0) === 0;
 }
 
 export async function isGroupOwner(groupId: string, coachUserId: string): Promise<boolean> {

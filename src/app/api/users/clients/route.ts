@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "נא למלא את כל השדות" }, { status: 400 });
   }
 
-  if (gender !== undefined && gender !== null && !isGender(gender)) {
-    return NextResponse.json({ error: "מין לא תקין" }, { status: 400 });
+  if (!isGender(gender)) {
+    return NextResponse.json({ error: "יש לבחור מין למתאמן" }, { status: 400 });
   }
 
   if (!validateName(name)) {

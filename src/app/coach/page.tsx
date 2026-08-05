@@ -415,6 +415,7 @@ export default function CoachPage() {
   async function addClient() {
     setAddError("");
     setAddWarning("");
+    if (!newClient.gender) { setAddError("יש לבחור מין למתאמן"); return; }
     const selectedGroupIds = [...newClient.groupIds];
     const res = await fetch("/api/users/clients", {
       method: "POST",

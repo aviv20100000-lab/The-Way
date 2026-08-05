@@ -10,7 +10,7 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const LIMITS = {
-  auth: { requests: 5, windowMs: 15 * 60 * 1000 }, // 5 requests per 15 minutes
+  auth: { requests: 10, windowMs: 15 * 60 * 1000 }, // 10 requests per 15 minutes — was 5, too easy to self-lock on a typo
   api: { requests: 100, windowMs: 60 * 1000 }, // 100 requests per minute
   admin: { requests: 10, windowMs: 60 * 1000 }, // 10 requests per minute
   assistant: { requests: 30, windowMs: DAY_MS }, // 30 bot messages per day

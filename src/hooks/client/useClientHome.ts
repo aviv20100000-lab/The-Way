@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCsrfToken } from "@/lib/csrf-client";
 import { subscribeCurrentDeviceToPush } from "@/lib/push-client";
+import { getTodayDayKey } from "@/lib/jerusalem-day";
 
 const CACHE_KEY = "way_client_home";
 
 type HomeCache = {
+  dayKey: string;
   quotes: string[];
   waterTotal: number;
   waterGoal: number;
@@ -40,7 +42,15 @@ function readCache(): HomeCache | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = sessionStorage.getItem(CACHE_KEY);
-    return raw ? (JSON.parse(raw) as HomeCache) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as HomeCache;
+    // A PWA can stay open across the Jerusalem midnight boundary without
+    // remounting. A cache written yesterday is worse than no cache — it would
+    // render as today's total (todayCalories included) until the fetch below
+    // resolves, so a trainee scanning a meal first thing sees yesterday's number
+    // plus the new meal.
+    if (parsed.dayKey !== getTodayDayKey()) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -105,6 +115,7 @@ export function useClientHome() {
       setDaysSinceSignup(data.days_since_signup ?? 0);
       setTotalSteps(data.total_steps ?? 0);
       writeCache({
+        dayKey: getTodayDayKey(),
         quotes: data.quotes ?? [],
         waterTotal: data.water?.total ?? 0,
         waterGoal: data.water?.goal ?? 2000,
@@ -137,13 +148,26 @@ export function useClientHome() {
   useEffect(() => {
     loadHome();
     setIsPwa(window.matchMedia("(display-mode: standalone)").matches);
-    if (!("Notification" in window)) return;
+    // Otherwise a PWA reopened after being backgrounded across midnight keeps
+    // showing whatever was on screen when it was last active — mount only runs
+    // once, so without this the trainee needs a hard reload to see today's data.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadHome();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    const cleanup = () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+
+    if (!("Notification" in window)) return cleanup;
     const perm = Notification.permission as string;
     if (perm === "denied") {
       setNotifStatus("denied");
-      return;
+      return cleanup;
     }
-    if (perm !== "granted") return;
+    if (perm !== "granted") return cleanup;
 
     // OS permission being "granted" only means the browser will show a
     // notification if one arrives — it says nothing about whether the server
@@ -154,6 +178,7 @@ export function useClientHome() {
     subscribeCurrentDeviceToPush({ requestPermission: false })
       .then(() => setNotifStatus("granted"))
       .catch((error) => console.error("Error syncing client notifications:", error));
+    return cleanup;
   }, [loadHome]);
 
   const addWater = useCallback(async (ml: number) => {

@@ -93,36 +93,42 @@ export async function GET() {
     ? Math.max(0, Math.floor((Date.now() - new Date(`${createdAt.replace(" ", "T")}Z`).getTime()) / 86400000))
     : 0;
 
-  return NextResponse.json({
-    quotes,
-    days_since_signup: daysSinceSignup,
-    total_steps: (totalStepsRes.rows[0]?.total_steps as number) || 0,
-    water: {
-      total: waterTotal,
-      goal: waterGoal,
-      streak: {
-        current_streak: streakRow.current_streak ?? 0,
-        last_completed_date: streakRow.last_completed_date ?? null,
-        best_streak: streakRow.best_streak ?? 0,
-        goal_reached_today: waterTotal >= waterGoal,
+  return NextResponse.json(
+    {
+      quotes,
+      days_since_signup: daysSinceSignup,
+      total_steps: (totalStepsRes.rows[0]?.total_steps as number) || 0,
+      water: {
+        total: waterTotal,
+        goal: waterGoal,
+        streak: {
+          current_streak: streakRow.current_streak ?? 0,
+          last_completed_date: streakRow.last_completed_date ?? null,
+          best_streak: streakRow.best_streak ?? 0,
+          goal_reached_today: waterTotal >= waterGoal,
+        },
+      },
+      steps: (stepsRes.rows[0]?.steps as number) || 0,
+      steps_goal: (goalsRes.rows[0]?.daily_steps as number) || 10000,
+      calories: {
+        total: Math.round((caloriesRes.rows[0]?.total_calories as number) ?? 0),
+        goal: calGoal,
+      },
+      calorie_goal_source: calorieGoalSource,
+      protein_goal: (goalsRes.rows[0]?.daily_protein_g as number) || null,
+      weigh_in_frequency_weeks: (goalsRes.rows[0]?.weigh_in_frequency_weeks as number) || null,
+      weigh_in_weekday: goalsRes.rows[0]?.weigh_in_weekday == null ? null : Number(goalsRes.rows[0].weigh_in_weekday),
+      goal_status: {
+        target_weight: goalsRow?.target_weight_kg != null,
+        calories: calGoal !== null,
+        protein: goalsRow?.daily_protein_g != null,
+        water: goalsRow?.daily_water_ml != null,
+        steps: goalsRow?.daily_steps != null,
       },
     },
-    steps: (stepsRes.rows[0]?.steps as number) || 0,
-    steps_goal: (goalsRes.rows[0]?.daily_steps as number) || 10000,
-    calories: {
-      total: Math.round((caloriesRes.rows[0]?.total_calories as number) ?? 0),
-      goal: calGoal,
-    },
-    calorie_goal_source: calorieGoalSource,
-    protein_goal: (goalsRes.rows[0]?.daily_protein_g as number) || null,
-    weigh_in_frequency_weeks: (goalsRes.rows[0]?.weigh_in_frequency_weeks as number) || null,
-    weigh_in_weekday: goalsRes.rows[0]?.weigh_in_weekday == null ? null : Number(goalsRes.rows[0].weigh_in_weekday),
-    goal_status: {
-      target_weight: goalsRow?.target_weight_kg != null,
-      calories: calGoal !== null,
-      protein: goalsRow?.daily_protein_g != null,
-      water: goalsRow?.daily_water_ml != null,
-      steps: goalsRow?.daily_steps != null,
-    },
-  });
+    // "Today" changes under this same URL at the Jerusalem midnight boundary —
+    // an intermediate cache (browser or proxy) holding a pre-midnight response
+    // would keep serving yesterday's totals labeled as today's.
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }

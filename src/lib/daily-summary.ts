@@ -1,8 +1,10 @@
 import db, { initDb } from "@/lib/db";
+import type { Gender } from "@/lib/types";
 
 export interface DailySummaryItem {
   client_id: string;
   client_name: string;
+  client_gender: Gender | null;
   reported: boolean;
   calories: number;
   calorie_goal: number | null;
@@ -93,10 +95,11 @@ export function getTodayDayKey(now = new Date()): string {
   return formatDayKey(now);
 }
 
-function createBaseSummary(row: { client_id: string; client_name: string; daily_calories: number | null; daily_water_ml: number | null; daily_steps: number | null; }): DailySummaryItem {
+function createBaseSummary(row: { client_id: string; client_name: string; client_gender: Gender | null; daily_calories: number | null; daily_water_ml: number | null; daily_steps: number | null; }): DailySummaryItem {
   return {
     client_id: row.client_id,
     client_name: row.client_name,
+    client_gender: row.client_gender,
     reported: false,
     calories: 0,
     calorie_goal: row.daily_calories,
@@ -146,6 +149,7 @@ export async function getDailySummary(coachId: string, dayKey: string): Promise<
     db.execute({
       sql: `SELECT u.id AS client_id,
                    u.name AS client_name,
+                   u.gender AS client_gender,
                    g.daily_calories,
                    g.daily_water_ml,
                    g.daily_steps
@@ -222,6 +226,7 @@ export async function getDailySummary(coachId: string, dayKey: string): Promise<
       createBaseSummary({
         client_id: String(row.client_id),
         client_name: String(row.client_name),
+        client_gender: (row.client_gender as Gender | null) ?? null,
         daily_calories: row.daily_calories === null ? null : Number(row.daily_calories),
         daily_water_ml: row.daily_water_ml === null ? null : Number(row.daily_water_ml),
         daily_steps: row.daily_steps === null ? null : Number(row.daily_steps),

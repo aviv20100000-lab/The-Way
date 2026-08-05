@@ -6,6 +6,7 @@ import { checkPersistentRateLimit, formatResetIn } from "@/lib/ratelimit";
 import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
 import { weekdayOfDayKey } from "@/lib/menu-week";
 import type { AssistantMenuMeal, AssistantMenuOption } from "@/lib/assistant-context";
+import type { Gender } from "@/lib/types";
 import { buildPreferenceSummary, parseMemoryList, parsePreferenceProfile } from "@/lib/assistant-learning";
 import {
   generateAssistantReply,
@@ -90,7 +91,7 @@ function groupTodayMenu(rows: MenuRow[]): AssistantMenuMeal[] {
   return [...meals.values()].map(({ label, status, options }) => ({ label, status, options }));
 }
 
-async function loadUserContext(userId: string, name: string): Promise<AssistantUserContext> {
+async function loadUserContext(userId: string, name: string, gender: Gender | null): Promise<AssistantUserContext> {
   // Jerusalem day, like every other endpoint — a UTC date would make the bot
   // quote yesterday's calorie total to anyone chatting before 03:00.
   const todayKey = getTodayDayKey();
@@ -160,6 +161,7 @@ async function loadUserContext(userId: string, name: string): Promise<AssistantU
 
   return {
     name,
+    gender,
     dailyCalories: goals?.daily_calories ? Number(goals.daily_calories) : null,
     dailyProteinG: goals?.daily_protein_g ? Number(goals.daily_protein_g) : null,
     todayCalories: Math.round(Number(caloriesRes.rows[0]?.total_calories) || 0),
@@ -225,7 +227,7 @@ export async function POST(req: NextRequest) {
     content: String(row.content ?? ""),
   }));
 
-  const context = await loadUserContext(session.id, session.name);
+  const context = await loadUserContext(session.id, session.name, session.gender ?? null);
 
   let reply: string;
   try {

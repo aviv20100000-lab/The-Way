@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
+import type { Gender } from "@/lib/types";
 
 type ActivityKind = "meal" | "quick_meal" | "weight" | "steps" | "menu_request" | "goals_request";
 
-function activityText(kind: ActivityKind, value: number) {
+function activityText(kind: ActivityKind, value: number, gender: Gender | null) {
+  const isFemale = gender === "female";
   switch (kind) {
-    case "meal": return { title: "העלה ארוחה", detail: `${Math.round(value)} קלוריות` };
-    case "quick_meal": return { title: "רשם ארוחה מהירה", detail: `${Math.round(value)} קלוריות` };
-    case "weight": return { title: "עדכן משקל", detail: `${value.toFixed(1)} ק״ג` };
-    case "steps": return { title: "העלה צעדים", detail: `${Math.round(value).toLocaleString("he-IL")} צעדים` };
-    case "menu_request": return { title: "מבקש תפריט", detail: "המתאמן הזכיר להעלות תפריט" };
-    case "goals_request": return { title: "מבקש עדכון יעדים", detail: "קלוריות, חלבון או יעד משקל" };
+    case "meal": return { title: isFemale ? "העלתה ארוחה" : "העלה ארוחה", detail: `${Math.round(value)} קלוריות` };
+    case "quick_meal": return { title: isFemale ? "רשמה ארוחה מהירה" : "רשם ארוחה מהירה", detail: `${Math.round(value)} קלוריות` };
+    case "weight": return { title: isFemale ? "עדכנה משקל" : "עדכן משקל", detail: `${value.toFixed(1)} ק״ג` };
+    case "steps": return { title: isFemale ? "העלתה צעדים" : "העלה צעדים", detail: `${Math.round(value).toLocaleString("he-IL")} צעדים` };
+    case "menu_request": return { title: isFemale ? "מבקשת תפריט" : "מבקש תפריט", detail: "המתאמן הזכיר להעלות תפריט" };
+    case "goals_request": return { title: isFemale ? "מבקשת עדכון יעדים" : "מבקש עדכון יעדים", detail: "קלוריות, חלבון או יעד משקל" };
   }
 }
 
@@ -25,9 +27,9 @@ export async function GET() {
 
   const [activityRes, readsRes] = await Promise.all([
     db.execute({
-      sql: `SELECT activity_id, client_id, client_name, kind, value, logged_at
+      sql: `SELECT activity_id, client_id, client_name, client_gender, kind, value, logged_at
             FROM (
-              SELECT 'ai:' || aml.id AS activity_id, u.id AS client_id, u.name AS client_name,
+              SELECT 'ai:' || aml.id AS activity_id, u.id AS client_id, u.name AS client_name, u.gender AS client_gender,
                      'meal' AS kind, COALESCE(aml.total_calories, 0) AS value, aml.logged_at
               FROM ai_meal_logs aml
               JOIN users u ON u.id = aml.user_id
@@ -36,7 +38,7 @@ export async function GET() {
 
               UNION ALL
 
-              SELECT 'quick:' || m.id AS activity_id, u.id AS client_id, u.name AS client_name,
+              SELECT 'quick:' || m.id AS activity_id, u.id AS client_id, u.name AS client_name, u.gender AS client_gender,
                      'quick_meal' AS kind,
                      COALESCE((SELECT ROUND(SUM(mi.quantity * f.calories / 100.0))
                                FROM meal_items mi JOIN foods f ON f.id = mi.food_id
@@ -49,7 +51,7 @@ export async function GET() {
 
               UNION ALL
 
-              SELECT 'weight:' || wl.id AS activity_id, u.id AS client_id, u.name AS client_name,
+              SELECT 'weight:' || wl.id AS activity_id, u.id AS client_id, u.name AS client_name, u.gender AS client_gender,
                      'weight' AS kind, wl.weight_kg AS value, wl.logged_at
               FROM weight_logs wl
               JOIN users u ON u.id = wl.user_id
@@ -58,7 +60,7 @@ export async function GET() {
 
               UNION ALL
 
-              SELECT 'steps:' || sl.id AS activity_id, u.id AS client_id, u.name AS client_name,
+              SELECT 'steps:' || sl.id AS activity_id, u.id AS client_id, u.name AS client_name, u.gender AS client_gender,
                      'steps' AS kind, sl.steps AS value, sl.logged_at
               FROM steps_logs sl
               JOIN users u ON u.id = sl.user_id
@@ -67,7 +69,7 @@ export async function GET() {
 
               UNION ALL
 
-              SELECT 'request:' || cr.id AS activity_id, u.id AS client_id, u.name AS client_name,
+              SELECT 'request:' || cr.id AS activity_id, u.id AS client_id, u.name AS client_name, u.gender AS client_gender,
                      CASE cr.kind WHEN 'menu' THEN 'menu_request' ELSE 'goals_request' END AS kind,
                      0 AS value, cr.created_at AS logged_at
               FROM coach_requests cr
@@ -88,7 +90,7 @@ export async function GET() {
   const allItems = activityRes.rows.map((row) => {
     const kind = String(row.kind) as ActivityKind;
     const value = Number(row.value) || 0;
-    const text = activityText(kind, value);
+    const text = activityText(kind, value, (row.client_gender as Gender | null) ?? null);
     return {
       id: String(row.activity_id),
       client_id: String(row.client_id),

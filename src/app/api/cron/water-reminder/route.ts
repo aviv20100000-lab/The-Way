@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import webpush from "web-push";
 import crypto from "crypto";
 import { sendTelegramAlert } from "@/lib/telegram";
+import type { Gender } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -11,18 +12,30 @@ const LAT = 32.08;
 const LON = 34.78;
 const HOT_THRESHOLD = 28; // °C — below this, no reminder is sent
 
-function buildMessage(temp: number): { title: string; body: string } {
+function buildMessage(temp: number, gender: Gender | null): { title: string; body: string } {
   const t = Math.round(temp);
+  const isFemale = gender === "female";
   if (temp >= 37) {
-    return { title: "🔥 שרב!", body: `${t}° בחוץ — חשוב מאוד לשתות הרבה מים, אל תחכה לצמא 💧💧` };
+    return {
+      title: "🔥 שרב!",
+      body: isFemale
+        ? `${t}° בחוץ — חשוב מאוד לשתות הרבה מים, אל תחכי לצמא 💧💧`
+        : `${t}° בחוץ — חשוב מאוד לשתות הרבה מים, אל תחכה לצמא 💧💧`,
+    };
   }
   if (temp >= 33) {
-    return { title: "🥵 ממש חם בחוץ", body: `${t}° — שתה עכשיו לפחות כוס מים גדולה 💧` };
+    return {
+      title: "🥵 ממש חם בחוץ",
+      body: isFemale ? `${t}° — שתי עכשיו לפחות כוס מים גדולה 💧` : `${t}° — שתה עכשיו לפחות כוס מים גדולה 💧`,
+    };
   }
   if (temp >= 30) {
     return { title: "🌡️ חם היום", body: `${t}° בחוץ — זמן טוב לכוס מים 💧` };
   }
-  return { title: "💧 תזכורת שתייה", body: `${t}° בחוץ — אל תשכח לשתות מים היום` };
+  return {
+    title: "💧 תזכורת שתייה",
+    body: isFemale ? `${t}° בחוץ — אל תשכחי לשתות מים היום` : `${t}° בחוץ — אל תשכח לשתות מים היום`,
+  };
 }
 
 function timingSafeCompare(a: string, b: string): boolean {
@@ -87,19 +100,18 @@ async function handle(req: NextRequest) {
 
     await initDb();
     const subs = (await db.execute({
-      sql: `SELECT ps.*, u.name AS user_name, u.username AS user_username FROM push_subscriptions ps
+      sql: `SELECT ps.*, u.name AS user_name, u.username AS user_username, u.gender AS user_gender FROM push_subscriptions ps
             JOIN users u ON u.id = ps.user_id
             WHERE u.role = 'client'`,
     })).rows;
-
-    const { title, body } = buildMessage(temp);
-    const payload = JSON.stringify({ title, body, icon: "/icon-192.png" });
 
     let sent = 0;
     let failed = 0;
     const failedNames: string[] = [];
     for (const sub of subs) {
       try {
+        const { title, body } = buildMessage(temp, (sub.user_gender as Gender | null) ?? null);
+        const payload = JSON.stringify({ title, body, icon: "/icon-192.png" });
         await webpush.sendNotification(
           { endpoint: sub.endpoint as string, keys: { p256dh: sub.p256dh as string, auth: sub.auth as string } },
           payload

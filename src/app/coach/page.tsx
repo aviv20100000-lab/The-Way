@@ -57,6 +57,87 @@ interface ClientSummary {
 
 const EMPTY_GOALS: Goals = { target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null, weigh_in_weekday: null };
 
+interface QuickSendVariant {
+  title: string;
+  body: string;
+}
+
+interface QuickSendTemplate {
+  emoji: string;
+  label: string;
+  plural: QuickSendVariant;
+  masc: QuickSendVariant;
+  fem: QuickSendVariant;
+}
+
+// Three phrasings per template: "plural" for broadcast to all trainees, "masc"/"fem"
+// for a single trainee selected in the audience dropdown — picked at click time.
+const QUICK_SEND_TEMPLATES: QuickSendTemplate[] = [
+  {
+    emoji: "🌅",
+    label: "בוקר טוב",
+    plural: { title: "בוקר טוב! ☀️", body: "מתחילים את היום עם אנרגיה ומוטיבציה! אתם מדהימים 💪" },
+    masc: { title: "בוקר טוב! ☀️", body: "תתחיל את היום עם אנרגיה ומוטיבציה! אתה מדהים 💪" },
+    fem: { title: "בוקר טוב! ☀️", body: "תתחילי את היום עם אנרגיה ומוטיבציה! את מדהימה 💪" },
+  },
+  {
+    emoji: "🌞",
+    label: "צהריים טובים",
+    plural: { title: "צהריים טובים! 🌞", body: "איך היום מתקדם? זכרו לאכול טוב ולשתות מים 💧" },
+    masc: { title: "צהריים טובים! 🌞", body: "איך היום מתקדם? זכור לאכול טוב ולשתות מים 💧" },
+    fem: { title: "צהריים טובים! 🌞", body: "איך היום מתקדם? זכרי לאכול טוב ולשתות מים 💧" },
+  },
+  {
+    emoji: "🌙",
+    label: "לילה טוב",
+    plural: { title: "לילה טוב! 🌙", body: "סיימתם יום נהדר – עכשיו זמן לנוח ולהתחדש. כל הכבוד! ⭐" },
+    masc: { title: "לילה טוב! 🌙", body: "סיימת יום נהדר – עכשיו זמן לנוח ולהתחדש. כל הכבוד! ⭐" },
+    fem: { title: "לילה טוב! 🌙", body: "סיימת יום נהדר – עכשיו זמן לנוח ולהתחדש. כל הכבוד! ⭐" },
+  },
+  {
+    emoji: "🏋️",
+    label: "אל תוותרו",
+    plural: { title: "אל תוותרו! 💪", body: "כל צעד קטן מקרב אתכם למטרה. אתם חזקים יותר ממה שאתם חושבים!" },
+    masc: { title: "אל תוותר! 💪", body: "כל צעד קטן מקרב אותך למטרה. אתה חזק יותר ממה שאתה חושב!" },
+    fem: { title: "אל תוותרי! 💪", body: "כל צעד קטן מקרב אותך למטרה. את חזקה יותר ממה שאת חושבת!" },
+  },
+  {
+    emoji: "🎯",
+    label: "יאללה!",
+    plural: { title: "יאללה! 🎯", body: "היום הוא הזדמנות חדשה. תנו את המקסימום ותגיעו לתוצאות שאתם חולמים עליהם!" },
+    masc: { title: "יאללה! 🎯", body: "היום הוא הזדמנות חדשה. תן את המקסימום ותגיע לתוצאות שאתה חולם עליהן!" },
+    fem: { title: "יאללה! 🎯", body: "היום הוא הזדמנות חדשה. תני את המקסימום ותגיעי לתוצאות שאת חולמת עליהן!" },
+  },
+  {
+    emoji: "✨",
+    label: "כל הכבוד",
+    plural: { title: "כל הכבוד! ✨", body: "אנחנו גאים בכם על ההתמדה והמאמץ. המשיכו כך! 🙌" },
+    masc: { title: "כל הכבוד! ✨", body: "אנחנו גאים בך על ההתמדה והמאמץ. תמשיך כך! 🙌" },
+    fem: { title: "כל הכבוד! ✨", body: "אנחנו גאים בך על ההתמדה והמאמץ. תמשיכי כך! 🙌" },
+  },
+  {
+    emoji: "🌿",
+    label: "סוף שבוע",
+    plural: { title: "סוף שבוע נהדר! 🌿", body: "תנצלו את הזמן להתאוששות ולאנרגיה לשבוע הבא. מגיע לכם! 🏆" },
+    masc: { title: "סוף שבוע נהדר! 🌿", body: "תנצל את הזמן להתאוששות ולאנרגיה לשבוע הבא. מגיע לך! 🏆" },
+    fem: { title: "סוף שבוע נהדר! 🌿", body: "תנצלי את הזמן להתאוששות ולאנרגיה לשבוע הבא. מגיע לך! 🏆" },
+  },
+  {
+    emoji: "✡️",
+    label: "שבת שלום",
+    plural: { title: "שבת שלום! ✡️", body: "שבת מנוחה ומחייה לכם ולמשפחותיכם. שבוע טוב יבוא! 🕯️" },
+    masc: { title: "שבת שלום! ✡️", body: "שבת מנוחה ומחייה לך ולמשפחתך. שבוע טוב יבוא! 🕯️" },
+    fem: { title: "שבת שלום! ✡️", body: "שבת מנוחה ומחייה לך ולמשפחתך. שבוע טוב יבוא! 🕯️" },
+  },
+  {
+    emoji: "💧",
+    label: "מים",
+    plural: { title: "שתו מים! 💧", body: "רגע, עצרתם לשתות מים היום? הגוף שלכם צריך את זה – שתו עכשיו! 🫗" },
+    masc: { title: "שתה מים! 💧", body: "רגע, עצרת לשתות מים היום? הגוף שלך צריך את זה – שתה עכשיו! 🫗" },
+    fem: { title: "שתי מים! 💧", body: "רגע, עצרת לשתות מים היום? הגוף שלך צריך את זה – שתי עכשיו! 🫗" },
+  },
+];
+
 export default function CoachPage() {
   const router = useRouter();
   const prefersReducedMotion = useReducedMotion();
@@ -73,7 +154,7 @@ export default function CoachPage() {
    * The password is hashed the moment it reaches the server, so this is the
    * only window in which it can be handed over.
    */
-  const [justCreated, setJustCreated] = useState<{ name: string; username: string; password: string } | null>(null);
+  const [justCreated, setJustCreated] = useState<{ name: string; username: string; password: string; gender: Gender | null } | null>(null);
   const [welcomeCopied, setWelcomeCopied] = useState(false);
   const [addError, setAddError] = useState("");
   const [addWarning, setAddWarning] = useState("");
@@ -223,7 +304,9 @@ export default function CoachPage() {
         body: JSON.stringify({
           userId: client.id,
           title: "אל תשכח לצלם 📸",
-          body: "צלם את הארוחה ושלח, לפני שאתה מתחיל לאכול.",
+          body: client.gender === "female"
+            ? "צלמי את הארוחה ושלחי, לפני שאת מתחילה לאכול."
+            : "צלם את הארוחה ושלח, לפני שאתה מתחיל לאכול.",
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -319,6 +402,7 @@ export default function CoachPage() {
       name: newClient.name,
       username: String(data.username ?? newClient.username).trim().toLowerCase(),
       password: newClient.password,
+      gender: newClient.gender,
     });
     setWelcomeCopied(false);
     setNewClient({ name: "", username: "", password: "", groupIds: [], gender: null });
@@ -996,20 +1080,19 @@ export default function CoachPage() {
             <div className="rounded-2xl glass-card p-4  space-y-3">
               <p className="font-semibold text-base text-white">📣 שלח הודעה</p>
               <div className="flex flex-wrap gap-2">
-                {[
-                  { emoji: "🌅", label: "בוקר טוב", title: "בוקר טוב! ☀️", body: "מתחילים את היום עם אנרגיה ומוטיבציה! אתם מדהימים 💪" },
-                  { emoji: "🌞", label: "צהריים טובים", title: "צהריים טובים! 🌞", body: "איך היום מתקדם? זכרו לאכול טוב ולשתות מים 💧" },
-                  { emoji: "🌙", label: "לילה טוב", title: "לילה טוב! 🌙", body: "סיימתם יום נהדר – עכשיו זמן לנוח ולהתחדש. כל הכבוד! ⭐" },
-                  { emoji: "🏋️", label: "אל תוותרו", title: "אל תוותרו! 💪", body: "כל צעד קטן מקרב אתכם למטרה. אתם חזקים יותר ממה שאתם חושבים!" },
-                  { emoji: "🎯", label: "יאללה!", title: "יאללה! 🎯", body: "היום הוא הזדמנות חדשה. תנו את המקסימום ותגיעו לתוצאות שאתם חולמים עליהם!" },
-                  { emoji: "✨", label: "כל הכבוד", title: "כל הכבוד! ✨", body: "אנחנו גאים בכם על ההתמדה והמאמץ. המשיכו כך! 🙌" },
-                  { emoji: "🌿", label: "סוף שבוע", title: "סוף שבוע נהדר! 🌿", body: "תנצלו את הזמן להתאוששות ולאנרגיה לשבוע הבא. מגיע לכם! 🏆" },
-                  { emoji: "✡️", label: "שבת שלום", title: "שבת שלום! ✡️", body: "שבת מנוחה ומחייה לכם ולמשפחותיכם. שבוע טוב יבוא! 🕯️" },
-                  { emoji: "💧", label: "מים", title: "שתו מים! 💧", body: "רגע, עצרתם לשתות מים היום? הגוף שלכם צריך את זה – שתו עכשיו! 🫗" },
-                ].map((t) => (
+                {QUICK_SEND_TEMPLATES.map((t) => (
                   <button
                     key={t.label}
-                    onClick={() => { setPushTitle(t.title); setPushBody(t.body); }}
+                    onClick={() => {
+                      const selectedClient = pushUserId ? clients.find((c) => c.id === pushUserId) : null;
+                      const variant = !pushUserId
+                        ? t.plural
+                        : selectedClient?.gender === "female"
+                        ? t.fem
+                        : t.masc;
+                      setPushTitle(variant.title);
+                      setPushBody(variant.body);
+                    }}
                     className="rounded-lg bg-[#282a2b] px-3 py-2 text-xs font-semibold text-[#c4c9ac] hover:bg-[#333535] transition-colors"
                   >
                     {t.emoji} {t.label}

@@ -24,7 +24,10 @@ function buildBody(reportedCount: number, totalClients: number, missingNames: st
 }
 
 function formatClientLine(item: DailySummaryItem): string {
-  if (!item.reported) return `🔴 <b>${item.client_name}</b> — לא דיווח היום`;
+  if (!item.reported) {
+    const verb = item.client_gender === "female" ? "לא דיווחה" : "לא דיווח";
+    return `🔴 <b>${item.client_name}</b> — ${verb} היום`;
+  }
   const parts: string[] = [];
   parts.push(`🍽️ ${item.calories}${item.calorie_goal ? `/${item.calorie_goal}` : ""} קל'`);
   parts.push(`💧 ${(item.water_ml / 1000).toFixed(1)}L`);

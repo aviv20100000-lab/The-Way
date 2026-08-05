@@ -1,6 +1,8 @@
 // Pure helpers for the shopping assistant — kept SDK-free so they can be
 // imported by tests and API routes without pulling in @anthropic-ai/sdk.
 
+import type { Gender } from "@/lib/types";
+
 export const ASSISTANT_NAME = "העוזר";
 export const ASSISTANT_MAX_INPUT_CHARS = 500;
 export const ASSISTANT_HISTORY_LIMIT = 12;
@@ -19,6 +21,8 @@ export interface AssistantMenuMeal {
 
 export interface AssistantUserContext {
   name: string;
+  /** Set by the coach explicitly; overrides the "infer from phrasing" fallback in SYSTEM_PROMPT. */
+  gender?: Gender | null;
   dailyCalories: number | null;
   dailyProteinG: number | null;
   todayCalories: number;
@@ -36,6 +40,13 @@ export interface AssistantHistoryMessage {
 
 export function buildContextBlock(context: AssistantUserContext): string {
   const lines = [`# המתאמן שמולך`, `שם: ${context.name}`];
+  if (context.gender) {
+    lines.push(
+      context.gender === "female"
+        ? `המאמן הגדיר את המתאמנת הזו כאישה — פנה אליה תמיד בלשון נקבה, גם אם משהו בניסוח שלה נשמע אחרת.`
+        : `המאמן הגדיר את המתאמן הזה כגבר — פנה אליו תמיד בלשון זכר.`
+    );
+  }
   if (context.dailyCalories) {
     const remaining = Math.max(0, context.dailyCalories - context.todayCalories);
     lines.push(`יעד קלוריות יומי: ${context.dailyCalories} קל'. נאכלו היום: ${context.todayCalories} קל'. נשארו: ${remaining} קל'.`);

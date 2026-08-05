@@ -31,6 +31,14 @@ interface AiResult {
   photo_url: string;
 }
 
+export function isMealScannerItemValid(item: Pick<AiItem, "name" | "estimated_weight_g" | "calories">) {
+  return item.name.trim().length > 0
+    && Number.isFinite(item.estimated_weight_g)
+    && item.estimated_weight_g > 0
+    && Number.isFinite(item.calories)
+    && item.calories >= 0;
+}
+
 interface MealScannerProps {
   compact?: boolean;
   analyzing: boolean;
@@ -300,6 +308,7 @@ export default function MealScanner(props: MealScannerProps) {
   );
   const macroMax = Math.max(macros.p, macros.c, macros.f, 1);
   const total = (aiResult?.items ?? []).reduce((s, it) => s + (it.calories || 0), 0);
+  const hasInvalidItems = !aiResult?.items.length || aiResult.items.some((item) => !isMealScannerItemValid(item));
   const compactIdle = compact && phase === "live" && !armed;
 
   return (
@@ -665,8 +674,19 @@ export default function MealScanner(props: MealScannerProps) {
                         onFocus={(e) => e.target.select()}
                         onBlur={() => { blurTimers.current[i] = setTimeout(() => setSuggestions(s => ({ ...s, [i]: [] })), 150); }}
                         placeholder="שם המאכל"
-                        className="w-full rounded-lg border border-[#444933] bg-[#11140e] px-3 py-2 font-medium text-white focus:ring-2 focus:ring-[#c3f400]/30 focus:border-[#c3f400] transition-all"
+                        aria-invalid={!item.name.trim()}
+                        aria-describedby={!item.name.trim() ? `meal-item-name-error-${i}` : undefined}
+                        className={`w-full rounded-lg border bg-[#11140e] px-3 py-2 font-medium text-white focus:ring-2 transition-all ${
+                          item.name.trim()
+                            ? "border-[#444933] focus:ring-[#c3f400]/30 focus:border-[#c3f400]"
+                            : "border-red-500 focus:ring-red-500/30 focus:border-red-400"
+                        }`}
                       />
+                      {!item.name.trim() && (
+                        <p id={`meal-item-name-error-${i}`} className="mt-1 text-xs font-semibold text-red-400">
+                          יש להזין שם מאכל
+                        </p>
+                      )}
                       {(suggestions[i]?.length > 0) && (
                         <div className="absolute top-full right-0 left-0 z-20 mt-1 rounded-lg border border-[#444933] bg-[#1b1f17] shadow-xl overflow-hidden">
                           {suggestions[i].map((food) => (
@@ -707,7 +727,7 @@ export default function MealScanner(props: MealScannerProps) {
                       <button onClick={() => updateItemGrams(i, Math.max(5, item.estimated_weight_g - 10))}
                         aria-label="הפחת 10 גרם"
                         className="h-9 w-9 rounded-lg bg-[#11140e] border border-[#444933] text-lg font-bold text-[#c4c9ac] hover:border-[#c3f400] transition-colors">−</button>
-                      <input type="number" value={item.estimated_weight_g} min={5}
+                      <input type="number" value={item.estimated_weight_g} min={5} aria-label="כמות בגרם"
                         onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v) && v >= 5) updateItemGrams(i, v); }}
                         className="h-9 w-16 rounded-lg border border-[#444933] bg-[#11140e] text-center font-semibold text-white focus:ring-2 focus:ring-[#c3f400]/30 transition-all" />
                       <button onClick={() => updateItemGrams(i, item.estimated_weight_g + 10)}
@@ -716,7 +736,7 @@ export default function MealScanner(props: MealScannerProps) {
                       <span className="text-xs text-[#8e9379]">גרם</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <input type="number" value={item.calories} min={0}
+                      <input type="number" value={item.calories} min={0} aria-label="קלוריות"
                         onChange={(e) => updateItemCalories(i, parseInt(e.target.value, 10) || 0)}
                         className="h-9 w-20 rounded-lg border border-[#444933] bg-[#11140e] text-center font-bold text-[#c3f400] focus:ring-2 focus:ring-[#c3f400]/30 transition-all" />
                       <span className="text-sm font-semibold text-[#c3f400]">קל'</span>
@@ -736,7 +756,7 @@ export default function MealScanner(props: MealScannerProps) {
             ) : (
               <motion.button
                 onClick={() => logMeal(aiResult.items.map((it) => ({ name: it.name, calories: it.calories, estimated_weight_g: it.estimated_weight_g })), total)}
-                disabled={mealSaved === "saving" || aiResult.items.length === 0}
+                disabled={mealSaved === "saving" || hasInvalidItems}
                 whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}
                 className="w-full rounded-full bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50 transition-all">
                 {mealSaved === "saving" ? "שומר..." : "✅ שמור ארוחה"}

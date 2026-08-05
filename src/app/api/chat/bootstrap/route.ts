@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
-import { isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
+import { getPrivateChatContacts, isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
 import { defaultGroupReadKey } from "@/lib/chat-reads";
 
@@ -22,18 +22,7 @@ export async function GET() {
     const canSeeDefaultGroup = Boolean(coachId) && inDefaultGroup && !dmCoachOnly;
     const defaultGroupKey = coachId ? defaultGroupReadKey(coachId) : "";
 
-    const contactsPromise = coachId
-      ? db.execute(
-          dmCoachOnly
-            ? { sql: `SELECT id, name, role, username, avatar_url FROM users WHERE id = ?`, args: [coachId] }
-            : {
-                sql: `SELECT id, name, role, username, avatar_url FROM users
-                      WHERE (id = ? OR coach_id = ?) AND id != ?
-                      ORDER BY role DESC, name ASC`,
-                args: [coachId, coachId, user.id],
-              }
-        )
-      : Promise.resolve({ rows: [] });
+    const contactsPromise = getPrivateChatContacts(user as Parameters<typeof getPrivateChatContacts>[0]);
 
     const unreadPromise = db.execute({
       sql: `SELECT sender_id, COUNT(*) as count
@@ -130,9 +119,11 @@ export async function GET() {
       defaultGroupNamePromise,
     ]);
 
+    const allowedContactIds = new Set(contactsRes.map((contact) => contact.id));
     const unreadMap: Record<string, number> = {};
     for (const row of unreadRes.rows) {
-      unreadMap[row.sender_id as string] = Number(row.count);
+      const senderId = String(row.sender_id);
+      if (allowedContactIds.has(senderId)) unreadMap[senderId] = Number(row.count);
     }
 
     const recentRows = Array.from(groupMessagesRes.rows).reverse() as unknown as MessageRow[];
@@ -146,7 +137,7 @@ export async function GET() {
 
     return NextResponse.json({
       user: { ...user, avatar_url: selfAvatarRes.rows[0]?.avatar_url ?? null },
-      contacts: contactsRes.rows,
+      contacts: contactsRes,
       unreadMap,
       groupUnread: Number(groupUnreadRes.rows[0]?.count ?? 0),
       namedGroups,

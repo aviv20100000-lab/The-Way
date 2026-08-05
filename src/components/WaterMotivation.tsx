@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { formatHebrewCount } from '@/lib/hebrew-plural';
 
 interface WaterMotivationProps {
   motivationText: string;
@@ -44,14 +45,14 @@ export function WaterMotivation({ motivationText, currentStreak, bestStreak, goa
             >
               🔥
             </motion.span>
-            {currentStreak} ימים ברצף!
+            {formatHebrewCount(currentStreak, { one: 'יום אחד ברצף', plural: 'ימים ברצף' })}!
           </div>
         </motion.div>
       )}
 
       {bestStreak > 0 && (
         <p className="text-center text-sm text-[#8e9379]">
-          סדרה הטובה ביותר: {bestStreak} ימים 💪 (יא כאוב!)
+          סדרה הטובה ביותר: {formatHebrewCount(bestStreak, { one: 'יום אחד', plural: 'ימים' })} 💪 (יא כאוב!)
         </p>
       )}
     </motion.div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatHebrewCount } from "@/lib/hebrew-plural";
 
 export interface Meal {
   id: string;
@@ -146,7 +147,9 @@ export default function MealHistory({
               <div className="flex items-center justify-between">
                 <div className="text-right">
                   <p className="font-semibold text-white text-sm">{dayLabel(k)}</p>
-                  <p className="text-xs text-[#8e9379]">{byDay[k].meals.length} ארוחות</p>
+                  <p className="text-xs text-[#8e9379]">
+                    {formatHebrewCount(byDay[k].meals.length, { one: "ארוחה אחת", plural: "ארוחות" })}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-[#c3f400]">{byDay[k].total} קל׳</span>
@@ -157,7 +160,7 @@ export default function MealHistory({
             {isExp && (
               <div className="border-t border-[#444933] px-4 pb-4 pt-3 space-y-3">
                 <p className="text-xs text-[#8e9379]">
-                  {byDay[k].meals.length} ארוחות · {byDay[k].total} קל׳
+                  {formatHebrewCount(byDay[k].meals.length, { one: "ארוחה אחת", plural: "ארוחות" })} · {byDay[k].total} קל׳
                   {proteinValues.length > 0 && ` · ${Math.round(proteinTotal)} גרם חלבון`}
                 </p>
                 {byDay[k].meals.map((m) => (

@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useEffect, useRef } from 'react';
+import { getTodayDayKey } from '@/lib/jerusalem-day';
 
 interface WeightLog { id: string; weight_kg: number; logged_at: string; }
 interface WeightJourneyProps {
@@ -9,6 +10,17 @@ interface WeightJourneyProps {
   targetWeight: number;
   weightLogs: WeightLog[];
   startingWeight: number;
+}
+
+export function getLatestWeightLabel(loggedAt: string | null | undefined, now = new Date()): string {
+  if (!loggedAt) return 'היום';
+  const loggedAtDate = new Date(loggedAt);
+  if (Number.isNaN(loggedAtDate.getTime()) || getTodayDayKey(loggedAtDate) === getTodayDayKey(now)) return 'היום';
+  return `מדידה אחרונה · ${loggedAtDate.toLocaleDateString('he-IL', {
+    day: 'numeric',
+    month: 'numeric',
+    timeZone: 'Asia/Jerusalem',
+  })}`;
 }
 
 function WeightChart({ weightLogs, targetWeight }: { weightLogs: WeightLog[]; targetWeight: number }) {
@@ -241,10 +253,13 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 }
 
 export function WeightJourney({ currentWeight, targetWeight, weightLogs, startingWeight }: WeightJourneyProps) {
+  const latestLog = weightLogs[0] ?? null;
+  const displayedCurrentWeight = latestLog?.weight_kg ?? currentWeight;
+  const latestWeightLabel = getLatestWeightLabel(latestLog?.logged_at);
   const totalToLose = startingWeight - targetWeight;
-  const alreadyLost = startingWeight - (currentWeight || startingWeight);
+  const alreadyLost = startingWeight - (displayedCurrentWeight || startingWeight);
   const pct = totalToLose > 0 ? Math.max(0, Math.min(100, (alreadyLost / totalToLose) * 100)) : 0;
-  const remaining = Math.max(0, (currentWeight || startingWeight) - targetWeight);
+  const remaining = Math.max(0, (displayedCurrentWeight || startingWeight) - targetWeight);
 
   return (
     <div className="space-y-4">
@@ -252,7 +267,7 @@ export function WeightJourney({ currentWeight, targetWeight, weightLogs, startin
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'התחלה', value: `${startingWeight}`, color: '#8e9379' },
-          { label: 'היום', value: `${currentWeight ?? '-'}`, color: '#38bdf8' },
+          { label: latestWeightLabel, value: `${displayedCurrentWeight ?? '-'}`, color: '#38bdf8' },
           { label: 'יעד', value: `${targetWeight}`, color: '#c3f400' },
         ].map((s) => (
           <motion.div key={s.label}

@@ -161,7 +161,7 @@ export default function ClientMenuView() {
     }
   };
 
-  if (loading) return <div className="skeleton h-80 rounded-3xl" />;
+  if (loading) return <div role="status" aria-label="טוען את התפריט" className="skeleton h-80 rounded-3xl" />;
   if (error && !plan) return <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-5 text-center text-sm text-red-200">{error}</div>;
   if (!plan) {
     return (

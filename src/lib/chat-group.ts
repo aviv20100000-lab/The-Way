@@ -1,7 +1,97 @@
 import db from "@/lib/db";
 
+export type ChatUserIdentity = {
+  id: string;
+  role: string;
+  coach_id?: string | null;
+};
+
+export type PrivateChatContact = {
+  id: string;
+  name: string;
+  role: string;
+  username: string;
+  avatar_url: string | null;
+};
+
 export function resolveCoachId(user: { id: string; role: string; coach_id?: string | null }): string | null {
   return user.role === "coach" ? user.id : (user.coach_id ?? null);
+}
+
+export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<PrivateChatContact[]> {
+  const coachId = resolveCoachId(user);
+  if (!coachId) return [];
+
+  if (user.role === "coach") {
+    const result = await db.execute({
+      sql: `SELECT id, name, role, username, avatar_url FROM users
+            WHERE (id = ? OR coach_id = ?) AND id != ?
+            ORDER BY role DESC, name ASC`,
+      args: [coachId, coachId, user.id],
+    });
+    return result.rows as unknown as PrivateChatContact[];
+  }
+
+  const selfResult = await db.execute({
+    sql: "SELECT dm_coach_only FROM users WHERE id = ?",
+    args: [user.id],
+  });
+  const dmCoachOnly = Number(selfResult.rows[0]?.dm_coach_only ?? 0) === 1;
+  if (dmCoachOnly) {
+    const coachResult = await db.execute({
+      sql: "SELECT id, name, role, username, avatar_url FROM users WHERE id = ?",
+      args: [coachId],
+    });
+    return coachResult.rows as unknown as PrivateChatContact[];
+  }
+
+  const result = await db.execute({
+    sql: `SELECT DISTINCT u.id, u.name, u.role, u.username, u.avatar_url
+          FROM users u
+          WHERE u.id = ?
+             OR (
+               u.role = 'client'
+               AND u.coach_id = ?
+               AND u.id != ?
+               AND EXISTS (
+                 SELECT 1
+                 FROM chat_group_members mine
+                 JOIN chat_group_members peer ON peer.group_id = mine.group_id
+                 WHERE mine.user_id = ? AND peer.user_id = u.id
+               )
+             )
+          ORDER BY u.role DESC, u.name ASC`,
+    args: [coachId, coachId, user.id, user.id],
+  });
+  return result.rows as unknown as PrivateChatContact[];
+}
+
+export async function canAccessPrivateChat(actor: ChatUserIdentity, peer: ChatUserIdentity): Promise<boolean> {
+  const coachId = resolveCoachId(actor);
+  if (!coachId) return false;
+  if (peer.id === actor.id) return false;
+
+  const peerCoachId = peer.role === "coach" ? peer.id : (peer.coach_id ?? null);
+  if (peerCoachId !== coachId) return false;
+  if (actor.role === "coach") return true;
+  if (peer.role === "coach" && peer.id === coachId) return true;
+  if (peer.role !== "client") return false;
+
+  const selfResult = await db.execute({
+    sql: "SELECT dm_coach_only FROM users WHERE id = ?",
+    args: [actor.id],
+  });
+  if (Number(selfResult.rows[0]?.dm_coach_only ?? 0) === 1) return false;
+
+  const sharedGroupResult = await db.execute({
+    sql: `SELECT 1
+          FROM chat_group_members mine
+          JOIN chat_group_members peer ON peer.group_id = mine.group_id
+          WHERE mine.user_id = ? AND peer.user_id = ?
+          LIMIT 1`,
+    args: [actor.id, peer.id],
+  });
+  return sharedGroupResult.rows.length > 0;
 }
 
 export async function isGroupOwner(groupId: string, coachUserId: string): Promise<boolean> {

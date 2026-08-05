@@ -1,5 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import type { Gender } from "@/lib/types";
+import { formatDayKey, JERUSALEM_TIME_ZONE } from "@/lib/jerusalem-day";
+
+export { formatDayKey, getTodayDayKey } from "@/lib/jerusalem-day";
 
 export interface DailySummaryItem {
   client_id: string;
@@ -18,20 +21,10 @@ export interface DailySummaryItem {
 
 type SummaryMap = Map<string, DailySummaryItem>;
 
-const JERUSALEM_TZ = "Asia/Jerusalem";
 const NO_REPORT_FLAG = "לא דיווח";
 const CALORIE_OVER_FLAG = "חריגה מיעד קלוריות";
 const WATER_GOAL_FLAG = "יעד מים הושג";
 const STEPS_GOAL_FLAG = "יעד צעדים הושג";
-
-export function formatDayKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: JERUSALEM_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
 
 function getOffsetMinutes(date: Date, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -67,7 +60,7 @@ function utcFromJerusalemParts(
   second = 0
 ): Date {
   const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-  const offsetMinutes = getOffsetMinutes(guess, JERUSALEM_TZ);
+  const offsetMinutes = getOffsetMinutes(guess, JERUSALEM_TIME_ZONE);
   return new Date(guess.getTime() - offsetMinutes * 60000);
 }
 
@@ -89,10 +82,6 @@ export function getDayRangeUtc(dayKey: string) {
 export function getYesterdayDayKey(now = new Date()): string {
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   return formatDayKey(yesterday);
-}
-
-export function getTodayDayKey(now = new Date()): string {
-  return formatDayKey(now);
 }
 
 function createBaseSummary(row: { client_id: string; client_name: string; client_gender: Gender | null; daily_calories: number | null; daily_water_ml: number | null; daily_steps: number | null; }): DailySummaryItem {

@@ -21,7 +21,10 @@ export function QuickMealLogger({ onSaved }: { onSaved?: () => void }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRequestRef = useRef(0);
 
   useEffect(() => {
     const updateMealType = () => setMealType(getMealTypeForIsraelTime());
@@ -31,15 +34,42 @@ export function QuickMealLogger({ onSaved }: { onSaved?: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (selected) return;
+    const requestId = ++searchRequestRef.current;
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (selected) {
+      setSearching(false);
+      setSearchError(null);
+      return;
+    }
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 1) {
+      setResults([]);
+      setSearching(false);
+      setSearchError(null);
+      return;
+    }
+    setSearching(true);
+    setSearchError(null);
     debounceRef.current = setTimeout(async () => {
-      if (query.trim().length < 1) { setResults([]); return; }
       try {
-        const res = await fetch(`/api/foods?q=${encodeURIComponent(query)}`);
-        if (res.ok) setResults(await res.json());
-      } catch { /* ignore */ }
+        const res = await fetch(`/api/foods?q=${encodeURIComponent(trimmedQuery)}`);
+        if (!res.ok) throw new Error("food search failed");
+        const data = await res.json();
+        if (searchRequestRef.current === requestId) {
+          setResults(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (searchRequestRef.current === requestId) {
+          setResults([]);
+          setSearchError("שגיאת חיבור, נסה שוב");
+        }
+      } finally {
+        if (searchRequestRef.current === requestId) setSearching(false);
+      }
     }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [query, selected]);
 
   const pendingItem: BasketItem | null = selected
@@ -184,6 +214,11 @@ export function QuickMealLogger({ onSaved }: { onSaved?: () => void }) {
               </motion.ul>
             )}
           </AnimatePresence>
+          {searching && <p className="mt-2 text-xs text-[#8e9379]">מחפש...</p>}
+          {!searching && searchError && <p className="mt-2 text-xs text-red-400">{searchError}</p>}
+          {!searching && !searchError && query.trim() && results.length === 0 && (
+            <p className="mt-2 text-xs text-[#8e9379]">לא נמצאו תוצאות</p>
+          )}
         </div>
       ) : (
         <div className="flex items-center justify-between rounded-xl bg-[#c3f400]/10 border border-[#c3f400]/30 px-4 py-3">

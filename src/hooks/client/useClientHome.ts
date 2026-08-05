@@ -70,6 +70,7 @@ export function useClientHome() {
   const [goalStatus, setGoalStatus] = useState<GoalStatus>(cached?.goalStatus ?? DEFAULT_GOAL_STATUS);
   const [daysSinceSignup, setDaysSinceSignup] = useState(cached?.daysSinceSignup ?? 0);
   const [totalSteps, setTotalSteps] = useState(cached?.totalSteps ?? 0);
+  const [waterAddError, setWaterAddError] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [notifStatus, setNotifStatus] = useState<"unknown" | "granted" | "denied">("unknown");
   const [isPwa, setIsPwa] = useState(false);
@@ -156,18 +157,24 @@ export function useClientHome() {
   }, [loadHome]);
 
   const addWater = useCallback(async (ml: number) => {
+    setWaterAddError(null);
+    setWaterTotal((previous) => previous + ml);
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       const csrfToken = await getCsrfToken();
       if (csrfToken) headers["x-csrf-token"] = csrfToken;
-      await fetch("/api/health/water", {
+      const response = await fetch("/api/health/water", {
         method: "POST",
         body: JSON.stringify({ amount_ml: ml }),
         headers,
       });
-      setWaterTotal((p) => p + ml);
+      if (!response.ok) throw new Error("water update failed");
+      return true;
     } catch (e) {
+      setWaterTotal((previous) => Math.max(0, previous - ml));
+      setWaterAddError("לא הצלחנו לעדכן את השתייה. נסה שוב.");
       console.error("Error adding water:", e);
+      return false;
     }
   }, []);
 
@@ -197,6 +204,7 @@ export function useClientHome() {
     goalStatus,
     daysSinceSignup,
     totalSteps,
+    waterAddError,
     isLoaded,
     notifStatus,
     isPwa,

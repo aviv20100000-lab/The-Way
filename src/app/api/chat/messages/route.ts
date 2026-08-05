@@ -4,7 +4,7 @@ import { v4 as uuid } from "uuid";
 import db, { initDb } from "@/lib/db";
 import { sendSecurityAlert } from "@/lib/security-alerts";
 import { pushToUsers, setupVapid } from "@/lib/chat-push";
-import { canAccessDefaultGroup, getDefaultGroupMemberIds, isGroupMember, resolveCoachId } from "@/lib/chat-group";
+import { canAccessDefaultGroup, canAccessPrivateChat, getDefaultGroupMemberIds, isGroupMember, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
 import { defaultGroupReadKey, markGroupRead, namedGroupReadKey } from "@/lib/chat-reads";
 
@@ -84,8 +84,7 @@ export async function GET(req: NextRequest) {
       const peer = peerRes.rows[0] as unknown as { id: string; role: string; coach_id: string | null } | undefined;
       if (!peer) return NextResponse.json({ error: "משתמש לא קיים" }, { status: 404 });
 
-      const peerCoachId = peer.role === "coach" ? peer.id : peer.coach_id;
-      if (peerCoachId !== coachId) {
+      if (!(await canAccessPrivateChat(user as Parameters<typeof canAccessPrivateChat>[0], peer))) {
         await sendSecurityAlert({
           event: "chat_cross_group_read_attempt",
           severity: "medium",
@@ -223,8 +222,7 @@ export async function POST(req: NextRequest) {
       const receiver = receiverRes.rows[0] as unknown as { id: string; role: string; coach_id: string | null } | undefined;
       if (!receiver) return NextResponse.json({ error: "משתמש לא קיים" }, { status: 404 });
 
-      const receiverCoachId = receiver.role === "coach" ? receiver.id : receiver.coach_id;
-      if (receiverCoachId !== coachId) {
+      if (!(await canAccessPrivateChat(user as Parameters<typeof canAccessPrivateChat>[0], receiver))) {
         await sendSecurityAlert({
           event: "chat_cross_group_write_attempt",
           severity: "high",

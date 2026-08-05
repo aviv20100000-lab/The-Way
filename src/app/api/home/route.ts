@@ -16,7 +16,7 @@ export async function GET() {
   const { startUtc, endUtc } = getDayRangeUtc(getTodayDayKey());
 
   // All DB queries in parallel — single session lookup, single initDb
-  const [quotesRes, waterRes, goalsRes, streakRes, stepsRes, caloriesRes, totalStepsRes, profileRes] = await Promise.all([
+  const [quotesRes, waterRes, goalsRes, streakRes, stepsRes, caloriesRes, totalStepsRes, profileRes, publishedMenuRes] = await Promise.all([
     db.execute("SELECT text FROM quotes WHERE active = 1"),
     db.execute({
       sql: "SELECT amount_ml FROM water_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ?",
@@ -59,13 +59,32 @@ export async function GET() {
       sql: "SELECT created_at FROM users WHERE id = ?",
       args: [u.id],
     }),
+    db.execute({
+      sql: `SELECT daily_calories_target
+            FROM menu_plans
+            WHERE client_id = ? AND status = 'published' AND daily_calories_target IS NOT NULL
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT 1`,
+      args: [u.id],
+    }),
   ]);
 
   const quotes = (quotesRes.rows as unknown as { text: string }[]).map((r) => r.text).filter(Boolean);
   const waterLogs = waterRes.rows as unknown as { amount_ml: number }[];
   const waterTotal = waterLogs.reduce((s, l) => s + l.amount_ml, 0);
   const waterGoal = (goalsRes.rows[0]?.daily_water_ml as number) || 2000;
-  const calGoal = (goalsRes.rows[0]?.daily_calories as number) || null;
+  const generalCalorieGoal = goalsRes.rows[0]?.daily_calories == null
+    ? null
+    : Number(goalsRes.rows[0].daily_calories);
+  const menuCalorieGoal = publishedMenuRes.rows[0]?.daily_calories_target == null
+    ? null
+    : Number(publishedMenuRes.rows[0].daily_calories_target);
+  const calGoal = menuCalorieGoal ?? generalCalorieGoal;
+  const calorieGoalSource = menuCalorieGoal !== null
+    ? "menu"
+    : generalCalorieGoal !== null
+      ? "general"
+      : null;
   const goalsRow = goalsRes.rows[0] || null;
   const streakRow = streakRes.rows[0] || {};
   const profileRow = profileRes.rows[0] || {};
@@ -94,12 +113,13 @@ export async function GET() {
       total: Math.round((caloriesRes.rows[0]?.total_calories as number) ?? 0),
       goal: calGoal,
     },
+    calorie_goal_source: calorieGoalSource,
     protein_goal: (goalsRes.rows[0]?.daily_protein_g as number) || null,
     weigh_in_frequency_weeks: (goalsRes.rows[0]?.weigh_in_frequency_weeks as number) || null,
     weigh_in_weekday: goalsRes.rows[0]?.weigh_in_weekday == null ? null : Number(goalsRes.rows[0].weigh_in_weekday),
     goal_status: {
       target_weight: goalsRow?.target_weight_kg != null,
-      calories: goalsRow?.daily_calories != null,
+      calories: calGoal !== null,
       protein: goalsRow?.daily_protein_g != null,
       water: goalsRow?.daily_water_ml != null,
       steps: goalsRow?.daily_steps != null,

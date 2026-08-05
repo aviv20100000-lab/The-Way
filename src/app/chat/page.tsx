@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { motion, useReducedMotion } from "framer-motion";
 import { getCsrfToken } from "@/lib/csrf-client";
 import PageSkeleton from "@/components/PageSkeleton";
-import { partitionChatContacts } from "@/lib/chat-contacts";
+import { getContactAccessibleName, getDuplicateContactNames, partitionChatContacts } from "@/lib/chat-contacts";
 
 const ChatGroupCreator = dynamic(() => import("@/components/coach/ChatGroupCreator"), {
   loading: () => <div className="skeleton h-80 rounded-3xl" />,
@@ -757,6 +757,7 @@ export default function ChatPage() {
   // Clients outside the default group don't see it at all; coaches always do
   const showGroupRow = user.role === "coach" || inDefaultGroup;
   const { coach: coachContact, regular: regularContacts } = partitionChatContacts(user.role, contacts);
+  const duplicateContactNames = getDuplicateContactNames(regularContacts);
 
   const assistantReviewRow = user.role === "coach" && (
     <button
@@ -890,16 +891,22 @@ export default function ChatPage() {
 
   const dmRows = regularContacts.map((c) => {
     const isActive = mode.type === "private" && mode.contact.id === c.id && showChat;
+    const hasDuplicateName = duplicateContactNames.has(c.name);
+    const contactIdentifier = c.username ? `@${c.username}` : `מזהה ${c.id.slice(0, 6)}`;
     return (
       <button
         key={c.id}
         onClick={() => selectChat({ type: "private", contact: c })}
+        aria-label={getContactAccessibleName(c, hasDuplicateName)}
         className={`mx-3 my-1 flex w-[calc(100%_-_1.5rem)] items-center gap-3 rounded-2xl border border-[#232a23] bg-[#121716] px-4 py-3.5 text-right transition-colors md:mx-0 md:my-0 md:w-full md:rounded-none md:border-0 md:bg-transparent ${isActive ? "bg-[#c3f400]/8 border-r-2 border-[#c3f400]" : "hover:bg-[#1e2020]"}`}
       >
         <Avatar name={c.name} avatarUrl={c.avatar_url} />
         <div className="flex-1 min-w-0">
           <div className={`font-semibold text-sm truncate ${isActive ? "text-[#c3f400]" : "text-white"}`}>{c.name}</div>
-          <div className="text-xs text-[#8e9379] truncate">{c.role === "coach" ? "מאמן" : "מתאמן"}</div>
+          <div className="text-xs text-[#8e9379] truncate">
+            {c.role === "coach" ? "מאמן" : "מתאמן"}
+            {hasDuplicateName ? ` · ${contactIdentifier}` : ""}
+          </div>
         </div>
         {(unreadMap[c.id] ?? 0) > 0 && <span className="bg-[#c3f400] text-[#161e00] text-xs font-black rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">{unreadMap[c.id]}</span>}
       </button>
@@ -1118,6 +1125,7 @@ export default function ChatPage() {
           <button
             onClick={sendMessage}
             disabled={!input.trim() || sending}
+            aria-label="שלח הודעה"
             className="bg-[#c3f400] disabled:opacity-40 text-[#161e00] rounded-full w-11 h-11 flex items-center justify-center shrink-0 hover:brightness-110 transition-all shadow-[0_0_20px_-5px_rgba(195,244,0,0.4)]"
           >
             {sending
@@ -1158,6 +1166,7 @@ export default function ChatPage() {
       <header className="border-b border-[#1e2020] px-4 py-3 flex items-center gap-3 shrink-0 pt-[max(12px,env(safe-area-inset-top))]" style={{ background: "#0c0f0f" }}>
         <button
           onClick={showChat ? backToList : () => router.back()}
+          aria-label={showChat ? "חזרה לרשימת השיחות" : "חזרה"}
           className="text-[#8e9379] hover:text-white p-1 -ml-1 shrink-0 transition-colors"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

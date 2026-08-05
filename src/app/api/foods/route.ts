@@ -4,7 +4,7 @@ import { searchFoods } from "@/lib/meals";
 import { ensureSeed } from "@/lib/seed";
 import db from "@/lib/db";
 
-// Official MoH Tzameret DB — searched first, shortest (most generic) names win
+// Official MoH Tzameret DB — searched first; exact prefixes rank above embedded matches.
 async function searchTzameret(query: string) {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
@@ -12,8 +12,11 @@ async function searchTzameret(query: string) {
   const res = await db.execute({
     sql: `SELECT code, name_he, calories, protein, carbs, fat FROM tzameret_foods
           WHERE name_he LIKE ? ESCAPE '\\' AND name_he NOT LIKE 'FFQ%'
-          ORDER BY length(name_he) ASC, code ASC LIMIT 12`,
-    args: [`%${escaped}%`],
+          ORDER BY CASE WHEN name_he LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END,
+                   length(name_he) ASC,
+                   code ASC
+          LIMIT 12`,
+    args: [`%${escaped}%`, `${escaped}%`],
   });
   return res.rows.map((r) => ({
     id: `tz-${r.code}`,

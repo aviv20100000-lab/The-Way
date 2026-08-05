@@ -111,7 +111,7 @@ export default function ClientPage() {
 
   // Hooks
   const { user, isLoading, logout } = useAuth();
-  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, weighInFrequencyWeeks, weighInWeekday, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
+  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, waterAddError, weighInFrequencyWeeks, weighInWeekday, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
   const { analyzing, aiResult, foodError, scanLimitReached, mealSaved, myMeals, mealDeleteError, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, hasCompetition, competitionGroupName, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
@@ -390,7 +390,9 @@ export default function ClientPage() {
   if (isLoading || !user) return <PageSkeleton variant="dashboard" />;
 
   const waterPct = Math.min(100, Math.round((waterTotal / waterGoal) * 100));
-  const stepsPct = Math.min(100, Math.round((todaySteps / stepsGoal) * 100));
+  const stepsPct = goalStatus.steps && stepsGoal > 0
+    ? Math.min(100, Math.round((todaySteps / stepsGoal) * 100))
+    : 0;
   const missingCoachGoals = [
     !goalStatus.calories ? "יעד קלוריות" : null,
     !goalStatus.protein ? "יעד חלבון" : null,
@@ -651,8 +653,10 @@ export default function ClientPage() {
                 <AnimatedScore value={todaySteps} animate={!prefersReducedMotion} className="text-xl font-bold text-white" />
               </ProgressRing>
               <p className="mt-4 text-sm font-semibold tracking-wide text-white">צעדים</p>
-              {stepsGoal > 0 && (
+              {goalStatus.steps && stepsGoal > 0 ? (
                 <p className="mt-1 text-xs text-[#c4c9ac]">יעד {stepsGoal.toLocaleString()} צעדים</p>
+              ) : (
+                <p className="mt-1 text-xs text-[#c4c9ac]">היעד עדיין לא הוגדר</p>
               )}
             </TiltCard>
 
@@ -697,6 +701,7 @@ export default function ClientPage() {
                       </motion.button>
                     ))}
                   </div>
+                  {waterAddError && <p className="text-xs font-semibold text-red-400">{waterAddError}</p>}
                 </div>
               </div>
             </motion.div>
@@ -947,7 +952,11 @@ export default function ClientPage() {
                 <h2 className="text-2xl font-black leading-none text-white">לוח מנצחים</h2>
                 {myRank && <p className="text-xs text-[#8e9379] mt-1">הדירוג שלך: <span className="text-[#c3f400] font-bold">{myRank}</span></p>}
                 {hasCompetition && competitionGroupName && <p className="text-xs text-[#8e9379] mt-1">תחרות: <span className="text-[#c3f400] font-bold">{competitionGroupName}</span></p>}
-                <p className="text-xs text-[#8e9379] mt-1">היעד היומי שלך: {stepsGoal.toLocaleString()} צעדים</p>
+                <p className="text-xs text-[#8e9379] mt-1">
+                  {goalStatus.steps
+                    ? `היעד היומי שלך: ${stepsGoal.toLocaleString()} צעדים`
+                    : "היעד היומי עדיין לא הוגדר"}
+                </p>
               </div>
               {/* Time toggle — top right */}
               <div className="flex shrink-0 rounded-xl bg-[#1a1c1c] border border-[#2e3030] p-0.5 gap-0.5">

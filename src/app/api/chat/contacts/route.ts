@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
-import { isInDefaultGroup } from "@/lib/chat-group";
+import { getPrivateChatContacts, isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
 import { defaultGroupReadKey } from "@/lib/chat-reads";
 
 // GET /api/chat/contacts — returns DM contacts + unread counts
@@ -12,28 +12,8 @@ export async function GET() {
   try {
     await initDb();
 
-    const coachId =
-      user.role === "coach"
-        ? user.id
-        : ((user as { coach_id?: string }).coach_id ?? null);
-
-    let contacts: { id: string; name: string; role: string; username: string; avatar_url: string | null }[] = [];
-    if (coachId) {
-      const selfRes = await db.execute({ sql: "SELECT dm_coach_only FROM users WHERE id = ?", args: [user.id] });
-      const dmCoachOnly = Number(selfRes.rows[0]?.dm_coach_only ?? 0) === 1;
-
-      const membersRes = await db.execute(
-        dmCoachOnly
-          ? { sql: `SELECT id, name, role, username, avatar_url FROM users WHERE id = ?`, args: [coachId] }
-          : {
-              sql: `SELECT id, name, role, username, avatar_url FROM users
-                    WHERE (id = ? OR coach_id = ?) AND id != ?
-                    ORDER BY role DESC, name ASC`,
-              args: [coachId, coachId, user.id],
-            }
-      );
-      contacts = membersRes.rows as unknown as { id: string; name: string; role: string; username: string; avatar_url: string | null }[];
-    }
+    const coachId = resolveCoachId(user as Parameters<typeof resolveCoachId>[0]);
+    const contacts = await getPrivateChatContacts(user as Parameters<typeof getPrivateChatContacts>[0]);
 
     // Unread DM count per sender
     const unreadRes = await db.execute({
@@ -44,9 +24,11 @@ export async function GET() {
       args: [user.id],
     });
 
+    const allowedContactIds = new Set(contacts.map((contact) => contact.id));
     const unreadMap: Record<string, number> = {};
     for (const row of unreadRes.rows) {
-      unreadMap[row.sender_id as string] = Number(row.count);
+      const senderId = String(row.sender_id);
+      if (allowedContactIds.has(senderId)) unreadMap[senderId] = Number(row.count);
     }
 
     // Group unread: messages sent by others in the same group that are still unread

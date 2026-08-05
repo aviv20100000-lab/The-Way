@@ -88,6 +88,7 @@ export function WaterActionButtons({ onAddWater, loading = false }: WaterActionB
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
             placeholder="כמות במ״ל"
+            aria-label="כמות מים מותאמת במ״ל"
             min="1"
             max="5000"
             className="flex-1 px-3 py-2 rounded-xl border border-[#444933] bg-[#282a2b] text-white placeholder:text-[#8e9379] text-sm focus:ring-2 focus:ring-[#38bdf8]/30 focus:border-[#38bdf8] transition-all"

@@ -29,6 +29,7 @@ describe("/api/coach/activity", () => {
   it("returns only the coach activity and calculates unread items", async () => {
     mockSession.mockResolvedValue({ id: "coach-1", role: "coach", name: "מאמן", email: "coach@example.com", coach_id: null });
     mockExecute
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [
         { activity_id: "weight:w1", client_id: "client-1", client_name: "נועה", kind: "weight", value: 64.2, logged_at: "2026-07-06 09:00:00" },
         { activity_id: "steps:s1", client_id: "client-2", client_name: "דני", kind: "steps", value: 8421, logged_at: "2026-07-05 18:00:00" },
@@ -42,7 +43,7 @@ describe("/api/coach/activity", () => {
     expect(response.status).toBe(200);
     expect(body.unread_count).toBe(1);
     expect(body.items[0]).toMatchObject({ client_id: "client-1", title: "עדכן משקל", unread: true });
-    expect(mockExecute.mock.calls[0][0].args).toEqual(["coach-1", "coach-1", "coach-1", "coach-1", "coach-1"]);
+    expect(mockExecute.mock.calls[1][0].args).toEqual(["coach-1", "coach-1", "coach-1", "coach-1", "coach-1"]);
   });
 
   it("marks activity as seen for the logged-in coach", async () => {

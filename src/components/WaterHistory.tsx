@@ -50,7 +50,7 @@ export function WaterHistory({ logs, onDelete, onUndo }: WaterHistoryProps) {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.4 }}
       >
-        <p className="text-[#8e9379]">עדיין לא שתית היום. בואו נתחיל! 💧</p>
+        <p className="text-[#8e9379]">עדיין לא שתית היום. אפשר להתחיל 💧</p>
       </motion.div>
     );
   }

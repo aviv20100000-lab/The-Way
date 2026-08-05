@@ -24,12 +24,17 @@ export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<Pr
 
   if (user.role === "coach") {
     const result = await db.execute({
-      sql: `SELECT id, name, role, username, avatar_url FROM users
-            WHERE (id = ? OR coach_id = ?) AND id != ?
-            ORDER BY role DESC, name ASC`,
-      args: [coachId, coachId, user.id],
+      sql: `SELECT u.id, u.name, u.role, u.username, u.avatar_url,
+                   (SELECT MAX(m.sent_at) FROM chat_messages m
+                    WHERE (m.sender_id = u.id AND m.receiver_id = ?)
+                       OR (m.sender_id = ? AND m.receiver_id = u.id)) AS last_message_at
+            FROM users u
+            WHERE (u.id = ? OR u.coach_id = ?) AND u.id != ?
+            ORDER BY last_message_at IS NULL, last_message_at DESC, u.role DESC, u.name ASC`,
+      args: [user.id, user.id, coachId, coachId, user.id],
     });
-    return result.rows as unknown as PrivateChatContact[];
+    return (result.rows as unknown as (PrivateChatContact & { last_message_at: string | null })[])
+      .map(({ id, name, role, username, avatar_url }) => ({ id, name, role, username, avatar_url }));
   }
 
   const selfResult = await db.execute({

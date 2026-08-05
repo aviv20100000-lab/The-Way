@@ -626,6 +626,27 @@ export default function ChatPage() {
     }
   };
 
+  const deleteMessage = async (messageId: string) => {
+    if (!window.confirm("למחוק את ההודעה?")) return;
+    const previous = messagesRef.current;
+    const optimisticNext = previous.filter((m) => m.id !== messageId);
+    messagesRef.current = optimisticNext;
+    setMessages(optimisticNext);
+    persistCache({ messages: optimisticNext });
+    try {
+      const csrf = await getCsrfToken();
+      const res = await fetch(`/api/chat/messages/${encodeURIComponent(messageId)}`, {
+        method: "DELETE",
+        headers: { "x-csrf-token": csrf ?? "" },
+      });
+      if (!res.ok) throw new Error("delete failed");
+    } catch {
+      messagesRef.current = previous;
+      setMessages(previous);
+      persistCache({ messages: previous });
+    }
+  };
+
   const reactToMessage = async (messageId: string, emoji: string) => {
     if (reactingMessageIds.current.has(messageId)) return;
     try { navigator.vibrate?.(10); } catch {}
@@ -1047,6 +1068,16 @@ export default function ChatPage() {
                         className="text-[#8e9379] hover:text-[#c3f400]"
                       >
                         📌
+                      </button>
+                    )}
+                    {!isAssistantMode && !msg.id.startsWith("opt-") && (isMe || (user.role === "coach" && mode.type !== "private")) && (
+                      <button
+                        onClick={() => void deleteMessage(msg.id)}
+                        aria-label="מחק הודעה"
+                        title="מחק הודעה"
+                        className="text-[#8e9379] hover:text-red-400"
+                      >
+                        🗑️
                       </button>
                     )}
                   </span>

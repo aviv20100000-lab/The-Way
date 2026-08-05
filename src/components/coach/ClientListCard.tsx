@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AvatarPhotoPicker from "@/components/AvatarPhotoPicker";
+import type { Gender } from "@/lib/types";
 
 /** A group the coach can put a trainee in. `id` "default" is the main group. */
 export interface CoachGroupOption {
@@ -24,6 +25,8 @@ export interface CoachClient {
   has_push: boolean;
   /** Named chat groups this trainee belongs to. The main group is in_default_group. */
   group_ids: string[];
+  /** null = not set yet by the coach; text stays masculine until it is. */
+  gender: Gender | null;
 }
 
 interface ClientListCardProps {
@@ -35,6 +38,7 @@ interface ClientListCardProps {
   onAvatarUploaded: (clientId: string, url: string) => void;
   onToggleGroup: (client: CoachClient, groupId: string, join: boolean) => void;
   onSendMealReminder: (client: CoachClient) => void;
+  onSetGender: (client: CoachClient, gender: Gender) => void;
 }
 
 /** Which of the coach's groups this trainee is currently in. */
@@ -44,7 +48,7 @@ function membershipOf(client: CoachClient, groups: CoachGroupOption[]) {
   );
 }
 
-export default function ClientListCard({ client, groups, onOpenData, onOpenGoals, onOpenWizard, onAvatarUploaded, onToggleGroup, onSendMealReminder }: ClientListCardProps) {
+export default function ClientListCard({ client, groups, onOpenData, onOpenGoals, onOpenWizard, onAvatarUploaded, onToggleGroup, onSendMealReminder, onSetGender }: ClientListCardProps) {
   const [groupsOpen, setGroupsOpen] = useState(false);
   const memberOf = membershipOf(client, groups);
 
@@ -107,6 +111,29 @@ export default function ClientListCard({ client, groups, onOpenData, onOpenGoals
             🎯
           </button>
         </div>
+      </div>
+      {/* Which grammatical gender to address this trainee with in Hebrew text
+          (notifications, the assistant). Sits next to the group button because
+          both are per-trainee toggles a coach flips from the same card. */}
+      <div className="mt-3 flex gap-2">
+        {([["male", "זכר"], ["female", "נקבה"]] as const).map(([option, label]) => {
+          const checked = client.gender === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onSetGender(client, option)}
+              aria-pressed={checked}
+              className={`flex-1 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
+                checked
+                  ? "border-[#c3f400]/30 bg-[#c3f400]/10 text-[#c3f400]"
+                  : "border-[#444933] bg-[#1e2020] text-[#8e9379] hover:bg-[#282a2b]"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
       {/* Chat group is also the steps competition, so this is the control that
           decides who competes against whom — not only who reads which chat. */}

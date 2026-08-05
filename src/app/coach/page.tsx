@@ -15,6 +15,7 @@ import { welcomeMessage } from "@/lib/welcome-message";
 import SuccessToast from "@/components/SuccessToast";
 import { withCsrf } from "@/lib/csrf-client";
 import { currentPushEndpoint } from "@/lib/push-client";
+import type { Gender } from "@/lib/types";
 
 const AddClientForm = dynamic(() => import("@/components/coach/AddClientForm"), {
   loading: () => <div className="skeleton h-48 rounded-3xl" />,
@@ -66,7 +67,7 @@ export default function CoachPage() {
   const [clients, setClients] = useState<CoachClient[]>([]);
   const [clientGroupFilter, setClientGroupFilter] = useState<"all" | "in" | "out">("all");
   const [showAddClient, setShowAddClient] = useState(false);
-  const [newClient, setNewClient] = useState({ name: "", username: "", password: "", groupIds: [] as string[] });
+  const [newClient, setNewClient] = useState({ name: "", username: "", password: "", groupIds: [] as string[], gender: null as Gender | null });
   /**
    * The credentials that were actually saved, kept so the coach can send them.
    * The password is hashed the moment it reaches the server, so this is the
@@ -189,6 +190,25 @@ export default function CoachPage() {
     }
   }, []);
 
+  /** Sets which grammatical gender Hebrew text should address this trainee with. */
+  const setClientGender = useCallback(async (client: CoachClient, gender: Gender) => {
+    const previous = client.gender;
+    // Optimistic; reverted on failure.
+    setClients((current) => current.map((item) => item.id === client.id ? { ...item, gender } : item));
+    try {
+      const res = await fetch(`/api/users/clients/${client.id}`, {
+        method: "PATCH",
+        headers: await withCsrf({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ gender }),
+      });
+      if (!res.ok) throw new Error("gender update failed");
+    } catch (e) {
+      console.error("Error setting client gender:", e);
+      setClients((current) => current.map((item) => item.id === client.id ? { ...item, gender: previous } : item));
+      setSuccessMessage("עדכון המין נכשל");
+    }
+  }, []);
+
   /**
    * A nudge to photograph the meal, to one trainee, right now. The whole point is
    * that it takes one press from the client list — a reminder the coach has to
@@ -290,7 +310,7 @@ export default function CoachPage() {
     const res = await fetch("/api/users/clients", {
       method: "POST",
       headers: await withCsrf({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ name: newClient.name, username: newClient.username, password: newClient.password }),
+      body: JSON.stringify({ name: newClient.name, username: newClient.username, password: newClient.password, gender: newClient.gender }),
     });
     const data = await res.json();
     if (!res.ok) { setAddError(data.error); return; }
@@ -301,7 +321,7 @@ export default function CoachPage() {
       password: newClient.password,
     });
     setWelcomeCopied(false);
-    setNewClient({ name: "", username: "", password: "", groupIds: [] });
+    setNewClient({ name: "", username: "", password: "", groupIds: [], gender: null });
     setSuccessMessage("המתאמן נוסף");
     void loadClients();
 
@@ -710,6 +730,7 @@ export default function CoachPage() {
                   groups={groupOptions}
                   onToggleGroup={(selected, groupId, join) => void toggleGroupMembership(selected, groupId, join)}
                   onSendMealReminder={(selected) => void sendMealReminder(selected)}
+                  onSetGender={(selected, gender) => void setClientGender(selected, gender)}
                 />
                 <button type="button" onClick={() => { setMenuClient(client); setTab("menus"); }}
                   className="w-full rounded-xl border border-[#c3f400]/25 bg-[#c3f400]/10 py-2.5 text-sm font-bold text-[#c3f400] transition hover:bg-[#c3f400]/15">

@@ -744,6 +744,15 @@ async function runInit() {
     // Column already exists — ignore
   }
 
+  // Grammatical gender ('male' / 'female'), so Hebrew text addresses the trainee
+  // correctly. Deliberately nullable with no default: existing accounts stay NULL
+  // and keep the masculine wording they have today until their coach picks.
+  try {
+    await db.execute({ sql: "ALTER TABLE users ADD COLUMN gender TEXT", args: [] });
+  } catch {
+    // Column already exists — ignore
+  }
+
   await db.execute({
     sql: "CREATE INDEX IF NOT EXISTS idx_chat_messages_group_id ON chat_messages(group_id)",
     args: [],

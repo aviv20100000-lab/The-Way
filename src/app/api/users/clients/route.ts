@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, createUser, getClientsByCoach } from "@/lib/auth";
 import { ensureSeed } from "@/lib/seed";
 import { validatePassword, validateName, validateUsername } from "@/lib/validation";
+import { isGender } from "@/lib/types";
 import db from "@/lib/db";
 
 export async function GET() {
@@ -25,10 +26,14 @@ export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user || user.role !== "coach") return NextResponse.json({ error: "גישה נדחתה" }, { status: 403 });
 
-  const { name, username, password } = await req.json();
+  const { name, username, password, gender } = await req.json();
 
   if (!name || !username || !password) {
     return NextResponse.json({ error: "נא למלא את כל השדות" }, { status: 400 });
+  }
+
+  if (gender !== undefined && gender !== null && !isGender(gender)) {
+    return NextResponse.json({ error: "מין לא תקין" }, { status: 400 });
   }
 
   if (!validateName(name)) {
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const client = await createUser({ name, username, password, role: "client", coachId: user.id });
+    const client = await createUser({ name, username, password, role: "client", coachId: user.id, gender: gender ?? null });
     return NextResponse.json(client);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "";

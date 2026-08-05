@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { getTraineeImpact, deleteTraineeCascade } from "@/lib/trainee-deletion";
 import { logAuditEvent } from "@/lib/audit-log";
+import { isGender } from "@/lib/types";
 
 /**
  * A single trainee, from their own coach's side: what deleting them would cost,
@@ -74,9 +75,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 /**
- * Switches the account on or off. This is the reversible answer to "he stopped
- * training": login is refused and any open session dies on the next request,
- * but not one row of history is touched.
+ * Switches the account on/off and/or updates its gender. Two unrelated fields
+ * share this endpoint because both are simple trainee-editing toggles a coach
+ * flips from the same card — each is applied only when present in the body.
+ *
+ * Switching active is the reversible answer to "he stopped training": login is
+ * refused and any open session dies on the next request, but not one row of
+ * history is touched.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -84,21 +89,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!resolved.ok) return resolved.response;
 
   const body = await req.json().catch(() => null);
-  if (!body || typeof body.active !== "boolean") {
-    return NextResponse.json({ error: "צריך לציין אם החשבון פעיל" }, { status: 400 });
+  const hasActive = body && typeof body.active === "boolean";
+  const hasGender = body && "gender" in body;
+
+  if (!body || (!hasActive && !hasGender)) {
+    return NextResponse.json({ error: "צריך לציין אם החשבון פעיל או מה המין" }, { status: 400 });
   }
 
-  await db.execute({
-    sql: "UPDATE users SET active = ? WHERE id = ?",
-    args: [body.active ? 1 : 0, resolved.trainee.id],
-  });
+  if (hasGender && body.gender !== null && !isGender(body.gender)) {
+    return NextResponse.json({ error: "מין לא תקין" }, { status: 400 });
+  }
 
-  await logAuditEvent(body.active ? "trainee_enabled" : "trainee_disabled", {
-    userId: resolved.trainee.coachId,
-    metadata: `${resolved.trainee.id} ${resolved.trainee.name}`,
-  });
+  if (hasActive) {
+    await db.execute({
+      sql: "UPDATE users SET active = ? WHERE id = ?",
+      args: [body.active ? 1 : 0, resolved.trainee.id],
+    });
+    await logAuditEvent(body.active ? "trainee_enabled" : "trainee_disabled", {
+      userId: resolved.trainee.coachId,
+      metadata: `${resolved.trainee.id} ${resolved.trainee.name}`,
+    });
+  }
 
-  return NextResponse.json({ ok: true, active: body.active });
+  if (hasGender) {
+    await db.execute({
+      sql: "UPDATE users SET gender = ? WHERE id = ?",
+      args: [body.gender, resolved.trainee.id],
+    });
+  }
+
+  return NextResponse.json({ ok: true, active: hasActive ? body.active : undefined, gender: hasGender ? body.gender : undefined });
 }
 
 /**

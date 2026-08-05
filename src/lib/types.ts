@@ -1,6 +1,17 @@
 export type Role = "coach" | "client";
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
+/**
+ * Grammatical gender, for addressing the user in Hebrew. Not a profile field and
+ * not shown to the trainee — it exists so notifications and the assistant stop
+ * speaking to every woman in masculine.
+ */
+export type Gender = "male" | "female";
+
+export function isGender(value: unknown): value is Gender {
+  return value === "male" || value === "female";
+}
+
 export interface User {
   id: string;
   name: string;
@@ -8,6 +19,8 @@ export interface User {
   role: Role;
   coach_id: string | null;
   username?: string;
+  /** null/undefined = the coach has not picked yet; treat as masculine. */
+  gender?: Gender | null;
 }
 
 export interface Food {

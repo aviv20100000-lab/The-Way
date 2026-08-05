@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { v4 as uuid } from "uuid";
 import db, { initDb } from "./db";
-import type { User } from "./types";
+import type { Gender, User } from "./types";
 
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || (() => { throw new Error("JWT_SECRET is required in .env.local"); })()
@@ -69,7 +69,7 @@ export async function getSessionUser(): Promise<User | null> {
     const userId = payload.sub as string;
     // ver defaults to 1 for old tokens that pre-date session revocation
     const tokenVer = (payload.ver as number | null) ?? 1;
-    const res = await db.execute({ sql: "SELECT id, name, email, role, coach_id, username, session_version, active FROM users WHERE id = ?", args: [userId] });
+    const res = await db.execute({ sql: "SELECT id, name, email, role, coach_id, username, session_version, active, gender FROM users WHERE id = ?", args: [userId] });
     const row = res.rows[0];
     if (!row) return null;
     const dbVer = (row.session_version as number | null) ?? 1;
@@ -77,7 +77,7 @@ export async function getSessionUser(): Promise<User | null> {
     // A switched-off account loses its session on the very next request, without
     // waiting for the token to expire and without touching session_version.
     if (Number(row.active ?? 1) !== 1) return null;
-    return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, username: row.username as string };
+    return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, username: row.username as string, gender: (row.gender as Gender | null) ?? null };
   } catch {
     return null;
   }
@@ -142,7 +142,7 @@ export function isInternalEmail(email: string | null | undefined) {
  * Password reset is unaffected: it delivers the reset link over Telegram to the
  * coach, not to the address on the account.
  */
-export async function createUser(data: { name: string; username: string; password: string; role: "coach" | "client"; coachId?: string }) {
+export async function createUser(data: { name: string; username: string; password: string; role: "coach" | "client"; coachId?: string; gender?: Gender | null }) {
   await ensureDb();
   const id = uuid();
   const passwordHash = await bcrypt.hash(data.password, 10);
@@ -150,14 +150,14 @@ export async function createUser(data: { name: string; username: string; passwor
   const email = internalEmailFor(username);
   // New clients start OUTSIDE the default chat group — the coach adds them explicitly.
   const inDefaultGroup = data.role === "coach" ? 1 : 0;
-  await db.execute({ sql: "INSERT INTO users (id, name, email, username, password_hash, role, coach_id, in_default_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", args: [id, data.name, email, username, passwordHash, data.role, data.coachId ?? null, inDefaultGroup] });
-  return { id, name: data.name, username, email, role: data.role, coach_id: data.coachId ?? null };
+  await db.execute({ sql: "INSERT INTO users (id, name, email, username, password_hash, role, coach_id, in_default_group, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", args: [id, data.name, email, username, passwordHash, data.role, data.coachId ?? null, inDefaultGroup, data.gender ?? null] });
+  return { id, name: data.name, username, email, role: data.role, coach_id: data.coachId ?? null, gender: data.gender ?? null };
 }
 
 export async function getClientsByCoach(coachId: string): Promise<(User & { has_goals: boolean; in_default_group: boolean; active: boolean; has_push: boolean; group_ids: string[] })[]> {
   await ensureDb();
   const res = await db.execute({
-    sql: `SELECT u.id, u.name, u.email, u.username, u.role, u.coach_id, u.in_default_group, u.active,
+    sql: `SELECT u.id, u.name, u.email, u.username, u.role, u.coach_id, u.in_default_group, u.active, u.gender,
             -- Whether any device is registered to THIS account. A push endpoint
             -- belongs to one account at a time, so a coach testing on their own
             -- phone can be reachable while their trainee account is not.
@@ -192,6 +192,7 @@ export async function getClientsByCoach(coachId: string): Promise<(User & { has_
     has_goals: Boolean(r.has_goals),
     in_default_group: Boolean(r.in_default_group),
     active: Number(r.active ?? 1) === 1,
+    gender: (r.gender as Gender | null) ?? null,
     has_push: Boolean(r.has_push),
     group_ids: r.group_ids ? String(r.group_ids).split("||") : [],
   }));

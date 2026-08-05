@@ -1,8 +1,11 @@
+import type { Gender } from "@/lib/types";
+
 export interface NewClientInput {
   name: string;
   username: string;
   password: string;
   groupIds: string[];
+  gender: Gender | null;
 }
 
 interface AddClientFormProps {
@@ -33,6 +36,20 @@ export default function AddClientForm({ value, groups, error, onChange, onCancel
         autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
         onChange={(event) => onChange({ ...value, password: event.target.value })}
         className="w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all" />
+      <div>
+        <p className="mb-2 text-xs font-semibold text-[#c4c9ac]">מין המתאמן</p>
+        <div className="flex gap-2">
+          {([["male", "זכר"], ["female", "נקבה"]] as const).map(([option, label]) => {
+            const checked = value.gender === option;
+            return (
+              <button key={option} type="button" onClick={() => onChange({ ...value, gender: option })}
+                className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold transition ${checked ? "border-[#c3f400]/40 bg-[#c3f400]/10 text-white" : "border-[#444933] bg-[#282a2b] text-[#c4c9ac]"}`}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div>
         <p className="mb-2 text-xs font-semibold text-[#c4c9ac]">הוסף לקבוצה</p>
         <div className="space-y-2">

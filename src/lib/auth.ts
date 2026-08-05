@@ -59,18 +59,11 @@ export async function clearSession() {
   cookieStore.delete(COOKIE_NAME);
 }
 
-// TEMP DIAGNOSTIC (2026-08-05): getSessionUser was returning null right after a
-// successful login with no logged reason. Logging which branch fired so the
-// exact cause shows up in Vercel function logs — remove once the intermittent
-// post-login 401 is root-caused.
 export async function getSessionUser(): Promise<User | null> {
   await ensureDb();
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
-  if (!token) {
-    console.error("[session-debug] no cookie present");
-    return null;
-  }
+  if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, SECRET);
     const userId = payload.sub as string;
@@ -78,24 +71,14 @@ export async function getSessionUser(): Promise<User | null> {
     const tokenVer = (payload.ver as number | null) ?? 1;
     const res = await db.execute({ sql: "SELECT id, name, email, role, coach_id, username, session_version, active, gender FROM users WHERE id = ?", args: [userId] });
     const row = res.rows[0];
-    if (!row) {
-      console.error("[session-debug] no user row for id", userId);
-      return null;
-    }
+    if (!row) return null;
     const dbVer = (row.session_version as number | null) ?? 1;
-    if (tokenVer !== dbVer) {
-      console.error("[session-debug] version mismatch", { userId, tokenVer, dbVer });
-      return null; // session revoked (e.g. after password reset)
-    }
+    if (tokenVer !== dbVer) return null; // session revoked (e.g. after password reset)
     // A switched-off account loses its session on the very next request, without
     // waiting for the token to expire and without touching session_version.
-    if (Number(row.active ?? 1) !== 1) {
-      console.error("[session-debug] account inactive", userId);
-      return null;
-    }
+    if (Number(row.active ?? 1) !== 1) return null;
     return { id: row.id as string, name: row.name as string, email: row.email as string, role: row.role as "coach" | "client", coach_id: row.coach_id as string | null, username: row.username as string, gender: (row.gender as Gender | null) ?? null };
-  } catch (e) {
-    console.error("[session-debug] jwtVerify or db threw", e instanceof Error ? e.message : e);
+  } catch {
     return null;
   }
 }

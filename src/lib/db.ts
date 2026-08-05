@@ -30,7 +30,9 @@ const db = {
   batch: (stmts: any, mode?: any) => getDb().batch(stmts, mode),
 };
 
-// Bump this whenever a migration is added below.
+// Bump this whenever a migration is added below. If you forget, REQUIRED_USER_COLUMNS
+// (near hasColumn, below) is the second safety net for new users.* columns specifically —
+// but it only covers columns listed there, so still bump this for every migration.
 const SCHEMA_VERSION = 21; // 21: gender column (commit 9d15788) shipped without bumping this — prod never ran the ALTER
 
 // The schema setup below is idempotent but issues several remote round-trips.
@@ -48,9 +50,24 @@ export async function initDb() {
   return initPromise;
 }
 
-async function hasColumn(table: "menu_meals" | "menu_items", column: string) {
+async function hasColumn(table: string, column: string) {
   const result = await db.execute({ sql: `PRAGMA table_info(${table})`, args: [] });
   return result.rows.some((row) => String(row.name) === column);
+}
+
+// Independent safety net for the SCHEMA_VERSION fast-path below: a forgotten
+// version bump on a new `ALTER TABLE users ADD COLUMN` used to be a silent,
+// permanent no-op in production (see the 2026-08-05 gender-column incident —
+// login worked, but every session check 500'd on "no such column: gender").
+// Add every optional users.* column here the day it's added, so a missing
+// SCHEMA_VERSION bump can never again hide a missing column.
+const REQUIRED_USER_COLUMNS = ["active", "in_default_group", "dm_coach_only", "session_version", "gender"];
+
+async function usersTableNeedsMigration() {
+  for (const column of REQUIRED_USER_COLUMNS) {
+    if (!(await hasColumn("users", column))) return true;
+  }
+  return false;
 }
 
 export async function menuMealsNeedsLegacyMealType() {
@@ -278,7 +295,11 @@ async function runInit() {
       sql: "SELECT version FROM schema_meta WHERE id = 1",
       args: [],
     });
-    if (Number(schemaMeta.rows[0]?.version) === SCHEMA_VERSION && !(await menuSchemaNeedsMigration())) return;
+    if (
+      Number(schemaMeta.rows[0]?.version) === SCHEMA_VERSION &&
+      !(await menuSchemaNeedsMigration()) &&
+      !(await usersTableNeedsMigration())
+    ) return;
   } catch {
     // schema_meta does not exist yet; the idempotent setup below creates it.
   }
@@ -747,6 +768,8 @@ async function runInit() {
   // Grammatical gender ('male' / 'female'), so Hebrew text addresses the trainee
   // correctly. Deliberately nullable with no default: existing accounts stay NULL
   // and keep the masculine wording they have today until their coach picks.
+  // NOTE: also listed in REQUIRED_USER_COLUMNS above — any new users.* column
+  // needs both a SCHEMA_VERSION bump AND an entry there.
   try {
     await db.execute({ sql: "ALTER TABLE users ADD COLUMN gender TEXT", args: [] });
   } catch {

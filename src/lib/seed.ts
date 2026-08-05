@@ -15,6 +15,11 @@ const FOODS = [
   { name_he: "שווארמה טלה", name_en: "Lamb shawarma", calories: 230, protein: 22, carbs: 2, fat: 15 },
   { name_he: "שווארמה מיקס", name_en: "Mixed shawarma", calories: 210, protein: 23, carbs: 2, fat: 12 },
   { name_he: "חומוס", name_en: "Hummus", calories: 166, protein: 8, carbs: 14, fat: 10 },
+  { name_he: "סטייק בקר", name_en: "Grilled beef steak", calories: 164, protein: 28.9, carbs: 0, fat: 5.3 },
+  { name_he: "סטייק בשר בקר", name_en: "Grilled beef steak", calories: 164, protein: 28.9, carbs: 0, fat: 5.3 },
+  { name_he: "פירה תפוחי אדמה", name_en: "Mashed potatoes with olive oil", calories: 139, protein: 1.7, carbs: 18.6, fat: 6 },
+  { name_he: "פירה מתפוחי אדמה", name_en: "Mashed potatoes with olive oil", calories: 139, protein: 1.7, carbs: 18.6, fat: 6 },
+  { name_he: "מחית תפוחי אדמה", name_en: "Mashed potatoes with olive oil", calories: 139, protein: 1.7, carbs: 18.6, fat: 6 },
 ];
 
 let seeded = false;

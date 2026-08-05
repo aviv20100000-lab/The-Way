@@ -133,7 +133,7 @@ const LOG_FOOD_TOOL = {
             protein:             { type: "number",  description: "Protein in grams" },
             carbs:               { type: "number",  description: "Carbohydrates in grams" },
             fat:                 { type: "number",  description: "Fat in grams" },
-            confidence:          { type: "number",  description: "0.0–1.0 certainty this item is correctly identified. Only include items above 0.6." },
+            confidence:          { type: "number",  description: "0.0–1.0 certainty this item is correctly identified. Only include items above 0.4." },
             reasoning:           { type: "string",  description: "One sentence: visual evidence that led to this identification and portion estimate." },
           },
           required: ["name_he", "estimated_weight_g", "calories", "protein", "carbs", "fat", "confidence"],

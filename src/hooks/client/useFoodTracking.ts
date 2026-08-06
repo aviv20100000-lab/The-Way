@@ -62,34 +62,6 @@ export function useFoodTracking() {
   // ignored instead of clobbering whatever the UI moved on to.
   const analyzeGenerationRef = useRef(0);
 
-  // createImageBitmap/Image.decode can hang forever on a malformed image with
-  // no rejection — a plain await would freeze the whole scan before the
-  // network timeout below even gets a chance to run. Never throws: falls back
-  // to the original uncompressed file, same as compressImageToJpeg itself does.
-  const compressWithTimeout = useCallback((file: File, ms: number): Promise<File> => {
-    return new Promise((resolve) => {
-      let settled = false;
-      const timer = setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        resolve(file);
-      }, ms);
-      compressImageToJpeg(file, 2048, 0.9)
-        .then((result) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(result);
-        })
-        .catch(() => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(file);
-        });
-    });
-  }, []);
-
   const autoLookupByName = useCallback(async (index: number, name: string, grams: number) => {
     if (!name.trim()) return;
     setEstimatingIndex(index);
@@ -159,10 +131,9 @@ export function useFoodTracking() {
     try {
       // Sonnet 5 supports up to 2576px on the long edge. Use 2048px as a middle
       // ground: more meal detail without jumping to the maximum upload size.
-      // Compression itself is timeboxed separately — createImageBitmap/decode
-      // can hang with no rejection on a malformed image, which would otherwise
-      // freeze here before the network stage's own guard ever runs.
-      const jpeg = await compressWithTimeout(file, 10000);
+      // compressImageToJpeg has its own internal 10s timeout — a hung decode
+      // falls back to the original file instead of freezing here forever.
+      const jpeg = await compressImageToJpeg(file, 2048, 0.9);
       if (isStale()) return;
       setLastPhotoBlob(jpeg);
       const fd = new FormData();
@@ -218,7 +189,7 @@ export function useFoodTracking() {
         setAnalyzing(false);
       }
     }
-  }, [compressWithTimeout]);
+  }, []);
 
   const cancelAnalysis = useCallback(() => {
     // Bumping the generation makes any still-running compress/fetch from this

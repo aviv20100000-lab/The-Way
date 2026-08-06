@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const items = rawItems
     .map((it) => ({ foodId: String(it.foodId ?? ""), quantity: Number(it.quantity) }))
-    .filter((it) => it.foodId && Number.isFinite(it.quantity) && it.quantity > 0);
+    .filter((it) => it.foodId && Number.isFinite(it.quantity) && it.quantity > 0 && it.quantity <= 5000);
 
   if (items.length === 0 || items.length > 30) {
     return NextResponse.json({ error: "חסרים פרטים" }, { status: 400 });

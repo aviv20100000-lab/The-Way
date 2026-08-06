@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
-    const grams = Math.max(1, Math.round(Number(body.grams) || 100));
+    const grams = Math.min(5000, Math.max(1, Math.round(Number(body.grams) || 100)));
 
     if (!name) {
       return NextResponse.json({ error: "צריך שם מאכל" }, { status: 400 });

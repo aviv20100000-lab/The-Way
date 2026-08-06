@@ -4,7 +4,7 @@ import db, { initDb } from "@/lib/db";
 
 export async function DELETE(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "׳׳ ׳׳—׳•׳‘׳¨" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
   const { id } = await context.params;
 

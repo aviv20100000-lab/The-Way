@@ -305,6 +305,20 @@ export default function MealScanner(props: MealScannerProps) {
     setCamera("starting");
   }, [cancelAnalysis]);
 
+  // phase is derived as "scanning" whenever capturedUrl is set, regardless of
+  // whether analyzing is still true — so a failed scan (bad photo, timeout,
+  // network error) that only ever clears `analyzing` left the screen stuck on
+  // "מנתח" forever with the error sitting unseen in foodError. Any error
+  // arriving while not actively analyzing means the attempt is over — release
+  // the capture so the screen falls back to "live" and the error can render.
+  useEffect(() => {
+    if (foodError && !analyzing) {
+      setCapturedUrl(null);
+      setArmed(false);
+      setCamera("starting");
+    }
+  }, [foodError, analyzing]);
+
   // Macro totals (real data already returned by the API)
   const macros = (aiResult?.items ?? []).reduce(
     (a, it) => ({
@@ -422,6 +436,12 @@ export default function MealScanner(props: MealScannerProps) {
 
           {/* controls */}
           <div className={compactIdle ? "py-3" : "py-5"}>
+            {/* A scan failure (bad photo, timeout, network) bounces back to "live" —
+                the fallback PhotoUpload below already shows foodError for the
+                no-camera case, this covers the camera/idle states too. */}
+            {phase === "live" && foodError && camera !== "fallback" && (
+              <p className="mb-3 text-center text-xs font-semibold text-red-400">{foodError}</p>
+            )}
             {/* idle — primary CTA opens the camera on demand */}
             {phase === "live" && !armed && camera !== "fallback" && (
               <div className="space-y-3">

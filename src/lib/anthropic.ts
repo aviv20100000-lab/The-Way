@@ -7,11 +7,20 @@ const client = new Anthropic({
 
 // Thin wrapper so a "credit balance too low" failure pages Aviv on Telegram
 // once, instead of silently breaking meal scanning with a generic error.
+//
+// The SDK's own default timeout is 10 minutes — far longer than a trainee
+// will ever wait, and long enough to tie up a serverless function on a stuck
+// upstream request with nothing but a client-side abort to show for it. Every
+// caller here is a single vision/short-text call that normally finishes in a
+// few seconds, so 30s is generous while still failing well before the
+// client's own 45s give-up point (src/hooks/client/useFoodTracking.ts).
+const REQUEST_TIMEOUT_MS = 30000;
+
 async function createMessage(
   params: Anthropic.MessageCreateParamsNonStreaming
 ): Promise<Anthropic.Message> {
   try {
-    return await client.messages.create(params);
+    return await client.messages.create(params, { timeout: REQUEST_TIMEOUT_MS });
   } catch (error) {
     await alertIfLowBalance(error);
     throw error;

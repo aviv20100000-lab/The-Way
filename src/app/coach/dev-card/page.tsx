@@ -1,8 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
 import {
   generateMilestoneShareImage,
   milestoneBlobToDataUrl,
@@ -32,19 +30,15 @@ const CARD_CASES: CardCase[] = BASE_CASES.map((milestone) => ({
   firstName: "אביב",
 }));
 
+// Lives under /coach so the coach-only guard in src/app/coach/layout.tsx covers
+// it for free — it used to sit under /client and rely on its own client-side
+// role check, which left a window where a trainee's browser could briefly
+// render it before the redirect fired.
 export default function MilestoneCardLabPage() {
-  const router = useRouter();
-  const { user, isLoading } = useAuth();
   const [images, setImages] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const generationRef = useRef(0);
-
-  // Internal design-preview tool — no trainee should be able to reach it in
-  // production, it has nothing to do with their own data.
-  useEffect(() => {
-    if (!isLoading && user && user.role !== "coach") router.replace("/client");
-  }, [isLoading, user, router]);
 
   const refresh = useCallback(async () => {
     const generation = generationRef.current + 1;
@@ -82,8 +76,6 @@ export default function MilestoneCardLabPage() {
       generationRef.current += 1;
     };
   }, [refresh]);
-
-  if (isLoading || !user || user.role !== "coach") return null;
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#0a0c09] px-6 py-10 text-white sm:px-10 lg:px-14">

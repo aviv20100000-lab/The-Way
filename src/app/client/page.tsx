@@ -116,12 +116,6 @@ export default function ClientPage() {
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, hasCompetition, competitionGroupName, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
 
-  // A coach who opens this URL directly has no trainee data of their own —
-  // send them back to their own dashboard instead of an empty client view.
-  useEffect(() => {
-    if (!isLoading && user && user.role !== "client") router.replace("/coach");
-  }, [isLoading, user, router]);
-
   // Out of scans for today — walk the trainee down to the manual logger.
   useEffect(() => {
     if (!scanLimitReached) return;
@@ -394,9 +388,6 @@ export default function ClientPage() {
   );
 
   if (isLoading || !user) return <PageSkeleton variant="dashboard" />;
-  // A coach account has no trainee data of its own — this screen would otherwise
-  // render as an empty/broken trainee dashboard under the coach's own account.
-  if (user.role !== "client") return <PageSkeleton variant="dashboard" />;
 
   const waterPct = Math.min(100, Math.round((waterTotal / waterGoal) * 100));
   const stepsPct = goalStatus.steps && stepsGoal > 0

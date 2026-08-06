@@ -55,6 +55,7 @@ export function useFoodTracking() {
   const mealsLoadedRef = useRef(false);
   const nameTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const analyzeAbortRef = useRef<AbortController | null>(null);
+  const analyzeTimedOutRef = useRef(false);
 
   const autoLookupByName = useCallback(async (index: number, name: string, grams: number) => {
     if (!name.trim()) return;
@@ -119,12 +120,26 @@ export function useFoodTracking() {
 
       const controller = new AbortController();
       analyzeAbortRef.current = controller;
-      const res = await fetch("/api/foods/analyze", {
-        method: "POST",
-        body: fd,
-        headers,
-        signal: controller.signal,
-      });
+      analyzeTimedOutRef.current = false;
+      // The model call has occasionally hung with no server-side response at
+      // all — a trainee stuck on "מנתח" forever with no way out. 45s is well
+      // past the ~10s a real analysis takes, so this only fires when something
+      // is actually wrong.
+      const timeoutId = setTimeout(() => {
+        analyzeTimedOutRef.current = true;
+        controller.abort();
+      }, 45000);
+      let res: Response;
+      try {
+        res = await fetch("/api/foods/analyze", {
+          method: "POST",
+          body: fd,
+          headers,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
       const data = await res.json();
       if (!res.ok) {
         if (data?.limit_reached) setScanLimitReached(true);
@@ -142,10 +157,13 @@ export function useFoodTracking() {
       setAiResult(data);
       setMealSaved("idle");
     } catch (e: unknown) {
-      // A user-initiated cancel already reset the UI in cancelAnalysis() — an
-      // aborted fetch must not overwrite that with an error message.
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      setFoodError(e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
+      const isAbort = e instanceof DOMException && e.name === "AbortError";
+      if (isAbort && !analyzeTimedOutRef.current) {
+        // A user-initiated cancel already reset the UI in cancelAnalysis() — an
+        // aborted fetch must not overwrite that with an error message.
+        return;
+      }
+      setFoodError(isAbort ? "הניתוח לוקח יותר מדי זמן. נסה שוב." : e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
       setLastPhotoBlob(null);
     } finally {
       analyzeAbortRef.current = null;

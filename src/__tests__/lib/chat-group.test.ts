@@ -26,7 +26,7 @@ describe("private chat group boundaries", () => {
 
     expect(contacts.map((contact) => contact.id)).toEqual(["coach-1", "client-2"]);
     expect(mockExecute.mock.calls[1][0].sql).toContain("JOIN chat_group_members peer");
-    expect(mockExecute.mock.calls[1][0].args).toEqual(["coach-1", "coach-1", "client-1", "client-1"]);
+    expect(mockExecute.mock.calls[1][0].args).toEqual(["coach-1", "coach-1", "client-1", "client-1", 0]);
   });
 
   it("keeps coach-only mode limited to the coach", async () => {

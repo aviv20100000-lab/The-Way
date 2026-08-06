@@ -9,9 +9,10 @@ interface PhotoUploadProps {
   isLoading?: boolean;
   error?: string;
   captureLabel?: string;
+  onCancel?: () => void;
 }
 
-export function PhotoUpload({ onFile, isLoading = false, error, captureLabel = "צלם ארוחה" }: PhotoUploadProps) {
+export function PhotoUpload({ onFile, isLoading = false, error, captureLabel = "צלם ארוחה", onCancel }: PhotoUploadProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const prefersReducedMotion = useReducedMotion();
@@ -51,6 +52,15 @@ export function PhotoUpload({ onFile, isLoading = false, error, captureLabel = "
           </svg>
         </div>
         <ScanProgress />
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full border border-[#444933] px-5 py-2 text-sm font-semibold text-[#c4c9ac] transition-colors hover:border-red-400/40 hover:text-red-300"
+          >
+            ביטול
+          </button>
+        )}
       </motion.div>
     );
   }

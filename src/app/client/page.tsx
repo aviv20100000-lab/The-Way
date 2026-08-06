@@ -111,10 +111,16 @@ export default function ClientPage() {
 
   // Hooks
   const { user, isLoading, logout } = useAuth();
-  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, proteinGoal, goalStatus, daysSinceSignup, totalSteps, waterAddError, weighInFrequencyWeeks, weighInWeekday, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
-  const { analyzing, aiResult, foodError, scanLimitReached, mealSaved, myMeals, mealDeleteError, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
+  const { quote, waterTotal, waterGoal, todaySteps, stepsGoal, todayCalories: todayCaloriesConsumed, calorieGoal: calorieGoalFromGoals, calorieGoalSource, proteinGoal, goalStatus, daysSinceSignup, totalSteps, waterAddError, weighInFrequencyWeeks, weighInWeekday, isLoaded: homeLoaded, notifStatus, isPwa, addWater, enableNotifications, loadHome } = useClientHome();
+  const { analyzing, aiResult, foodError, scanLimitReached, mealSaved, myMeals, mealDeleteError, todayCalories, calorieGoal, estimatingIndex, loadingMeals, mealsLoaded, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, analyzeFood, cancelAnalysis, logMeal, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, updateItemName, updateItemCalories, updateItemGrams, estimateItemNutrition, deleteItem, addItem, loadMyMeals, deleteMeal } = useFoodTracking();
   const { weightLogs, weightTarget, newWeight, weightPhoto, savingWeight, isLoaded: weightDataLoaded, setNewWeight, setWeightPhoto, loadWeight, saveWeight } = useWeightTracking();
   const { leaderboard, hasCompetition, competitionGroupName, uploadingSteps, stepsSuccess, stepsError, lbView, lbLoaded, setLbView, loadLeaderboard, uploadStepsScreenshot } = useStepsTracking();
+
+  // A coach who opens this URL directly has no trainee data of their own —
+  // send them back to their own dashboard instead of an empty client view.
+  useEffect(() => {
+    if (!isLoading && user && user.role !== "client") router.replace("/coach");
+  }, [isLoading, user, router]);
 
   // Out of scans for today — walk the trainee down to the manual logger.
   useEffect(() => {
@@ -388,6 +394,9 @@ export default function ClientPage() {
   );
 
   if (isLoading || !user) return <PageSkeleton variant="dashboard" />;
+  // A coach account has no trainee data of its own — this screen would otherwise
+  // render as an empty/broken trainee dashboard under the coach's own account.
+  if (user.role !== "client") return <PageSkeleton variant="dashboard" />;
 
   const waterPct = Math.min(100, Math.round((waterTotal / waterGoal) * 100));
   const stepsPct = goalStatus.steps && stepsGoal > 0
@@ -572,6 +581,7 @@ export default function ClientPage() {
                 mealSaved={mealSaved}
                 estimatingIndex={estimatingIndex}
                 analyzeFood={analyzeFood}
+                cancelAnalysis={cancelAnalysis}
                 logMeal={logMeal}
                 lastSavedMealId={lastSavedMealId}
                 sharingMeal={sharingMeal}
@@ -718,7 +728,10 @@ export default function ClientPage() {
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold tracking-wide text-white">קלוריות היום</p>
                   {calorieGoalFromGoals && (
-                    <span className="text-xs text-[#c4c9ac]">יעד: {calorieGoalFromGoals} קל׳</span>
+                    <span className="text-xs text-[#c4c9ac]">
+                      יעד: {calorieGoalFromGoals} קל׳
+                      {calorieGoalSource === "menu" && " (מהתפריט)"}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-end gap-1 mb-3">

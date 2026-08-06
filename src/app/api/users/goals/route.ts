@@ -33,12 +33,41 @@ export async function GET(req: NextRequest) {
   });
 }
 
+// Bounds are generous on purpose — this only needs to catch typos and stray
+// negative signs, not second-guess a coach's programming.
+const GOAL_BOUNDS: Record<string, [number, number]> = {
+  target_weight_kg: [20, 400],
+  daily_calories: [200, 10000],
+  daily_protein_g: [0, 800],
+  daily_water_ml: [0, 15000],
+  daily_steps: [0, 100000],
+  weigh_in_frequency_weeks: [1, 52],
+  weigh_in_weekday: [0, 6],
+};
+
+function validateGoalField(key: string, value: unknown): string | null {
+  const bounds = GOAL_BOUNDS[key];
+  if (!bounds || value === null || value === undefined) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return `ערך לא תקין עבור ${key}`;
+  const [min, max] = bounds;
+  if (num < min || num > max) return `הערך עבור ${key} חייב להיות בין ${min} ל-${max}`;
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   await ensureSeed();
   const session = await getSessionUser();
   if (!session) return NextResponse.json({ error: "לא מחובר" }, { status: 401 });
 
   const body = await req.json();
+
+  for (const key of Object.keys(GOAL_BOUNDS)) {
+    if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
+    const error = validateGoalField(key, body[key]);
+    if (error) return NextResponse.json({ error }, { status: 400 });
+  }
+
   const userId = session.role === "coach" && body.userId ? body.userId : session.id;
 
   if (session.role === "coach" && body.userId) {

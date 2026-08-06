@@ -8,6 +8,7 @@ interface DailySummaryItem {
   reported: boolean;
   calories: number;
   calorie_goal: number | null;
+  calorie_goal_source: "menu" | "general" | null;
   water_ml: number;
   water_goal: number;
   steps: number;
@@ -189,7 +190,7 @@ export default function CoachDailySummary() {
 
                     <div className="mt-3 grid grid-cols-4 gap-2 text-center text-[11px] text-[#9aa181]">
                       <div>
-                        <p>🍽️ קלוריות</p>
+                        <p>🍽️ קלוריות{item.calorie_goal_source === "menu" ? " (תפריט)" : ""}</p>
                         <p className="mt-1 text-sm font-semibold text-white">{formatGoal(item.calories, item.calorie_goal)}</p>
                       </div>
                       <div>

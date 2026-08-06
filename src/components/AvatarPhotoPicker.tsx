@@ -62,7 +62,7 @@ export default function AvatarPhotoPicker({ name, currentUrl, targetUserId, onUp
         title="שנה תמונת פרופיל"
       >
         {url && !imageFailed ? (
-          <Image src={url} alt={name} fill sizes={compact ? "44px" : "80px"} className="object-cover" onError={() => setImageFailed(true)} />
+          <Image src={url} alt={name} fill sizes={compact ? "44px" : "80px"} className="object-cover" onError={() => setImageFailed(true)} unoptimized />
         ) : (
           <span className={compact ? "text-base font-bold" : "text-2xl font-bold"}>{name.slice(0, 1)}</span>
         )}

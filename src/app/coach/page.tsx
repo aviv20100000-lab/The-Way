@@ -53,10 +53,29 @@ interface ClientSummary {
   steps_today: number;
   water_today: number;
   meals: { id: string; total_calories: number; logged_at: string; items: { name: string; calories: number; estimated_weight_g: number }[] }[];
-  goals: { target_weight_kg: number | null; daily_calories: number | null; daily_protein_g: number | null; daily_water_ml: number; daily_steps: number | null };
+  goals: { target_weight_kg: number | null; daily_calories: number | null; daily_calories_source: "menu" | "general" | null; daily_protein_g: number | null; daily_water_ml: number; daily_steps: number | null };
 }
 
 const EMPTY_GOALS: Goals = { target_weight_kg: null, daily_calories: null, daily_protein_g: null, daily_water_ml: 2000, daily_steps: null, weigh_in_frequency_weeks: null, weigh_in_weekday: null };
+
+// Mirrors the bounds enforced server-side in /api/users/goals — kept here too so
+// the save button disables before a round trip, not just after a 400 comes back.
+const GOAL_FIELD_BOUNDS: { key: keyof Goals; label: string; min: number; max: number }[] = [
+  { key: "target_weight_kg", label: "יעד משקל", min: 20, max: 400 },
+  { key: "daily_calories", label: "יעד קלוריות", min: 200, max: 10000 },
+  { key: "daily_protein_g", label: "יעד חלבון", min: 0, max: 800 },
+  { key: "daily_water_ml", label: "יעד מים", min: 0, max: 15000 },
+  { key: "daily_steps", label: "יעד צעדים", min: 0, max: 100000 },
+];
+
+function getGoalsInvalidReason(goals: Goals): string | null {
+  for (const { key, label, min, max } of GOAL_FIELD_BOUNDS) {
+    const value = goals[key];
+    if (value === null || value === undefined) continue;
+    if (value < min || value > max) return `${label} חייב להיות בין ${min} ל-${max}`;
+  }
+  return null;
+}
 
 interface QuickSendVariant {
   title: string;
@@ -162,6 +181,7 @@ export default function CoachPage() {
   const [groupOptions, setGroupOptions] = useState<CoachGroupOption[]>([{ id: DEFAULT_GROUP_ID, name: "קבוצה ראשית" }]);
   const [selectedClient, setSelectedClient] = useState<CoachClient | null>(null);
   const [clientGoals, setClientGoals] = useState<Goals>(EMPTY_GOALS);
+  const goalsInvalidReason = getGoalsInvalidReason(clientGoals);
   const [savingGoals, setSavingGoals] = useState(false);
   const [goalsLoading, setGoalsLoading] = useState(false);
   const [goalsError, setGoalsError] = useState("");
@@ -503,6 +523,7 @@ export default function CoachPage() {
 
   async function saveGoals() {
     if (!selectedClient) return;
+    if (goalsInvalidReason) { setGoalsError(goalsInvalidReason); return; }
     setSavingGoals(true);
     const res = await fetch("/api/users/goals", {
       method: "POST",
@@ -511,7 +532,8 @@ export default function CoachPage() {
     });
     setSavingGoals(false);
     if (!res.ok) {
-      setGoalsError("שמירת היעדים נכשלה. הנתונים לא שונו.");
+      const data = await res.json().catch(() => null);
+      setGoalsError(data?.error ?? "שמירת היעדים נכשלה. הנתונים לא שונו.");
       return;
     }
     setSuccessMessage("היעדים נשמרו");
@@ -887,10 +909,11 @@ export default function CoachPage() {
 
                   {goalsLoading && <p className="text-sm text-[#8e9379]">טוען את היעדים...</p>}
                   {goalsError && <p className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{goalsError}</p>}
+                  {!goalsError && goalsInvalidReason && <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">{goalsInvalidReason}</p>}
 
                   <label className="block">
                     <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד משקל (ק"ג)</span>
-                    <input type="number" step="0.5"
+                    <input type="number" step="0.5" min={20} max={400}
                       value={clientGoals.target_weight_kg ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, target_weight_kg: e.target.value ? parseFloat(e.target.value) : null })}
                       className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
@@ -899,7 +922,7 @@ export default function CoachPage() {
 
                   <label className="block">
                     <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד קלוריות יומי</span>
-                    <input type="number"
+                    <input type="number" min={200} max={10000}
                       value={clientGoals.daily_calories ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_calories: e.target.value ? parseInt(e.target.value) : null })}
                       className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
@@ -908,7 +931,7 @@ export default function CoachPage() {
 
                   <label className="block">
                     <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד חלבון יומי (גרם)</span>
-                    <input type="number"
+                    <input type="number" min={0} max={800}
                       value={clientGoals.daily_protein_g ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_protein_g: e.target.value ? parseInt(e.target.value) : null })}
                       className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
@@ -917,7 +940,7 @@ export default function CoachPage() {
 
                   <label className="block">
                     <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד מים יומי (מ"ל)</span>
-                    <input type="number"
+                    <input type="number" min={0} max={15000}
                       value={clientGoals.daily_water_ml}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_water_ml: parseInt(e.target.value) || 2000 })}
                       className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all" />
@@ -925,7 +948,7 @@ export default function CoachPage() {
 
                   <label className="block">
                     <span className="text-xs font-semibold text-[#c4c9ac] uppercase tracking-wide">יעד צעדים יומי</span>
-                    <input type="number"
+                    <input type="number" min={0} max={100000}
                       value={clientGoals.daily_steps ?? ""}
                       onChange={(e) => setClientGoals({ ...clientGoals, daily_steps: e.target.value ? parseInt(e.target.value) : null })}
                       className="mt-2 w-full rounded-lg border border-[#444933] bg-[#282a2b] px-4 py-3 text-white focus:border-transparent focus:ring-2 focus:ring-[#c3f400] transition-all"
@@ -966,7 +989,7 @@ export default function CoachPage() {
                   <div className="flex gap-3 pt-2">
                     <button onClick={() => setSelectedClient(null)}
                       className="flex-1 rounded-lg border border-[#444933] py-3 text-white font-semibold hover:bg-[#1e2020] transition-all">ביטול</button>
-                    <button onClick={saveGoals} disabled={savingGoals || goalsLoading || Boolean(goalsError)}
+                    <button onClick={saveGoals} disabled={savingGoals || goalsLoading || Boolean(goalsInvalidReason) || Boolean(goalsError)}
                       className="flex-1 rounded-lg bg-[#c3f400] py-3 text-[#161e00] font-semibold hover:bg-[#d4ff26] disabled:opacity-50 transition-all">
                       {savingGoals ? "שומר..." : "שמור יעדים"}
                     </button>
@@ -1048,7 +1071,10 @@ export default function CoachPage() {
                               .reduce((sum, meal) => sum + (Number(meal.total_calories) || 0), 0)
                               .toLocaleString()}
                           </p>
-                          <p className="text-xs text-[#8e9379]">יעד {clientData.goals.daily_calories?.toLocaleString() ?? "לא הוגדר"}</p>
+                          <p className="text-xs text-[#8e9379]">
+                            יעד {clientData.goals.daily_calories?.toLocaleString() ?? "לא הוגדר"}
+                            {clientData.goals.daily_calories_source === "menu" && " (מהתפריט)"}
+                          </p>
                         </div>
                         <div className="rounded-2xl glass-card p-4 text-center">
                           <p className="text-xs text-[#8e9379] mb-1">יעד צעדים</p>
@@ -1225,11 +1251,13 @@ export default function CoachPage() {
           <CoachInsightsPanel
             onViewClient={(clientId) => {
               const client = clients.find((item) => item.id === clientId);
-              if (client) void openClientData(client);
+              // The data modal only renders inside the "clients" tab — without
+              // switching tabs the click set state with nothing on screen to show it.
+              if (client) { setTab("clients"); void openClientData(client); }
             }}
             onEditGoals={(clientId) => {
               const client = clients.find((item) => item.id === clientId);
-              if (client) void openClientGoals(client);
+              if (client) { setTab("clients"); void openClientGoals(client); }
             }}
           />
         )}

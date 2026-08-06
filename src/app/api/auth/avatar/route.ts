@@ -5,6 +5,7 @@ import { uploadUserAvatar } from "@/lib/blob-storage";
 import { isAnthropicImageMediaType } from "@/lib/anthropic";
 import { validateImageMagicBytes } from "@/lib/image-validation";
 import { sendSecurityAlert } from "@/lib/security-alerts";
+import { toAvatarProxyUrl } from "@/lib/avatar-url";
 
 async function alertViolation(req: NextRequest, userId: string, targetUserId: string) {
   await sendSecurityAlert({
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     const url = await uploadUserAvatar(buffer, targetUserId, photo.type);
     await db.execute({ sql: "UPDATE users SET avatar_url = ? WHERE id = ?", args: [url, targetUserId] });
-    return NextResponse.json({ url });
+    return NextResponse.json({ url: toAvatarProxyUrl(targetUserId, url) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "שגיאת העלאת תמונה";
     console.error("[auth/avatar POST]", error);

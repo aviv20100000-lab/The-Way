@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { toAvatarProxyUrl } from "@/lib/avatar-url";
 import db, { initDb } from "@/lib/db";
 
 type MealItem = Record<string, unknown>;
@@ -81,7 +82,7 @@ export async function GET(req: NextRequest) {
     id: String(row.id),
     client_id: String(row.client_id),
     client_name: String(row.client_name),
-    client_avatar_url: row.client_avatar_url ? String(row.client_avatar_url) : null,
+    client_avatar_url: toAvatarProxyUrl(String(row.client_id), row.client_avatar_url ? String(row.client_avatar_url) : null),
     total_calories: Number(row.total_calories) || 0,
     logged_at: String(row.logged_at),
     photo_url: row.photo_url ? String(row.photo_url) : null,
@@ -93,7 +94,7 @@ export async function GET(req: NextRequest) {
     id: String(row.id),
     client_id: String(row.client_id),
     client_name: String(row.client_name),
-    client_avatar_url: row.client_avatar_url ? String(row.client_avatar_url) : null,
+    client_avatar_url: toAvatarProxyUrl(String(row.client_id), row.client_avatar_url ? String(row.client_avatar_url) : null),
     total_calories: Math.round(Number(row.total_calories) || 0),
     logged_at: String(row.logged_at),
     photo_url: null,

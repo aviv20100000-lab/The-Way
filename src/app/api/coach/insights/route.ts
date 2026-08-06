@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { buildCoachInsights, type InsightClientInput, type InsightMealInput, type InsightMenuSelectionInput, type InsightStepsInput, type InsightWeightInput } from "@/lib/coach-insights";
+import { getEffectiveCalorieGoals } from "@/lib/calorie-goal";
+import { toAvatarProxyUrl } from "@/lib/avatar-url";
 
 function proteinFromAiResponse(value: unknown) {
   try {
@@ -94,12 +96,21 @@ export async function GET() {
     }),
   ]);
 
+  const clientIds = clientsRes.rows.map((row) => String(row.id));
+  const profileGoals = new Map(
+    clientsRes.rows.map((row) => [String(row.id), row.daily_calories === null ? null : Number(row.daily_calories)])
+  );
+  const effectiveCalorieGoals = await getEffectiveCalorieGoals(clientIds, profileGoals);
+
+  // A published menu's target overrides the profile goal here too, matching
+  // exactly what the trainee's own home screen shows — otherwise the coach sees
+  // a stale number the moment a menu with a different target goes live.
   const clients: InsightClientInput[] = clientsRes.rows.map((row) => ({
     id: String(row.id),
     name: String(row.name),
-    avatar_url: row.avatar_url ? String(row.avatar_url) : null,
+    avatar_url: toAvatarProxyUrl(String(row.id), row.avatar_url ? String(row.avatar_url) : null),
     created_at: String(row.created_at),
-    daily_calories: row.daily_calories === null ? null : Number(row.daily_calories),
+    daily_calories: effectiveCalorieGoals.get(String(row.id))?.goal ?? null,
     daily_protein_g: row.daily_protein_g === null ? null : Number(row.daily_protein_g),
     daily_steps: row.daily_steps === null ? null : Number(row.daily_steps),
     target_weight_kg: row.target_weight_kg === null ? null : Number(row.target_weight_kg),

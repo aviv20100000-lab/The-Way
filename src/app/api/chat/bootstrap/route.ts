@@ -4,6 +4,7 @@ import db, { initDb } from "@/lib/db";
 import { getPrivateChatContacts, isInDefaultGroup, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
 import { defaultGroupReadKey } from "@/lib/chat-reads";
+import { toAvatarProxyUrl } from "@/lib/avatar-url";
 
 type MessageRow = { id: string } & Record<string, unknown>;
 
@@ -127,7 +128,11 @@ export async function GET() {
     }
 
     const recentRows = Array.from(groupMessagesRes.rows).reverse() as unknown as MessageRow[];
-    const messages = await attachChatReactions(recentRows, user.id);
+    const reactedMessages = await attachChatReactions(recentRows, user.id);
+    const messages = reactedMessages.map((message) => ({
+      ...message,
+      sender_avatar_url: toAvatarProxyUrl(String(message.sender_id), message.sender_avatar_url as string | null),
+    }));
     const namedGroups = namedGroupsRes.rows.map((row) => ({
       id: String(row.id),
       name: String(row.name),
@@ -136,7 +141,7 @@ export async function GET() {
     }));
 
     return NextResponse.json({
-      user: { ...user, avatar_url: selfAvatarRes.rows[0]?.avatar_url ?? null },
+      user: { ...user, avatar_url: toAvatarProxyUrl(user.id, (selfAvatarRes.rows[0]?.avatar_url as string | null) ?? null) },
       contacts: contactsRes,
       unreadMap,
       groupUnread: Number(groupUnreadRes.rows[0]?.count ?? 0),

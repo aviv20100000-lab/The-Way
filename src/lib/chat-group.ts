@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { toAvatarProxyUrl } from "@/lib/avatar-url";
 
 export type ChatUserIdentity = {
   id: string;
@@ -34,7 +35,7 @@ export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<Pr
       args: [user.id, user.id, coachId, coachId, user.id],
     });
     return (result.rows as unknown as (PrivateChatContact & { last_message_at: string | null })[])
-      .map(({ id, name, role, username, avatar_url }) => ({ id, name, role, username, avatar_url }));
+      .map(({ id, name, role, username, avatar_url }) => ({ id, name, role, username, avatar_url: toAvatarProxyUrl(id, avatar_url) }));
   }
 
   const selfResult = await db.execute({
@@ -47,7 +48,8 @@ export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<Pr
       sql: "SELECT id, name, role, username, avatar_url FROM users WHERE id = ?",
       args: [coachId],
     });
-    return coachResult.rows as unknown as PrivateChatContact[];
+    return (coachResult.rows as unknown as PrivateChatContact[])
+      .map((row) => ({ ...row, avatar_url: toAvatarProxyUrl(row.id, row.avatar_url) }));
   }
   const inDefaultGroup = Number(selfResult.rows[0]?.in_default_group ?? 0) === 1;
 
@@ -72,7 +74,8 @@ export async function getPrivateChatContacts(user: ChatUserIdentity): Promise<Pr
           ORDER BY u.role DESC, u.name ASC`,
     args: [coachId, coachId, user.id, user.id, inDefaultGroup ? 1 : 0],
   });
-  return result.rows as unknown as PrivateChatContact[];
+  return (result.rows as unknown as PrivateChatContact[])
+    .map((row) => ({ ...row, avatar_url: toAvatarProxyUrl(row.id, row.avatar_url) }));
 }
 
 export async function canAccessPrivateChat(actor: ChatUserIdentity, peer: ChatUserIdentity): Promise<boolean> {

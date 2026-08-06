@@ -63,6 +63,7 @@ interface MealScannerProps {
   estimateItemNutrition: (index: number) => void;
   deleteItem: (index: number) => void;
   addItem: () => void;
+  cancelAnalysis: () => void;
 }
 
 /* Count-up number animation (rAF, ease-out cubic) */
@@ -93,7 +94,7 @@ export default function MealScanner(props: MealScannerProps) {
   const {
     compact = false,
     analyzing, aiResult, foodError, mealSaved, estimatingIndex,
-    analyzeFood, logMeal, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry,
+    analyzeFood, logMeal, lastSavedMealId, sharingMeal, shareMealError, mealShared, sharePromptDismissed, shareMealToGroup, dismissSharePrompt, resetAiResult, startManualEntry, cancelAnalysis,
     updateItemName, updateItemCalories, updateItemGrams,
     estimateItemNutrition, deleteItem, addItem,
   } = props;
@@ -297,6 +298,13 @@ export default function MealScanner(props: MealScannerProps) {
     rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [resetAiResult]);
 
+  const handleCancelScan = useCallback(() => {
+    cancelAnalysis();
+    setCapturedUrl(null);
+    setArmed(false);
+    setCamera("starting");
+  }, [cancelAnalysis]);
+
   // Macro totals (real data already returned by the API)
   const macros = (aiResult?.items ?? []).reduce(
     (a, it) => ({
@@ -465,7 +473,16 @@ export default function MealScanner(props: MealScannerProps) {
               <PhotoUpload onFile={handleFallbackFile} error={foodError} />
             )}
             {phase === "scanning" && (
-              <p className="text-center text-xs text-[#8e9379]">רק כמה שניות…</p>
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-center text-xs text-[#8e9379]">רק כמה שניות…</p>
+                <button
+                  type="button"
+                  onClick={handleCancelScan}
+                  className="rounded-full border border-[#444933] px-5 py-1.5 text-xs font-semibold text-[#c4c9ac] transition-colors hover:border-red-400/40 hover:text-red-300"
+                >
+                  ביטול
+                </button>
+              </div>
             )}
           </div>
 

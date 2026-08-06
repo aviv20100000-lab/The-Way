@@ -50,18 +50,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "המתאמן לא נמצא" }, { status: 404 });
   }
 
+  const title = typeof body?.title === "string" ? body.title.trim().slice(0, 120) : "";
+  if (!title) return NextResponse.json({ error: "צריך שם לתפריט" }, { status: 400 });
+
+  if (body?.daily_calories_target != null) {
+    const num = Number(body.daily_calories_target);
+    if (!Number.isFinite(num) || num <= 0 || num > 10000) {
+      return NextResponse.json({ error: "יעד קלוריות חייב להיות בין 1 ל-10000" }, { status: 400 });
+    }
+  }
+  if (body?.daily_protein_target != null) {
+    const num = Number(body.daily_protein_target);
+    if (!Number.isFinite(num) || num < 0 || num > 800) {
+      return NextResponse.json({ error: "יעד חלבון חייב להיות בין 0 ל-800" }, { status: 400 });
+    }
+  }
+
   const id = uuid();
-  const title = typeof body?.title === "string" && body.title.trim() ? body.title.trim().slice(0, 120) : "תפריט";
-  const calories = body?.daily_calories_target == null
-    ? null
-    : Number.isFinite(Number(body.daily_calories_target))
-      ? Math.max(0, Math.round(Number(body.daily_calories_target)))
-      : null;
-  const protein = body?.daily_protein_target == null
-    ? null
-    : Number.isFinite(Number(body.daily_protein_target))
-      ? Math.max(0, Math.round(Number(body.daily_protein_target)))
-      : null;
+  const calories = body?.daily_calories_target == null ? null : Math.round(Number(body.daily_calories_target));
+  const protein = body?.daily_protein_target == null ? null : Math.round(Number(body.daily_protein_target));
   const statements = [
     {
       sql: `INSERT INTO menu_plans

@@ -79,6 +79,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!(await getOwnedPlan(id, coach.id))) return NextResponse.json({ error: "התפריט לא נמצא" }, { status: 404 });
 
   const body = await req.json();
+
+  if (body?.daily_calories_target != null) {
+    const num = Number(body.daily_calories_target);
+    if (!Number.isFinite(num) || num <= 0 || num > 10000) {
+      return NextResponse.json({ error: "יעד קלוריות חייב להיות בין 1 ל-10000" }, { status: 400 });
+    }
+  }
+  if (body?.daily_protein_target != null) {
+    const num = Number(body.daily_protein_target);
+    if (!Number.isFinite(num) || num < 0 || num > 800) {
+      return NextResponse.json({ error: "יעד חלבון חייב להיות בין 0 ל-800" }, { status: 400 });
+    }
+  }
+
   const updates: string[] = [];
   const args: Array<string | number | null> = [];
   if (typeof body?.title === "string" && body.title.trim()) {
@@ -87,11 +101,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if (body?.daily_calories_target === null || Number.isFinite(Number(body?.daily_calories_target))) {
     updates.push("daily_calories_target = ?");
-    args.push(body.daily_calories_target === null ? null : Math.max(0, Math.round(Number(body.daily_calories_target))));
+    args.push(body.daily_calories_target === null ? null : Math.round(Number(body.daily_calories_target)));
   }
   if (body?.daily_protein_target === null || Number.isFinite(Number(body?.daily_protein_target))) {
     updates.push("daily_protein_target = ?");
-    args.push(body.daily_protein_target === null ? null : Math.max(0, Math.round(Number(body.daily_protein_target))));
+    args.push(body.daily_protein_target === null ? null : Math.round(Number(body.daily_protein_target)));
   }
   if (body?.status === "draft" || body?.status === "published") {
     updates.push("status = ?");

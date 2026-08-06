@@ -109,12 +109,28 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
     }, 0);
   };
 
+  // Mirrors the bounds enforced server-side in /api/coach/menus — kept here too
+  // so the create/save buttons disable before a round trip, not just after a 400.
+  const planFieldsInvalidReason = (() => {
+    if (!title.trim()) return "צריך שם לתפריט";
+    if (caloriesTarget) {
+      const num = Number(caloriesTarget);
+      if (!Number.isFinite(num) || num <= 0 || num > 10000) return "יעד קלוריות חייב להיות בין 1 ל-10000";
+    }
+    if (proteinTarget) {
+      const num = Number(proteinTarget);
+      if (!Number.isFinite(num) || num < 0 || num > 800) return "יעד חלבון חייב להיות בין 0 ל-800";
+    }
+    return null;
+  })();
+
   const responseError = async (response: Response, fallback: string) => {
     const body = await response.json().catch(() => ({}));
     return typeof body?.error === "string" ? body.error : fallback;
   };
 
   const createPlan = async () => {
+    if (planFieldsInvalidReason) { setError(planFieldsInvalidReason); return; }
     setSaving(true);
     setError("");
     try {
@@ -142,6 +158,7 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
 
   const savePlan = async (status: "draft" | "published") => {
     if (!plan) return;
+    if (planFieldsInvalidReason) { setError(planFieldsInvalidReason); return; }
     setSaving(true);
     setError("");
     setMessage("");
@@ -430,12 +447,13 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
 
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="sm:col-span-1"><span className="text-xs text-[#8e9379]">שם התפריט</span><input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white" /></label>
-              <label><span className="text-xs text-[#8e9379]">יעד קלוריות</span><input type="number" value={caloriesTarget} onChange={(event) => setCaloriesTarget(event.target.value)} className="mt-1 w-full rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white" /></label>
-              <label><span className="text-xs text-[#8e9379]">יעד חלבון</span><input type="number" value={proteinTarget} onChange={(event) => setProteinTarget(event.target.value)} className="mt-1 w-full rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white" /></label>
+              <label><span className="text-xs text-[#8e9379]">יעד קלוריות</span><input type="number" min={1} max={10000} value={caloriesTarget} onChange={(event) => setCaloriesTarget(event.target.value)} className="mt-1 w-full rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white" /></label>
+              <label><span className="text-xs text-[#8e9379]">יעד חלבון</span><input type="number" min={0} max={800} value={proteinTarget} onChange={(event) => setProteinTarget(event.target.value)} className="mt-1 w-full rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white" /></label>
             </div>
+            {planFieldsInvalidReason && <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">{planFieldsInvalidReason}</p>}
 
             {!plan ? (
-              <button type="button" disabled={saving} onClick={() => void createPlan()} className="w-full rounded-xl bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50">צור תפריט חדש</button>
+              <button type="button" disabled={saving || Boolean(planFieldsInvalidReason)} onClick={() => void createPlan()} className="w-full rounded-xl bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50">צור תפריט חדש</button>
             ) : (
               <>
                 <div className={`rounded-2xl border p-3 text-sm ${plan.status === "published" ? "border-[#c3f400]/30 bg-[#c3f400]/10 text-[#d7ff52]" : "border-amber-400/30 bg-amber-400/10 text-amber-200"}`}>
@@ -626,7 +644,7 @@ export default function MenuBuilder({ client, onClose, embedded = false }: { cli
                 <div className="flex items-center gap-2 rounded-2xl border border-[#33372b] p-3"><select value={copyTarget} onChange={(event) => setCopyTarget(Number(event.target.value))} className="min-w-0 flex-1 rounded-xl border border-[#444933] bg-[#1e2020] px-3 py-2 text-white">{DAYS.map((label, index) => index !== activeDay && <option key={label} value={index}>העתק ליום {label}</option>)}</select><button type="button" disabled={saving || copyTarget === activeDay} onClick={() => void duplicateDay()} className="rounded-xl border border-[#444933] px-4 py-2 font-semibold text-[#c4c9ac]">העתק יום</button></div>
                 {error && <p className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}
                 {message && <p className="rounded-xl border border-[#c3f400]/30 bg-[#c3f400]/10 p-3 text-sm text-[#c3f400]">{message}</p>}
-                <div className="grid grid-cols-2 gap-3 pb-6"><button type="button" disabled={saving} onClick={() => void savePlan("draft")} className="rounded-xl border border-[#444933] py-3 font-bold text-[#c4c9ac] disabled:opacity-50">שמור כטיוטה</button><button type="button" disabled={saving} onClick={() => void savePlan("published")} className="rounded-xl bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50">שמור ופרסם למתאמן</button></div>
+                <div className="grid grid-cols-2 gap-3 pb-6"><button type="button" disabled={saving || Boolean(planFieldsInvalidReason)} onClick={() => void savePlan("draft")} className="rounded-xl border border-[#444933] py-3 font-bold text-[#c4c9ac] disabled:opacity-50">שמור כטיוטה</button><button type="button" disabled={saving || Boolean(planFieldsInvalidReason)} onClick={() => void savePlan("published")} className="rounded-xl bg-[#c3f400] py-3 font-bold text-[#161e00] disabled:opacity-50">שמור ופרסם למתאמן</button></div>
               </>
             )}
             {error && !plan && <p className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">{error}</p>}

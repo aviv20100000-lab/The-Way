@@ -7,12 +7,20 @@ import { pushToUsers, setupVapid } from "@/lib/chat-push";
 import { canAccessDefaultGroup, canAccessPrivateChat, getDefaultGroupMemberIds, isGroupMember, resolveCoachId } from "@/lib/chat-group";
 import { attachChatReactions } from "@/lib/chat-reactions";
 import { defaultGroupReadKey, markGroupRead, namedGroupReadKey } from "@/lib/chat-reads";
+import { toAvatarProxyUrl } from "@/lib/avatar-url";
 
 type MessageRow = { id: string } & Record<string, unknown>;
 
 function chronologicalRows(rows: Iterable<unknown>, incremental: boolean): MessageRow[] {
   const ordered = Array.from(rows) as MessageRow[];
   return incremental ? ordered : ordered.reverse();
+}
+
+function withAvatarProxy<T extends Record<string, unknown>>(messages: T[]): T[] {
+  return messages.map((message) => ({
+    ...message,
+    sender_avatar_url: toAvatarProxyUrl(String(message.sender_id), message.sender_avatar_url as string | null),
+  }));
 }
 
 // GET /api/chat/messages?type=group|private&with=userId
@@ -67,7 +75,7 @@ export async function GET(req: NextRequest) {
 
       await markGroupRead(user.id, namedGroupReadKey(groupId));
       const recentRows = chronologicalRows(result.rows, Boolean(afterId));
-      const messages = await attachChatReactions(recentRows, user.id);
+      const messages = withAvatarProxy(await attachChatReactions(recentRows, user.id));
       return NextResponse.json({ messages });
     }
 
@@ -118,7 +126,7 @@ export async function GET(req: NextRequest) {
       });
 
       const recentRows = chronologicalRows(result.rows, Boolean(afterId));
-      const messages = await attachChatReactions(recentRows, user.id);
+      const messages = withAvatarProxy(await attachChatReactions(recentRows, user.id));
       return NextResponse.json({ messages });
     }
 
@@ -151,7 +159,7 @@ export async function GET(req: NextRequest) {
     await markGroupRead(user.id, defaultGroupReadKey(coachId));
 
     const recentRows = chronologicalRows(result.rows, Boolean(afterId));
-    const messages = await attachChatReactions(recentRows, user.id);
+    const messages = withAvatarProxy(await attachChatReactions(recentRows, user.id));
     return NextResponse.json({ messages });
   } catch (err) {
     console.error("[chat/messages GET]", err);

@@ -38,6 +38,7 @@ function Avatar({ name, avatarUrl, size = 44 }: { name: string; avatarUrl?: stri
           height={size}
           className="object-cover w-full h-full"
           onError={() => setFailed(true)}
+          unoptimized
         />
       </div>
     );
@@ -700,10 +701,16 @@ export default function ChatPage() {
     setMessages([]);
     setReactionPickerMessageId(null);
     clearSearch();
+    // Mirrors the ?with= param the initial load already restores from — without
+    // this, a hard refresh inside a private conversation always lands back on
+    // the chat list instead of staying put.
+    const url = m.type === "private" ? `/chat?with=${encodeURIComponent(m.contact.id)}` : "/chat";
+    router.replace(url, { scroll: false });
   };
   const backToList = () => {
     setShowChat(false);
     clearSearch();
+    router.replace("/chat", { scroll: false });
   };
   const namedGroupUnread = namedGroups.reduce((total, group) => total + (group.unreadCount ?? 0), 0);
   const totalUnread = groupUnread + namedGroupUnread + Object.values(unreadMap).reduce((a, b) => a + b, 0);

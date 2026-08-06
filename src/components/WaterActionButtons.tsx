@@ -12,6 +12,7 @@ export function WaterActionButtons({ onAddWater, loading = false }: WaterActionB
   const [customAmount, setCustomAmount] = useState('');
   const [showCustom, setShowCustom] = useState(false);
   const [loadingAmount, setLoadingAmount] = useState<number | null>(null);
+  const [customError, setCustomError] = useState('');
 
   const handleAddWater = async (amount: number) => {
     setLoadingAmount(amount);
@@ -21,11 +22,14 @@ export function WaterActionButtons({ onAddWater, loading = false }: WaterActionB
 
   const handleCustomSubmit = async () => {
     const amount = parseInt(customAmount);
-    if (amount > 0 && amount <= 5000) {
-      await handleAddWater(amount);
-      setCustomAmount('');
-      setShowCustom(false);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 5000) {
+      setCustomError('כמות חייבת להיות בין 1 ל-5000 מ״ל');
+      return;
     }
+    setCustomError('');
+    await handleAddWater(amount);
+    setCustomAmount('');
+    setShowCustom(false);
   };
 
   return (
@@ -86,7 +90,7 @@ export function WaterActionButtons({ onAddWater, loading = false }: WaterActionB
           <input
             type="number"
             value={customAmount}
-            onChange={(e) => setCustomAmount(e.target.value)}
+            onChange={(e) => { setCustomAmount(e.target.value); setCustomError(''); }}
             placeholder="כמות במ״ל"
             aria-label="כמות מים מותאמת במ״ל"
             min="1"
@@ -102,6 +106,9 @@ export function WaterActionButtons({ onAddWater, loading = false }: WaterActionB
             הוסף
           </motion.button>
         </motion.div>
+      )}
+      {customError && (
+        <p className="mt-2 text-xs font-semibold text-red-400">{customError}</p>
       )}
     </motion.div>
   );

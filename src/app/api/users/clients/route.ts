@@ -3,6 +3,7 @@ import { getSessionUser, createUser, getClientsByCoach } from "@/lib/auth";
 import { ensureSeed } from "@/lib/seed";
 import { validatePassword, validateName, validateUsername } from "@/lib/validation";
 import { isGender } from "@/lib/types";
+import { toAvatarProxyUrl } from "@/lib/avatar-url";
 import db from "@/lib/db";
 
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
   const avatarById = new Map(avatars.rows.map((row) => [String(row.id), row.avatar_url ? String(row.avatar_url) : null]));
   return NextResponse.json(clients.map((client) => ({
     ...client,
-    avatar_url: avatarById.get(client.id) ?? null,
+    avatar_url: toAvatarProxyUrl(client.id, avatarById.get(client.id)),
   })));
 }
 

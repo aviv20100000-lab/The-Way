@@ -14,6 +14,7 @@ type HomeCache = {
   stepsGoal: number;
   todayCalories: number;
   calorieGoal: number | null;
+  calorieGoalSource: "menu" | "general" | null;
   proteinGoal: number | null;
   weighInFrequencyWeeks: number | null;
   weighInWeekday: number | null;
@@ -74,6 +75,7 @@ export function useClientHome() {
   const [stepsGoal, setStepsGoal] = useState(cached?.stepsGoal ?? 10000);
   const [todayCalories, setTodayCalories] = useState(cached?.todayCalories ?? 0);
   const [calorieGoal, setCalorieGoal] = useState<number | null>(cached?.calorieGoal ?? null);
+  const [calorieGoalSource, setCalorieGoalSource] = useState<"menu" | "general" | null>(cached?.calorieGoalSource ?? null);
   const [proteinGoal, setProteinGoal] = useState<number | null>(cached?.proteinGoal ?? null);
   const [weighInFrequencyWeeks, setWeighInFrequencyWeeks] = useState<number | null>(cached?.weighInFrequencyWeeks ?? null);
   const [weighInWeekday, setWeighInWeekday] = useState<number | null>(cached?.weighInWeekday ?? null);
@@ -101,6 +103,7 @@ export function useClientHome() {
       setStepsGoal(data.steps_goal ?? 10000);
       setTodayCalories(data.calories?.total ?? 0);
       setCalorieGoal(data.calories?.goal ?? null);
+      setCalorieGoalSource(data.calorie_goal_source ?? null);
       setProteinGoal(data.protein_goal ?? null);
       setWeighInFrequencyWeeks(data.weigh_in_frequency_weeks ?? null);
       setWeighInWeekday(data.weigh_in_weekday ?? null);
@@ -123,6 +126,7 @@ export function useClientHome() {
         stepsGoal: data.steps_goal ?? 10000,
         todayCalories: data.calories?.total ?? 0,
         calorieGoal: data.calories?.goal ?? null,
+        calorieGoalSource: data.calorie_goal_source ?? null,
         proteinGoal: data.protein_goal ?? null,
         weighInFrequencyWeeks: data.weigh_in_frequency_weeks ?? null,
         weighInWeekday: data.weigh_in_weekday ?? null,
@@ -223,6 +227,7 @@ export function useClientHome() {
     stepsGoal,
     todayCalories,
     calorieGoal,
+    calorieGoalSource,
     proteinGoal,
     weighInFrequencyWeeks,
     weighInWeekday,

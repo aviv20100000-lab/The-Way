@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import db, { initDb } from "@/lib/db";
 import { getDayRangeUtc, getTodayDayKey } from "@/lib/daily-summary";
+import { getEffectiveCalorieGoals } from "@/lib/calorie-goal";
 
 export async function GET(req: NextRequest) {
   const coach = await getSessionUser();
@@ -112,6 +113,13 @@ export async function GET(req: NextRequest) {
   );
 
   const goal = goalRes.rows[0] ?? {};
+  // A published menu's calorie target overrides the profile goal — same rule the
+  // trainee's own home screen uses, so the coach doesn't see a stale number here.
+  const effectiveCalorieGoals = await getEffectiveCalorieGoals(
+    [userId],
+    new Map([[userId, (goal.daily_calories as number) ?? null]])
+  );
+  const effectiveCalorieGoal = effectiveCalorieGoals.get(userId) ?? { goal: null, source: null };
 
   return NextResponse.json({
     weights,
@@ -120,7 +128,8 @@ export async function GET(req: NextRequest) {
     meals,
     goals: {
       target_weight_kg: (goal.target_weight_kg as number) ?? null,
-      daily_calories: (goal.daily_calories as number) ?? null,
+      daily_calories: effectiveCalorieGoal.goal,
+      daily_calories_source: effectiveCalorieGoal.source,
       daily_protein_g: (goal.daily_protein_g as number) ?? null,
       daily_water_ml: (goal.daily_water_ml as number) ?? 2000,
       daily_steps: (goal.daily_steps as number) ?? null,

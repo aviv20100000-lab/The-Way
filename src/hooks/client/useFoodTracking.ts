@@ -54,6 +54,7 @@ export function useFoodTracking() {
   const [sharePromptDismissed, setSharePromptDismissed] = useState(false);
   const mealsLoadedRef = useRef(false);
   const nameTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const analyzeAbortRef = useRef<AbortController | null>(null);
 
   const autoLookupByName = useCallback(async (index: number, name: string, grams: number) => {
     if (!name.trim()) return;
@@ -116,10 +117,13 @@ export function useFoodTracking() {
         headers["x-csrf-token"] = csrfToken;
       }
 
+      const controller = new AbortController();
+      analyzeAbortRef.current = controller;
       const res = await fetch("/api/foods/analyze", {
         method: "POST",
         body: fd,
         headers,
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) {
@@ -138,10 +142,23 @@ export function useFoodTracking() {
       setAiResult(data);
       setMealSaved("idle");
     } catch (e: unknown) {
+      // A user-initiated cancel already reset the UI in cancelAnalysis() — an
+      // aborted fetch must not overwrite that with an error message.
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setFoodError(e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
       setLastPhotoBlob(null);
+    } finally {
+      analyzeAbortRef.current = null;
+      setAnalyzing(false);
     }
+  }, []);
+
+  const cancelAnalysis = useCallback(() => {
+    analyzeAbortRef.current?.abort();
+    analyzeAbortRef.current = null;
     setAnalyzing(false);
+    setAiResult(null);
+    setLastPhotoBlob(null);
   }, []);
 
   const updateItemName = useCallback((index: number, name: string) => {
@@ -478,6 +495,7 @@ export function useFoodTracking() {
     mealShared,
     sharePromptDismissed,
     analyzeFood,
+    cancelAnalysis,
     logMeal,
     shareMealToGroup,
     dismissSharePrompt,

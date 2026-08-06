@@ -174,6 +174,14 @@ export async function POST(req: NextRequest) {
       `analyze-food timing: total=${Date.now() - timingStartedAt}ms parse=${parseFinishedAt - timingStartedAt}ms ai=${aiFinishedAt - aiStartedAt}ms tzameret=${tzameretFinishedAt - tzameretStartedAt}ms size=${sizeKB}KB items=${enriched.length} compression=${clientCompression} tzameretTimeouts=${timeoutCount} tzameretRejected=${rejectedCount}`
     );
 
+    // The model found nothing it was confident enough to name — a non-food photo,
+    // or one too blurry/dark to read. Zero items is not the same as "a meal that
+    // really has zero calories": treat it as a failed scan (and refund the quota)
+    // instead of returning a fake zero-calorie result.
+    if (enriched.length === 0) {
+      return failed({ error: "לא הצלחנו לזהות אוכל בתמונה. נסה לצלם שוב מזווית או תאורה טובה יותר." }, 422);
+    }
+
     return NextResponse.json({
       items: enriched,
       total_calories: Math.round(totalCalories),

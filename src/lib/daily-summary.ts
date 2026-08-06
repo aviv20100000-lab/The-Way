@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import type { Gender } from "@/lib/types";
 import { formatDayKey, JERUSALEM_TIME_ZONE } from "@/lib/jerusalem-day";
+import { getEffectiveCalorieGoals, type CalorieGoalSource } from "@/lib/calorie-goal";
 
 export { formatDayKey, getTodayDayKey } from "@/lib/jerusalem-day";
 
@@ -11,6 +12,7 @@ export interface DailySummaryItem {
   reported: boolean;
   calories: number;
   calorie_goal: number | null;
+  calorie_goal_source: CalorieGoalSource;
   water_ml: number;
   water_goal: number;
   steps: number;
@@ -84,7 +86,7 @@ export function getYesterdayDayKey(now = new Date()): string {
   return formatDayKey(yesterday);
 }
 
-function createBaseSummary(row: { client_id: string; client_name: string; client_gender: Gender | null; daily_calories: number | null; daily_water_ml: number | null; daily_steps: number | null; }): DailySummaryItem {
+function createBaseSummary(row: { client_id: string; client_name: string; client_gender: Gender | null; daily_calories: number | null; calorie_goal_source: CalorieGoalSource; daily_water_ml: number | null; daily_steps: number | null; }): DailySummaryItem {
   return {
     client_id: row.client_id,
     client_name: row.client_name,
@@ -92,6 +94,7 @@ function createBaseSummary(row: { client_id: string; client_name: string; client
     reported: false,
     calories: 0,
     calorie_goal: row.daily_calories,
+    calorie_goal_source: row.calorie_goal_source,
     water_ml: 0,
     water_goal: row.daily_water_ml ?? 2000,
     steps: 0,
@@ -209,6 +212,16 @@ export async function getDailySummary(coachId: string, dayKey: string): Promise<
     }),
   ]);
 
+  const clientIds = clientsRes.rows.map((row) => String(row.client_id));
+  const profileGoals = new Map(
+    clientsRes.rows.map((row) => [String(row.client_id), row.daily_calories === null ? null : Number(row.daily_calories)])
+  );
+  // A published menu's target overrides the profile goal here too — same rule
+  // the trainee's own home screen and the coach's insights screen use, so the
+  // coach never sees a stale number the moment a menu with a different target
+  // goes live.
+  const effectiveCalorieGoals = await getEffectiveCalorieGoals(clientIds, profileGoals);
+
   const summary: SummaryMap = new Map(
     clientsRes.rows.map((row) => [
       String(row.client_id),
@@ -216,7 +229,8 @@ export async function getDailySummary(coachId: string, dayKey: string): Promise<
         client_id: String(row.client_id),
         client_name: String(row.client_name),
         client_gender: (row.client_gender as Gender | null) ?? null,
-        daily_calories: row.daily_calories === null ? null : Number(row.daily_calories),
+        daily_calories: effectiveCalorieGoals.get(String(row.client_id))?.goal ?? null,
+        calorie_goal_source: effectiveCalorieGoals.get(String(row.client_id))?.source ?? null,
         daily_water_ml: row.daily_water_ml === null ? null : Number(row.daily_water_ml),
         daily_steps: row.daily_steps === null ? null : Number(row.daily_steps),
       }),

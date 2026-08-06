@@ -512,7 +512,7 @@ export default function MealScanner(props: MealScannerProps) {
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFallbackFile(f); }}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFallbackFile(f); }}
           />
         </div>
       )}

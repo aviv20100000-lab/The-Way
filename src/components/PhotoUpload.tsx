@@ -109,14 +109,14 @@ export function PhotoUpload({ onFile, isLoading = false, error, captureLabel = "
         type="file"
         accept="image/*"
         capture="environment"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
         className="hidden"
       />
       <input
         ref={galleryInputRef}
         type="file"
         accept="image/*"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleFile(f); }}
         className="hidden"
       />
 

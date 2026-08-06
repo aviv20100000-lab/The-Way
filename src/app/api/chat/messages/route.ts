@@ -81,6 +81,11 @@ export async function GET(req: NextRequest) {
 
     if (type === "private") {
       if (!withUserId) return NextResponse.json({ error: "חסר פרמטר with" }, { status: 400 });
+      // A client bug (stale/self-referential ?with= link, leftover polling
+      // tab) can send a user's own id as the chat partner — that is not a
+      // cross-account access attempt, so it must not fire the security alert
+      // that real violations below do.
+      if (withUserId === user.id) return NextResponse.json({ error: "לא ניתן לפתוח שיחה עם עצמך" }, { status: 400 });
 
       const coachId = resolveCoachId(user as Parameters<typeof resolveCoachId>[0]);
       if (!coachId) return NextResponse.json({ error: "המשתמש אינו משויך לקבוצה" }, { status: 403 });

@@ -696,6 +696,10 @@ export default function ChatPage() {
     setSearchOpen(false);
   };
   const selectChat = (m: ChatMode) => {
+    // Should never happen — every contacts list already excludes the caller's
+    // own id — but a self-referential ?with= link is how a stray open tab
+    // ends up polling a request the server always 403s, silently and forever.
+    if (m.type === "private" && m.contact.id === user?.id) return;
     setMode(m);
     setShowChat(true);
     setMessages([]);

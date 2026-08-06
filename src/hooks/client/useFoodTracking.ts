@@ -56,6 +56,39 @@ export function useFoodTracking() {
   const nameTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const analyzeAbortRef = useRef<AbortController | null>(null);
   const analyzeTimedOutRef = useRef(false);
+  // Bumped on every new scan and on cancel. A compression step that never
+  // settles (createImageBitmap/Image.decode have no reliable abort) keeps
+  // running as an orphaned promise — this is how a late result from it gets
+  // ignored instead of clobbering whatever the UI moved on to.
+  const analyzeGenerationRef = useRef(0);
+
+  // createImageBitmap/Image.decode can hang forever on a malformed image with
+  // no rejection — a plain await would freeze the whole scan before the
+  // network timeout below even gets a chance to run. Never throws: falls back
+  // to the original uncompressed file, same as compressImageToJpeg itself does.
+  const compressWithTimeout = useCallback((file: File, ms: number): Promise<File> => {
+    return new Promise((resolve) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        resolve(file);
+      }, ms);
+      compressImageToJpeg(file, 2048, 0.9)
+        .then((result) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(result);
+        })
+        .catch(() => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(file);
+        });
+    });
+  }, []);
 
   const autoLookupByName = useCallback(async (index: number, name: string, grams: number) => {
     if (!name.trim()) return;
@@ -93,6 +126,10 @@ export function useFoodTracking() {
   }, []);
 
   const analyzeFood = useCallback(async (file: File) => {
+    const generation = ++analyzeGenerationRef.current;
+    const isStale = () => analyzeGenerationRef.current !== generation;
+    analyzeTimedOutRef.current = false;
+
     setAnalyzing(true);
     setFoodError("");
     setScanLimitReached(false);
@@ -103,10 +140,30 @@ export function useFoodTracking() {
     setShareMealError("");
     setSharePromptDismissed(false);
     setLastSavedMealId(null);
+
+    // One overall deadline for the whole scan (compression + upload + model
+    // call) — a trainee must never be stuck on "מנתח" forever, regardless of
+    // which stage is the one that hangs.
+    const overallTimer = setTimeout(() => {
+      if (isStale()) return;
+      analyzeTimedOutRef.current = true;
+      analyzeAbortRef.current?.abort();
+      setFoodError("הניתוח לוקח יותר מדי זמן. נסה שוב.");
+      setLastPhotoBlob(null);
+      setAnalyzing(false);
+      // Whatever stage is still stuck (compression has no reliable cancel)
+      // must not be able to overwrite this error if it settles later.
+      analyzeGenerationRef.current += 1;
+    }, 45000);
+
     try {
       // Sonnet 5 supports up to 2576px on the long edge. Use 2048px as a middle
       // ground: more meal detail without jumping to the maximum upload size.
-      const jpeg = await compressImageToJpeg(file, 2048, 0.9);
+      // Compression itself is timeboxed separately — createImageBitmap/decode
+      // can hang with no rejection on a malformed image, which would otherwise
+      // freeze here before the network stage's own guard ever runs.
+      const jpeg = await compressWithTimeout(file, 10000);
+      if (isStale()) return;
       setLastPhotoBlob(jpeg);
       const fd = new FormData();
       fd.append("photo", jpeg);
@@ -117,30 +174,18 @@ export function useFoodTracking() {
       if (csrfToken) {
         headers["x-csrf-token"] = csrfToken;
       }
+      if (isStale()) return;
 
       const controller = new AbortController();
       analyzeAbortRef.current = controller;
-      analyzeTimedOutRef.current = false;
-      // The model call has occasionally hung with no server-side response at
-      // all — a trainee stuck on "מנתח" forever with no way out. 45s is well
-      // past the ~10s a real analysis takes, so this only fires when something
-      // is actually wrong.
-      const timeoutId = setTimeout(() => {
-        analyzeTimedOutRef.current = true;
-        controller.abort();
-      }, 45000);
-      let res: Response;
-      try {
-        res = await fetch("/api/foods/analyze", {
-          method: "POST",
-          body: fd,
-          headers,
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      const res = await fetch("/api/foods/analyze", {
+        method: "POST",
+        body: fd,
+        headers,
+        signal: controller.signal,
+      });
       const data = await res.json();
+      if (isStale()) return;
       if (!res.ok) {
         if (data?.limit_reached) setScanLimitReached(true);
         throw new Error(data.error || "שגיאה");
@@ -157,6 +202,7 @@ export function useFoodTracking() {
       setAiResult(data);
       setMealSaved("idle");
     } catch (e: unknown) {
+      if (isStale()) return;
       const isAbort = e instanceof DOMException && e.name === "AbortError";
       if (isAbort && !analyzeTimedOutRef.current) {
         // A user-initiated cancel already reset the UI in cancelAnalysis() — an
@@ -166,12 +212,19 @@ export function useFoodTracking() {
       setFoodError(isAbort ? "הניתוח לוקח יותר מדי זמן. נסה שוב." : e instanceof Error ? e.message : "שגיאה בניתוח התמונה");
       setLastPhotoBlob(null);
     } finally {
-      analyzeAbortRef.current = null;
-      setAnalyzing(false);
+      clearTimeout(overallTimer);
+      if (!isStale()) {
+        analyzeAbortRef.current = null;
+        setAnalyzing(false);
+      }
     }
-  }, []);
+  }, [compressWithTimeout]);
 
   const cancelAnalysis = useCallback(() => {
+    // Bumping the generation makes any still-running compress/fetch from this
+    // attempt a no-op once it eventually settles — compression in particular
+    // has no reliable way to actually stop it mid-flight.
+    analyzeGenerationRef.current += 1;
     analyzeAbortRef.current?.abort();
     analyzeAbortRef.current = null;
     setAnalyzing(false);
